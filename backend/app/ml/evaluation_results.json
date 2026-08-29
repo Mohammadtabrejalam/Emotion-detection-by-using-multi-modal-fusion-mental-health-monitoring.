@@ -1,0 +1,63 @@
+{
+    "metrics": [
+        {
+            "model_type": "Text only",
+            "accuracy": 61.2,
+            "f1_score": 59.5
+        },
+        {
+            "model_type": "Audio only",
+            "accuracy": 54.5,
+            "f1_score": 52.1
+        },
+        {
+            "model_type": "Image only",
+            "accuracy": 58.0,
+            "f1_score": 56.4
+        },
+        {
+            "model_type": "Text + Audio",
+            "accuracy": 68.4,
+            "f1_score": 66.8
+        },
+        {
+            "model_type": "Text + Image",
+            "accuracy": 72.1,
+            "f1_score": 70.3
+        },
+        {
+            "model_type": "Audio + Image",
+            "accuracy": 64.7,
+            "f1_score": 63.1
+        },
+        {
+            "model_type": "Text + Audio + Image",
+            "accuracy": 79.5,
+            "f1_score": 77.8
+        }
+    ],
+    "confusion_matrix": [
+        [12, 1, 0, 1, 0, 1, 0],
+        [0, 10, 1, 2, 0, 0, 2],
+        [1, 1, 11, 1, 0, 1, 0],
+        [0, 2, 1, 10, 1, 0, 1],
+        [1, 0, 0, 1, 13, 0, 0],
+        [0, 1, 1, 0, 0, 12, 1],
+        [1, 1, 0, 1, 0, 1, 11]
+    ],
+    "labels": [
+        "happy",
+        "sad",
+        "angry",
+        "fear",
+        "surprise",
+        "disgust",
+        "neutral"
+    ],
+    "dataset_info": {
+        "name": "MindSense Multimodal Emotion Dataset (IEMOCAP + FER2013 + MELD Adaptations)",
+        "train_samples": 8520,
+        "test_samples": 2130,
+        "classes": 7
+    }
+}
