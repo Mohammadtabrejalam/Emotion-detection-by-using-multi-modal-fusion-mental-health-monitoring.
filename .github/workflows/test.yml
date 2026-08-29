@@ -1,0 +1,87 @@
+name: MindSense Comprehensive Audit & Automated Test Suite
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test-and-security:
+    name: Backend Pytest, IDOR Suite & Bandit Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest httpx bandit pip-audit
+
+      - name: Run Backend Pytest Suite & IDOR Security Tests
+        run: |
+          python -m pytest backend/tests -v
+
+      - name: Run Bandit Static Code Security Scan
+        run: |
+          bandit -r backend/app -s B101
+
+      - name: Audit Python Dependency CVEs
+        run: |
+          pip-audit || true
+
+  frontend-test-and-build:
+    name: Frontend Vitest Unit Tests & Production Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci || npm install
+
+      - name: Run Vitest Component Unit Tests
+        working-directory: ./frontend
+        run: npm test
+
+      - name: Run Frontend Production TypeScript Build
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Run NPM Security Vulnerability Audit
+        working-directory: ./frontend
+        run: npm audit
+
+  playwright-e2e-browser-test:
+    name: Playwright End-to-End Browser Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci || npm install
+
+      - name: Install Playwright Browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Browser Suite
+        working-directory: ./frontend
+        run: npx playwright test

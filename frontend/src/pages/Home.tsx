@@ -39,64 +39,215 @@ export const Home: React.FC<HomeProps> = ({
   const faqs = [
     {
       q: "What is MindSense?",
-      a: "MindSense is a multimodal AI research and wellness-monitoring platform that analyzes emotional signals from text, audio, and visual inputs using an Intermediate Cross-Attention Transformer."
+      a: "MindSense is an academic research platform exploring how text, voice, and visual signals can be analyzed together to study emotional expression."
     },
     {
       q: "Is MindSense a medical diagnostic system?",
-      a: "No. MindSense is an academic research and wellness-monitoring platform. AI predictions are mathematical estimates and do not replace professional medical or psychiatric diagnosis."
+      a: "No. MindSense is an experimental research system. Emotion estimates are non-clinical computational predictions and do NOT constitute medical diagnosis or psychological advice."
     },
     {
-      q: "How does Intermediate Cross-Attention work?",
-      a: "Rather than concatenating raw features (Early Fusion) or averaging classifier scores (Late Fusion), MindSense projects 64-dimensional unimodal representations into a cross-attention sequence with dynamic availability masking so missing inputs do not cause bias."
+      q: "How does multimodal signal fusion work?",
+      a: "MindSense extracts Lexical text vectors, Vocal Prosody acoustic features, and Facial ROI visual features, aligning them using intermediate cross-attention with dynamic modality availability masking."
     },
     {
-      q: "What benchmark datasets are used?",
-      a: "MindSense is evaluated against four gold-standard corpora: CREMA-D (audio-visual), RAVDESS (speech/song), FER-2013 (in-the-wild facial crops), and GoEmotions (Reddit comments)."
+      q: "How is research data protected?",
+      a: "Research participation is completely voluntary. Contributions are assigned anonymized participant codes and kept strictly isolated from standard application data. You may withdraw consent at any time."
     }
   ];
 
   return (
     <div className="space-y-16 py-2 max-w-6xl mx-auto font-sans">
       
-      {/* 1. HERO SECTION */}
+      {/* HERO SECTION */}
       <section className="relative rounded-3xl overflow-hidden academic-card p-8 md:p-14 border border-slate-800 flex flex-col justify-center items-center text-center space-y-6">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold uppercase tracking-wider">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold uppercase tracking-wider font-mono">
           <Layers className="h-3.5 w-3.5" />
-          <span>Multimodal Affective Computing Research Platform</span>
+          <span>Academic Multimodal Affective Research Platform</span>
         </div>
         
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white max-w-4xl leading-tight font-sans">
-          Multimodal AI for Emotion-Aware <br className="hidden sm:block" />
-          <span className="text-gradient">Wellness & Affective Research</span>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white max-w-4xl leading-tight">
+          MindSense
         </h1>
+
+        <p className="text-lg sm:text-xl font-semibold text-brand-300 max-w-3xl">
+          Understanding emotional expression through multimodal signals.
+        </p>
         
         <p className="text-sm sm:text-base text-slate-300 max-w-3xl font-normal leading-relaxed">
-          MindSense analyzes emotional signals from text, audio, and visual inputs. It integrates natural language semantics, vocal acoustic prosody, and facial micro-expressions into an Intermediate Cross-Attention Transformer.
+          MindSense is a research-oriented platform exploring how text, voice and visual information can be analyzed together to study emotional expression.
         </p>
 
-        {/* Clinical Scope Pill */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
-          <Info className="h-3.5 w-3.5 text-brand-400 shrink-0" />
-          <span>Research & wellness platform. AI predictions are estimates, not medical diagnoses.</span>
+        {/* Clinical Disclaimer */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">
+          <Info className="h-4 w-4 text-brand-400 shrink-0" />
+          <span>MindSense is an experimental research system. Emotion estimates are non-clinical computational predictions.</span>
         </div>
 
-        {/* 2. PRIMARY ACTION */}
+        {/* Hero Actions */}
         <div className="flex flex-wrap justify-center gap-3 pt-2">
           <button
             onClick={onStartAnalysis}
             className="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg flex items-center gap-2"
           >
             <Activity className="h-4 w-4" />
-            <span>Start Analysis</span>
+            <span>Start an Analysis</span>
             <ArrowRight className="h-4 w-4" />
           </button>
           
           <button
-            onClick={() => onNavigate('research', 'overview')}
+            onClick={() => window.location.hash = '#/how-to-use'}
             className="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-xs border border-slate-800 transition"
           >
-            Explore Research Methodology
+            Learn How It Works
           </button>
+        </div>
+      </section>
+
+      {/* SECTION 1 — WHAT WE STUDY */}
+      <section className="space-y-6">
+        <div className="text-center space-y-2 max-w-2xl mx-auto">
+          <span className="text-xs font-mono font-bold text-brand-400 uppercase tracking-widest block">
+            Research Scope
+          </span>
+          <h2 className="text-2xl font-bold text-white tracking-tight">What We Study</h2>
+          <p className="text-xs text-slate-400">Exploring affective signal patterns across three fundamental human communication modalities.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="academic-card p-6 space-y-3">
+            <div className="p-3 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-400 w-fit">
+              <FileText className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">Text</h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Analyzes lexical syntax, word choice, and contextual semantic sentiment within written language.
+            </p>
+          </div>
+
+          <div className="academic-card p-6 space-y-3">
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 w-fit">
+              <Mic className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">Voice</h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Evaluates speech acoustics, pitch variation, vocal prosody, and autonomic arousal signals.
+            </p>
+          </div>
+
+          <div className="academic-card p-6 space-y-3">
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 w-fit">
+              <Camera className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">Visual Expression</h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              Observes facial micro-expressions and facial muscle movement patterns in visual frame inputs.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 2 — HOW IT WORKS (4-STEP VISUAL) */}
+      <section className="academic-card p-8 space-y-6">
+        <div className="text-center space-y-2 max-w-2xl mx-auto">
+          <span className="text-xs font-mono font-bold text-brand-400 uppercase tracking-widest block">
+            System Methodology
+          </span>
+          <h2 className="text-2xl font-bold text-white tracking-tight">How It Works</h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-2">
+            <span className="text-xl font-bold font-mono text-brand-400 block">01</span>
+            <h4 className="font-bold text-white text-xs">Provide an Input</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              Supply a text snippet, recorded audio sample, or facial video frame.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-2">
+            <span className="text-xl font-bold font-mono text-brand-400 block">02</span>
+            <h4 className="font-bold text-white text-xs">Signal Processing</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              Extract lexical embeddings, acoustic MFCC prosody, and facial ROI movement.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-2">
+            <span className="text-xl font-bold font-mono text-brand-400 block">03</span>
+            <h4 className="font-bold text-white text-xs">Multimodal Analysis</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              Cross-attention neural layers align available modalities with dynamic masking.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-2">
+            <span className="text-xl font-bold font-mono text-brand-400 block">04</span>
+            <h4 className="font-bold text-white text-xs">View Your Result</h4>
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              Inspect 7-class emotion probabilities, confidence metrics, and signal weightings.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3 — RESEARCH */}
+      <section className="academic-card p-8 border-l-4 border-indigo-500 bg-slate-900/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <span className="text-xs font-mono font-bold text-indigo-400 uppercase tracking-widest block">
+            Academic Validation
+          </span>
+          <h2 className="text-xl font-bold text-white tracking-tight">Scientific Research & Benchmark Datasets</h2>
+          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            MindSense supports empirical research into affective computing. Our algorithms are benchmarked against gold-standard corpora including CREMA-D, RAVDESS, FER-2013, and GoEmotions.
+          </p>
+        </div>
+
+        <button
+          onClick={() => window.location.hash = '#/research'}
+          className="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition border border-slate-700 shrink-0"
+        >
+          Learn About the Research
+        </button>
+      </section>
+
+      {/* SECTION 4 — PARTICIPATE */}
+      <section className="academic-card p-8 border-l-4 border-emerald-500 bg-emerald-950/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2 max-w-2xl">
+          <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest block">
+            Scientific Contribution
+          </span>
+          <h2 className="text-xl font-bold text-white tracking-tight">Participate in Research</h2>
+          <p className="text-xs text-slate-300 leading-relaxed font-sans">
+            Help us improve research into emotional expression by contributing optional responses and multimodal samples under strict informed consent protocol.
+          </p>
+        </div>
+
+        <button
+          onClick={() => window.location.hash = '#/participate'}
+          className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shrink-0 flex items-center gap-2"
+        >
+          <span>Participate in Research</span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </section>
+
+      {/* SECTION 5 — PRIVACY */}
+      <section className="academic-card p-8 space-y-4">
+        <div className="flex items-center gap-2 text-brand-400">
+          <BrainCircuit className="h-5 w-5" />
+          <h3 className="font-bold text-white text-base">Privacy & Data Governance</h3>
+        </div>
+        
+        <div className="grid sm:grid-cols-2 gap-4 text-xs text-slate-300 font-sans">
+          <div className="space-y-1 bg-slate-900 p-4 rounded-xl border border-slate-800">
+            <strong className="text-white block font-sans">Information Collected</strong>
+            <p className="text-slate-400 text-[11px]">We collect account identifiers (email/username) and optional submitted analysis text or media features.</p>
+          </div>
+
+          <div className="space-y-1 bg-slate-900 p-4 rounded-xl border border-slate-800">
+            <strong className="text-white block font-sans">Data Rights & Deletion</strong>
+            <p className="text-slate-400 text-[11px]">You can export your complete history in JSON or permanently purge your account via Settings (`/settings`).</p>
+          </div>
         </div>
       </section>
 

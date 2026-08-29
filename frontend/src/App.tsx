@@ -20,6 +20,9 @@ import { Checkin } from './pages/Checkin';
 import { Settings } from './pages/Settings';
 import { HowToUsePage } from './pages/HowToUsePage';
 import { RulesPage } from './pages/RulesPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { ResearchParticipatePage } from './pages/ResearchParticipatePage';
+import { EmotionChallengePage } from './pages/EmotionChallengePage';
 import { SharedResultPage } from './pages/SharedResultPage';
 import { DeveloperPortal } from './pages/developer/DeveloperPortal';
 import { DashboardPage } from './pages/DashboardPage';
@@ -54,6 +57,9 @@ export const App: React.FC = () => {
   const isAccountView = Boolean(currentLocation.isAccountView);
   const isHowToUse = Boolean(currentLocation.isHowToUse) || currentHash === '#/how-to-use';
   const isRules = Boolean(currentLocation.isRules) || currentHash === '#/rules';
+  const isPrivacy = currentHash === '#/privacy';
+  const isParticipate = currentHash === '#/participate';
+  const isChallenge = currentHash === '#/challenge';
   const isSettingsView = Boolean(currentLocation.isSettingsView) || currentHash === '#/settings';
 
   // Sub-navigation states for multi-tab pillars
@@ -312,6 +318,21 @@ export const App: React.FC = () => {
           />
         ) : isRules ? (
           <RulesPage
+            onBack={handleBack}
+          />
+        ) : isPrivacy ? (
+          <PrivacyPage
+            onBack={handleBack}
+          />
+        ) : isParticipate ? (
+          <ResearchParticipatePage
+            currentUser={currentUser}
+            onBack={handleBack}
+            onNavigateLogin={() => handleNavigate('home', undefined, true, false)}
+          />
+        ) : isChallenge ? (
+          <EmotionChallengePage
+            currentUser={currentUser}
             onBack={handleBack}
           />
         ) : isAuthView ? (

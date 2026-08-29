@@ -461,6 +461,118 @@ export const apiService = {
     localStorage.removeItem('mindsense_token');
   },
 
+  // ----------------- RESEARCH PARTICIPATION APIS ----------------- //
+
+  async getResearchStudies(): Promise<ApiResponse<{ studies: any[] }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/research/studies`);
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async submitResearchConsent(studyId: number, consentVersion: string = '1.0'): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/research/consent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ study_id: studyId, consent_version: consentVersion }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async submitResearchParticipation(payload: {
+    study_id: number;
+    age_group: string;
+    gender_identity: string;
+    questionnaire_answers: Record<string, any>;
+    contributed_modalities: string;
+    analysis_id?: string;
+  }): Promise<ApiResponse<{ participant_code: string; contribution_id: number; message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/research/participate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async withdrawResearch(studyId: number): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/research/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ study_id: studyId }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  // ----------------- EMOTION RECOGNITION CHALLENGE APIS ----------------- //
+
+  async submitChallenge(score: number, totalQuestions: number, accuracy: number): Promise<ApiResponse<{ attempt_id: number; message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/challenge/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ score, total_questions: totalQuestions, accuracy }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async getChallengeHistory(): Promise<ApiResponse<{ history: any[] }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/challenge/history`, {
+        headers: getAuthHeaders(),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  // ----------------- USER DATA RIGHTS APIS ----------------- //
+
+  async exportUserData(): Promise<ApiResponse<{ export: any }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/export-data`, {
+        headers: getAuthHeaders(),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async deleteUserAccount(): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/account`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const res = await response.json();
+      if (res.success) {
+        localStorage.removeItem('mindsense_token');
+      }
+      return res;
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
   // ----------------- DEVELOPER / ADMIN PORTAL APIS ----------------- //
 
   async developerRegister(payload: {
@@ -646,6 +758,20 @@ export const apiService = {
       return await response.json();
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'FETCH_ERROR', message: error.message } };
+    }
+  },
+
+  async submitUserFeedback(category: string, content: string): Promise<ApiResponse<{ feedback_id: number; message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ category, content })
+      });
+      if (!response.ok) throw new Error('Failed to submit feedback');
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'SUBMIT_ERROR', message: error.message } };
     }
   },
 };

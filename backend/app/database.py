@@ -209,6 +209,76 @@ def init_db():
         revoked_at TEXT
     )
     """)
+
+    # 15. Research Studies Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_studies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        institution TEXT NOT NULL,
+        principal_investigator TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    # 16. Research Participants Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_participants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        participant_code TEXT UNIQUE NOT NULL,
+        age_group TEXT NOT NULL,
+        gender_identity TEXT NOT NULL,
+        eligibility_confirmed INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+    """)
+
+    # 17. Research Consents Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_consents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        study_id INTEGER NOT NULL,
+        consent_given INTEGER NOT NULL DEFAULT 1,
+        consent_version TEXT NOT NULL DEFAULT '1.0',
+        signed_at TEXT NOT NULL,
+        withdrawn_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (study_id) REFERENCES research_studies (id) ON DELETE CASCADE
+    )
+    """)
+
+    # 18. Research Contributions Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS research_contributions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        participant_id INTEGER NOT NULL,
+        study_id INTEGER NOT NULL,
+        analysis_id TEXT,
+        questionnaire_answers_json TEXT,
+        contributed_modalities TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (participant_id) REFERENCES research_participants (id) ON DELETE CASCADE,
+        FOREIGN KEY (study_id) REFERENCES research_studies (id) ON DELETE CASCADE
+    )
+    """)
+
+    # 19. Emotion Recognition Challenge Attempts Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS challenge_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        score INTEGER NOT NULL,
+        total_questions INTEGER NOT NULL,
+        accuracy REAL NOT NULL,
+        completed_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+    """)
     
     # Run automatic migrations for older schemas
     cursor.execute("PRAGMA table_info(analyses)")
@@ -1287,6 +1357,271 @@ def get_developer_by_id(dev_id: int):
         """, (dev_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
+    finally:
+        conn.close()
+
+# ----------------- RESEARCH PARTICIPATION & STUDY HELPERS ----------------- #
+
+def get_active_research_studies():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, title, description, institution, principal_investigator, status, created_at FROM research_studies WHERE status = 'active'")
+        rows = cursor.fetchall()
+        if not rows:
+            cursor.execute("""
+            INSERT INTO research_studies (title, description, institution, principal_investigator, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                "Multimodal Affective Baseline Study 2026",
+                "Longitudinal study observing dynamic affective cross-attention alignment across text lexical cues, vocal acoustic prosody, and facial micro-expressions.",
+                "MindSense Affective Computing Research Group",
+                "Dr. Elena Vance",
+                "active",
+                datetime.utcnow().isoformat()
+            ))
+            conn.commit()
+            cursor.execute("SELECT id, title, description, institution, principal_investigator, status, created_at FROM research_studies WHERE status = 'active'")
+            rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+def register_research_participant(user_id: int, age_group: str, gender_identity: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, participant_code FROM research_participants WHERE user_id = ?", (user_id,))
+        existing = cursor.fetchone()
+        if existing:
+            return dict(existing)
+            
+        participant_code = f"PAR-{secrets.token_hex(4).upper()}"
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("""
+        INSERT INTO research_participants (user_id, participant_code, age_group, gender_identity, eligibility_confirmed, created_at)
+        VALUES (?, ?, ?, ?, 1, ?)
+        """, (user_id, participant_code, age_group, gender_identity, now_str))
+        conn.commit()
+        p_id = cursor.lastrowid
+        return {"id": p_id, "participant_code": participant_code, "age_group": age_group, "gender_identity": gender_identity}
+    finally:
+        conn.close()
+
+def save_research_consent(user_id: int, study_id: int, consent_version: str = "1.0"):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("""
+        INSERT INTO research_consents (user_id, study_id, consent_given, consent_version, signed_at)
+        VALUES (?, ?, 1, ?, ?)
+        """, (user_id, study_id, consent_version, now_str))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+def record_research_contribution(participant_id: int, study_id: int, analysis_id: Optional[str], questionnaire_answers: dict, modalities: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        q_json = json.dumps(questionnaire_answers)
+        cursor.execute("""
+        INSERT INTO research_contributions (participant_id, study_id, analysis_id, questionnaire_answers_json, contributed_modalities, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (participant_id, study_id, analysis_id, q_json, modalities, now_str))
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+def withdraw_research_participant(user_id: int, study_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("UPDATE research_consents SET consent_given = 0, withdrawn_at = ? WHERE user_id = ? AND study_id = ?", (now_str, user_id, study_id))
+        
+        cursor.execute("SELECT id FROM research_participants WHERE user_id = ?", (user_id,))
+        p_row = cursor.fetchone()
+        if p_row:
+            cursor.execute("DELETE FROM research_contributions WHERE participant_id = ? AND study_id = ?", (p_row["id"], study_id))
+            
+        conn.commit()
+        log_audit_event(str(user_id), "USER", "RESEARCH_WITHDRAWAL", str(study_id), "User withdrew research consent and requested sample purging.")
+        return True
+    finally:
+        conn.close()
+
+# ----------------- EMOTION RECOGNITION CHALLENGE HELPERS ----------------- #
+
+def record_challenge_attempt(user_id: Optional[int], score: int, total_questions: int, accuracy: float):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("""
+        INSERT INTO challenge_attempts (user_id, score, total_questions, accuracy, completed_at)
+        VALUES (?, ?, ?, ?, ?)
+        """, (user_id, score, total_questions, accuracy, now_str))
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+def get_user_challenge_history(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, score, total_questions, accuracy, completed_at FROM challenge_attempts WHERE user_id = ? ORDER BY completed_at DESC", (user_id,))
+        rows = cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+# ----------------- USER DATA RIGHTS (EXPORT & DELETION) HELPERS ----------------- #
+
+def export_user_complete_data(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, username, email, name, created_at FROM users WHERE id = ?", (user_id,))
+        u_row = cursor.fetchone()
+        if not u_row:
+            return None
+            
+        user_data = dict(u_row)
+        
+        cursor.execute("SELECT id, timestamp, modalities_used, final_emotion, confidence_score FROM analyses WHERE user_id = ?", (user_id,))
+        user_data["analyses"] = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT id, timestamp, feeling_score, energy_score, sleep_score, stress_score, notes FROM daily_checkins WHERE user_id = ?", (user_id,))
+        user_data["daily_checkins"] = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT id, date, title, content, mood_tag, created_at FROM daily_notes WHERE user_id = ?", (user_id,))
+        user_data["daily_notes"] = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT id, participant_code, created_at FROM research_participants WHERE user_id = ?", (user_id,))
+        p_row = cursor.fetchone()
+        if p_row:
+            user_data["research_participant"] = dict(p_row)
+            cursor.execute("SELECT id, study_id, contributed_modalities, created_at FROM research_contributions WHERE participant_id = ?", (p_row["id"],))
+            user_data["research_contributions"] = [dict(r) for r in cursor.fetchall()]
+            
+        return user_data
+    finally:
+        conn.close()
+
+def delete_user_complete_account(user_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM daily_notes WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM daily_checkins WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM login_sessions WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM active_sessions WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM research_consents WHERE user_id = ?", (user_id,))
+        
+        cursor.execute("SELECT id FROM research_participants WHERE user_id = ?", (user_id,))
+        p_row = cursor.fetchone()
+        if p_row:
+            cursor.execute("DELETE FROM research_contributions WHERE participant_id = ?", (p_row["id"],))
+            cursor.execute("DELETE FROM research_participants WHERE id = ?", (p_row["id"],))
+            
+        cursor.execute("DELETE FROM challenge_attempts WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM analyses WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        
+        conn.commit()
+        log_audit_event(str(user_id), "USER", "ACCOUNT_DELETED", str(user_id), f"User account {user_id} and all associated data permanently deleted.")
+        return True
+    finally:
+        conn.close()
+
+# ----------------- FEEDBACK MANAGEMENT HELPERS ----------------- #
+
+def save_user_feedback(user_id: Optional[int], category: str, content: str) -> int:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            status TEXT DEFAULT 'NEW',
+            created_at TEXT NOT NULL
+        )
+        """)
+        cursor.execute(
+            "INSERT INTO feedbacks (user_id, category, content, status, created_at) VALUES (?, ?, ?, 'NEW', ?)",
+            (user_id, category, content, now_str)
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+def get_feedbacks_list(status_filter: Optional[str] = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            status TEXT DEFAULT 'NEW',
+            created_at TEXT NOT NULL
+        )
+        """)
+        if status_filter:
+            cursor.execute("SELECT id, user_id, category, content, status, created_at FROM feedbacks WHERE status = ? ORDER BY created_at DESC", (status_filter,))
+        else:
+            cursor.execute("SELECT id, user_id, category, content, status, created_at FROM feedbacks ORDER BY created_at DESC")
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+def update_feedback_status(feedback_id: int, new_status: str) -> bool:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE feedbacks SET status = ? WHERE id = ?", (new_status, feedback_id))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+# ----------------- EMOTION CHALLENGE GAME HELPERS ----------------- #
+
+def record_game_session(user_id: Optional[int], score: int, total_questions: int, accuracy: float, streak: int = 0) -> int:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        now_str = datetime.utcnow().isoformat()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS game_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            score INTEGER NOT NULL,
+            total_questions INTEGER NOT NULL,
+            accuracy REAL NOT NULL,
+            streak INTEGER DEFAULT 0,
+            completed_at TEXT NOT NULL
+        )
+        """)
+        cursor.execute(
+            "INSERT INTO game_sessions (user_id, score, total_questions, accuracy, streak, completed_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, score, total_questions, accuracy, streak, now_str)
+        )
+        conn.commit()
+        return cursor.lastrowid
     finally:
         conn.close()
 

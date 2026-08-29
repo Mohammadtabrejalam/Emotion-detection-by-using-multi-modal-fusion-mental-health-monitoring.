@@ -28,7 +28,13 @@ from .database import (
     register_developer, verify_developer_email, get_pending_developer_requests,
     update_developer_account_status, create_developer_password_reset,
     reset_developer_password, create_user_password_reset, reset_user_password,
-    revoke_session_token, is_token_revoked, get_developer_by_id
+    revoke_session_token, is_token_revoked, get_developer_by_id,
+    get_active_research_studies, register_research_participant,
+    save_research_consent, record_research_contribution,
+    withdraw_research_participant, record_challenge_attempt,
+    get_user_challenge_history, export_user_complete_data,
+    delete_user_complete_account, get_feedbacks_list,
+    update_feedback_status, record_game_session
 )
 from .rate_limiter import rate_limiter
 from .ml.preprocessing.text import tokenize, check_crisis_keywords
@@ -186,7 +192,7 @@ if PYTORCH_AVAILABLE:
         model = MultimodalFusionModel(num_classes=7, d_model=64)
         model_path = os.path.join(os.path.dirname(__file__), "ml", "mindsense_fusion.pt")
         if os.path.exists(model_path):
-            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
             model.eval()
             print("Loaded PyTorch Multimodal Fusion weights successfully.")
         else:
@@ -255,6 +261,36 @@ class DeveloperRegisterRequest(BaseModel):
 
 class DeveloperStatusUpdateRequest(BaseModel):
     status: str  # ACTIVE, PENDING_APPROVAL, SUSPENDED, REVOKED
+
+class ResearchConsentRequest(BaseModel):
+    study_id: int
+    consent_version: Optional[str] = "1.0"
+
+class ResearchParticipateRequest(BaseModel):
+    study_id: int
+    age_group: str
+    gender_identity: str
+    questionnaire_answers: dict
+    contributed_modalities: str
+    analysis_id: Optional[str] = None
+
+class ResearchWithdrawRequest(BaseModel):
+    study_id: int
+
+class ChallengeSubmitRequest(BaseModel):
+    score: int
+    total_questions: int
+    accuracy: float
+    streak: Optional[int] = 0
+
+class FeedbackRequest(BaseModel):
+    category: Optional[str] = "general"
+    content: Optional[str] = None
+    comment: Optional[str] = None
+    rating: Optional[int] = 5
+
+class FeedbackStatusUpdateRequest(BaseModel):
+    status: str
 
 class DailyNoteRequest(BaseModel):
     user_id: int
@@ -511,6 +547,147 @@ def user_logout(request: Request):
             revoke_session_token(token, user["id"], "user")
     return {"success": True, "data": {"message": "User logged out successfully."}, "error": None}
 
+# ----------------- RESEARCH PARTICIPATION & STUDY ENDPOINTS ----------------- #
+
+@app.get("/api/research/studies", response_model=StandardResponse)
+def list_research_studies():
+    studies = get_active_research_studies()
+    return {"success": True, "data": {"studies": studies}, "error": None}
+
+@app.post("/api/research/consent", response_model=StandardResponse)
+def submit_research_consent(req: ResearchConsentRequest, request: Request):
+    user = get_current_user_from_req(request)
+    ok = save_research_consent(user["id"], req.study_id, req.consent_version or "1.0")
+    if ok:
+        return {"success": True, "data": {"message": "Research participation consent recorded."}, "error": None}
+    return {"success": False, "error": {"code": "CONSENT_FAILED", "message": "Failed to record research consent."}}
+
+@app.post("/api/research/participate", response_model=StandardResponse)
+def submit_research_participation(req: ResearchParticipateRequest, request: Request):
+    user = get_current_user_from_req(request)
+    p_info = register_research_participant(user["id"], req.age_group, req.gender_identity)
+    
+    contrib_id = record_research_contribution(
+        participant_id=p_info["id"],
+        study_id=req.study_id,
+        analysis_id=req.analysis_id,
+        questionnaire_answers=req.questionnaire_answers,
+        modalities=req.contributed_modalities
+    )
+    
+    return {
+        "success": True,
+        "data": {
+            "participant_code": p_info["participant_code"],
+            "contribution_id": contrib_id,
+            "message": "Thank you for contributing to MindSense research!"
+        },
+        "error": None
+    }
+
+@app.post("/api/research/withdraw", response_model=StandardResponse)
+def withdraw_from_research(req: ResearchWithdrawRequest, request: Request):
+    user = get_current_user_from_req(request)
+    ok = withdraw_research_participant(user["id"], req.study_id)
+    if ok:
+        return {"success": True, "data": {"message": "Successfully withdrawn from research study and purged contributions."}, "error": None}
+    return {"success": False, "error": {"code": "WITHDRAWAL_FAILED", "message": "Failed to process research withdrawal."}}
+
+# ----------------- EMOTION RECOGNITION CHALLENGE ENDPOINTS ----------------- #
+
+@app.post("/api/challenge/submit", response_model=StandardResponse)
+def submit_challenge(req: ChallengeSubmitRequest, request: Request):
+    opt_user = get_optional_user_from_req(request)
+    user_id = opt_user["id"] if opt_user else None
+    
+    attempt_id = record_challenge_attempt(user_id, req.score, req.total_questions, req.accuracy)
+    return {
+        "success": True,
+        "data": {
+            "attempt_id": attempt_id,
+            "score": req.score,
+            "accuracy": req.accuracy,
+            "message": "Challenge completed! Results recorded for personal reflection."
+        },
+        "error": None
+    }
+
+@app.get("/api/challenge/history", response_model=StandardResponse)
+def challenge_history(request: Request):
+    user = get_current_user_from_req(request)
+    history = get_user_challenge_history(user["id"])
+    return {"success": True, "data": {"history": history}, "error": None}
+
+@app.post("/api/game/session", response_model=StandardResponse)
+def create_game_session(req: ChallengeSubmitRequest, request: Request):
+    opt_user = get_optional_user_from_req(request)
+    user_id = opt_user["id"] if opt_user else None
+    
+    session_id = record_game_session(user_id, req.score, req.total_questions, req.accuracy, req.streak or 0)
+    return {
+        "success": True,
+        "data": {
+            "session_id": session_id,
+            "score": req.score,
+            "accuracy": req.accuracy,
+            "streak": req.streak or 0,
+            "message": "Game session recorded successfully."
+        },
+        "error": None
+    }
+
+# ----------------- PUBLIC & DEVELOPER FEEDBACK ENDPOINTS ----------------- #
+
+@app.post("/api/feedback", response_model=StandardResponse)
+def submit_feedback(req: FeedbackRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "feedback", limit=10)
+    opt_user = get_optional_user_from_req(request)
+    user_id = opt_user["id"] if opt_user else None
+    
+    feedback_text = req.content or req.comment or "User Feedback"
+    category_text = req.category or "general"
+    feedback_id = save_user_feedback(user_id, category_text, feedback_text)
+    return {
+        "success": True,
+        "data": {
+            "feedback_id": feedback_id,
+            "message": "Thank you for your feedback! It has been submitted for review."
+        },
+        "error": None
+    }
+
+@app.get("/api/developer/feedback", response_model=StandardResponse)
+def developer_list_feedback(request: Request, status: Optional[str] = Query(None)):
+    dev = get_current_developer_from_req(request)
+    feedbacks = get_feedbacks_list(status)
+    return {"success": True, "data": {"feedbacks": feedbacks, "feedback": feedbacks}, "error": None}
+
+@app.post("/api/developer/feedback/{feedback_id}/status", response_model=StandardResponse)
+def developer_update_feedback_status(feedback_id: int, req: FeedbackStatusUpdateRequest, request: Request):
+    dev = get_current_developer_from_req(request)
+    ok = update_feedback_status(feedback_id, req.status)
+    if ok:
+        return {"success": True, "data": {"message": f"Feedback #{feedback_id} status updated to {req.status}."}, "error": None}
+    return {"success": False, "error": {"code": "NOT_FOUND", "message": "Feedback record not found."}}
+
+# ----------------- USER DATA RIGHTS (EXPORT & ACCOUNT DELETION) ----------------- #
+
+@app.get("/api/user/export-data", response_model=StandardResponse)
+def export_user_data(request: Request):
+    user = get_current_user_from_req(request)
+    data = export_user_complete_data(user["id"])
+    if data:
+        return {"success": True, "data": {"export": data}, "error": None}
+    return {"success": False, "error": {"code": "EXPORT_FAILED", "message": "User data not found."}}
+
+@app.delete("/api/user/account", response_model=StandardResponse)
+def delete_user_account(request: Request):
+    user = get_current_user_from_req(request)
+    ok = delete_user_complete_account(user["id"])
+    if ok:
+        return {"success": True, "data": {"message": "Account and all associated data permanently deleted."}, "error": None}
+    return {"success": False, "error": {"code": "DELETE_FAILED", "message": "Failed to delete account."}}
+
 # ----------------- ARTICLES & COMMUNITY KNOWLEDGE HUB ----------------- #
 
 @app.get("/api/articles", response_model=StandardResponse)
@@ -642,14 +819,17 @@ def get_dataset_samples():
 # ----------------- DAILY NOTES / MOOD JOURNAL ENDPOINTS ----------------- #
 
 @app.post("/api/notes", response_model=StandardResponse)
-def create_daily_note(req: DailyNoteRequest):
+def create_daily_note(req: DailyNoteRequest, request: Request):
     try:
-        note_id = save_daily_note(req.user_id, req.date, req.title, req.content, req.mood_tag)
+        user = get_current_user_from_req(request)
+        note_id = save_daily_note(user["id"], req.date, req.title, req.content, req.mood_tag)
         return {
             "success": True,
             "data": {"id": note_id, "message": "Daily reflection saved successfully."},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -657,8 +837,9 @@ def create_daily_note(req: DailyNoteRequest):
         }
 
 @app.get("/api/notes", response_model=StandardResponse)
-def list_daily_notes(user_id: int = Query(...), limit: int = Query(50)):
-    notes = get_daily_notes(user_id, limit)
+def list_daily_notes(request: Request, limit: int = Query(50)):
+    user = get_current_user_from_req(request)
+    notes = get_daily_notes(user["id"], limit)
     return {
         "success": True,
         "data": {"notes": notes},
@@ -666,11 +847,12 @@ def list_daily_notes(user_id: int = Query(...), limit: int = Query(50)):
     }
 
 @app.delete("/api/notes/{note_id}", response_model=StandardResponse)
-def remove_daily_note(note_id: int, user_id: int = Query(...)):
-    deleted = delete_daily_note(note_id, user_id)
+def remove_daily_note(note_id: int, request: Request):
+    user = get_current_user_from_req(request)
+    deleted = delete_daily_note(note_id, user["id"])
     if deleted:
         return {"success": True, "data": {"message": "Note deleted successfully."}, "error": None}
-    return {"success": False, "error": {"code": "NOT_FOUND", "message": "Note not found."}}
+    raise HTTPException(status_code=404, detail="Note not found or unauthorized.")
 
 # ----------------- ANALYSIS & MONITORING ENDPOINTS ----------------- #
 

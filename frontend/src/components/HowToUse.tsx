@@ -140,6 +140,14 @@ export const HowToUse: React.FC<HowToUseProps> = ({
 
       {/* ACTIONS */}
       <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <a
+          href="/MindSense_How_to_Use_Rules_and_Regulations.pdf"
+          download="MindSense_How_to_Use_Rules_and_Regulations.pdf"
+          className="px-5 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow flex items-center gap-2"
+        >
+          <HelpCircle className="h-4 w-4" />
+          <span>Download User Guide (PDF)</span>
+        </a>
         <button
           onClick={onStartAnalysis}
           className="px-6 py-3 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs uppercase tracking-wider transition shadow flex items-center gap-2"
