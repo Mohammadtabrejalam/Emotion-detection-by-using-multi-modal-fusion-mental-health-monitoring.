@@ -1,14 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User as UserIcon, 
   Lock, 
-  Trash2, 
   Clock, 
   CheckCircle2, 
   AlertCircle, 
-  Globe, 
-  LogOut, 
-  Key
+  LogOut
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { User, LoginSession } from '../types';
@@ -80,7 +77,7 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
     if (res.success && res.data) {
       setProfileSuccess("Profile updated successfully!");
       onUpdateUser(res.data.user);
-      setTimeout(() => setProfileSuccess(null), 4000);
+      setTimeout(() => setProfileSuccess(null), 3500);
     } else {
       setProfileError(res.error?.message || "Failed to update profile.");
     }
@@ -102,126 +99,115 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
     setChangingPassword(false);
 
     if (res.success) {
-      setPasswordSuccess("Password changed securely!");
+      setPasswordSuccess("Security password updated successfully!");
       setOldPassword('');
       setNewPassword('');
-      setTimeout(() => setPasswordSuccess(null), 4000);
+      setTimeout(() => setPasswordSuccess(null), 3500);
     } else {
-      setPasswordError(res.error?.message || "Failed to change password. Ensure old password is correct.");
+      setPasswordError(res.error?.message || "Failed to update password.");
     }
   };
 
-  const handleClearUserData = async () => {
-    if (!currentUser) return;
-    if (window.confirm("Are you sure you want to permanently wipe all emotion analyses, check-ins, and journal notes associated with your account? This action cannot be reversed.")) {
-      const res = await apiService.clearHistory(currentUser.id);
-      if (res.success) {
-        alert("All your private data records have been wiped.");
-        window.location.reload();
-      } else {
-        alert("Failed to wipe data: " + res.error?.message);
-      }
-    }
+  const formatDate = (isoStr: string) => {
+    const d = new Date(isoStr);
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (!currentUser) {
     return (
-      <div className="glass-panel p-12 rounded-3xl border border-slate-800 text-center space-y-4 max-w-xl mx-auto my-12">
-        <UserIcon className="h-12 w-12 text-brand-400 mx-auto" />
-        <h3 className="text-xl font-bold text-white">Account Portal</h3>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Please sign in to access your personal profile details, change security settings, or review your login history.
+      <div className="academic-card p-12 text-center space-y-4 max-w-xl mx-auto my-8">
+        <UserIcon className="h-10 w-10 text-brand-400 mx-auto" />
+        <h3 className="text-base font-bold text-white">Sign In to Manage Profile Settings</h3>
+        <p className="text-xs text-slate-400">
+          Account profiles isolate your assessments, daily journals, and security audit sessions.
         </p>
         <button
           onClick={onOpenLogin}
-          className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition"
+          className="px-5 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow"
         >
-          Sign In / Create Account
+          Sign In to Account
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10 py-4 max-w-5xl mx-auto">
+    <div className="space-y-8 py-2 max-w-4xl mx-auto">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block mb-1">
-            Personal Security & Controls
-          </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-            Account Settings
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Manage your personal profile, credentials, login session history, and privacy boundaries.
-          </p>
+      {/* Header Profile Card */}
+      <div className="academic-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-lg uppercase shadow">
+            {currentUser.name.charAt(0)}
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-white">{currentUser.name}</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 font-mono">
+                @{currentUser.username}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">{currentUser.email}</p>
+          </div>
         </div>
 
         <button
           onClick={onLogout}
-          className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold flex items-center gap-2 transition w-fit"
+          className="px-3.5 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-medium transition flex items-center gap-1.5 self-start sm:self-auto"
         >
-          <LogOut className="h-4 w-4" /> Sign Out of Account
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Sign Out</span>
         </button>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8">
+      {/* Forms Grid */}
+      <div className="grid md:grid-cols-2 gap-6">
         
-        {/* 1. Profile Information */}
-        <form onSubmit={handleUpdateProfile} className="glass-panel p-6 md:p-8 rounded-3xl border border-slate-800 space-y-5 shadow-xl">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-            <div className="p-2 rounded-xl bg-brand-500/10 text-brand-400">
-              <UserIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-base">Profile Information</h3>
-              <p className="text-[11px] text-slate-400">Update your display name and email address</p>
-            </div>
+        {/* Profile Information */}
+        <form onSubmit={handleUpdateProfile} className="academic-card p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <UserIcon className="h-4 w-4 text-brand-400" />
+            <h3 className="font-bold text-white text-sm">Profile Details</h3>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Username</label>
-            <input
-              type="text"
-              value={currentUser.username}
-              disabled
-              className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-400 cursor-not-allowed font-mono"
-            />
-            <span className="text-[10px] text-slate-500">Usernames are unique and cannot be changed.</span>
-          </div>
-
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Full Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
+              className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
+              required
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Email Address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
+              className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
+              required
             />
           </div>
 
           {profileError && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{profileError}</span>
             </div>
           )}
 
           {profileSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>{profileSuccess}</span>
             </div>
           )}
@@ -229,62 +215,53 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
           <button
             type="submit"
             disabled={updatingProfile}
-            className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition"
+            className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow"
           >
-            {updatingProfile ? 'Updating Profile...' : 'Save Profile Changes'}
+            {updatingProfile ? 'Saving...' : 'Update Profile Details'}
           </button>
         </form>
 
-        {/* 2. Security & Password Update */}
-        <form onSubmit={handleChangePassword} className="glass-panel p-6 md:p-8 rounded-3xl border border-slate-800 space-y-5 shadow-xl">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
-              <Key className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-base">Security & Password</h3>
-              <p className="text-[11px] text-slate-400">Change your secret authentication password</p>
-            </div>
+        {/* Change Password */}
+        <form onSubmit={handleChangePassword} className="academic-card p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+            <Lock className="h-4 w-4 text-brand-400" />
+            <h3 className="font-bold text-white text-sm">Security & Password</h3>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Current Password</label>
-            <div className="relative">
-              <Lock className="h-4 w-4 text-slate-500 absolute left-3.5 top-3" />
-              <input
-                type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                placeholder="Enter current password"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white outline-none"
-              />
-            </div>
+            <input
+              type="password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
+              required
+            />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">New Password</label>
-            <div className="relative">
-              <Lock className="h-4 w-4 text-slate-500 absolute left-3.5 top-3" />
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new strong password"
-                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white outline-none"
-              />
-            </div>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
+              required
+            />
           </div>
 
           {passwordError && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{passwordError}</span>
             </div>
           )}
 
           {passwordSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
               <span>{passwordSuccess}</span>
             </div>
           )}
@@ -292,72 +269,50 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
           <button
             type="submit"
             disabled={changingPassword}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition"
+            className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow"
           >
-            {changingPassword ? 'Updating Password...' : 'Update Password'}
+            {changingPassword ? 'Updating...' : 'Change Password'}
           </button>
         </form>
 
       </div>
 
-      {/* 3. Login Audit Sessions History */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-slate-800 space-y-4">
+      {/* Session Audit History Table */}
+      <div className="academic-card p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <Clock className="h-5 w-5 text-brand-400" />
-            <h3 className="font-bold text-white text-base">Login Session History & Audit Trail</h3>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-slate-400" />
+            <h3 className="font-bold text-white text-sm">Login Audit History</h3>
           </div>
-          <button onClick={fetchLoginSessions} className="text-xs text-brand-400 hover:underline">
-            Refresh
-          </button>
+          <span className="text-[11px] text-slate-500 font-mono">SQLite Session Log</span>
         </div>
 
         {loadingSessions ? (
-          <p className="text-xs text-slate-500 py-4 text-center">Loading session audit trail...</p>
+          <div className="py-8 text-center text-xs text-slate-500">Loading audit history...</div>
         ) : sessions.length === 0 ? (
-          <p className="text-xs text-slate-500 py-4 text-center">No previous login records found.</p>
+          <div className="py-6 text-center text-xs text-slate-500">No session history available.</div>
         ) : (
-          <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-            {sessions.map((s) => (
-              <div key={s.id} className="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 flex items-center justify-between text-xs">
-                <div className="space-y-0.5">
-                  <span className="font-mono text-slate-200 block">
-                    {new Date(s.timestamp).toLocaleString()}
-                  </span>
-                  <span className="text-[10px] text-slate-500 flex items-center gap-1.5">
-                    <Globe className="h-3 w-3" /> Client IP: {s.ip_address || '127.0.0.1'} | {s.user_agent ? s.user_agent.slice(0, 40) + '...' : 'Browser'}
-                  </span>
-                </div>
-
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                  s.status === 'SUCCESS' 
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                }`}>
-                  {s.status}
-                </span>
-              </div>
-            ))}
+          <div className="overflow-x-auto border border-slate-800 rounded-xl">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] font-semibold">
+                  <th className="py-2.5 px-4">Timestamp</th>
+                  <th className="py-2.5 px-4">Client IP</th>
+                  <th className="py-2.5 px-4">User Agent</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-slate-300">
+                {sessions.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-800/30 transition">
+                    <td className="py-2.5 px-4 font-mono text-[11px] text-slate-400">{formatDate(s.timestamp)}</td>
+                    <td className="py-2.5 px-4 font-mono text-[11px] text-brand-400">{s.ip_address}</td>
+                    <td className="py-2.5 px-4 text-[11px] text-slate-400 truncate max-w-xs">{s.user_agent}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
-
-      {/* 4. Privacy & Data Wipe Controls */}
-      <div className="glass-panel p-6 md:p-8 rounded-3xl border border-red-500/20 space-y-4 bg-red-500/5">
-        <div className="flex items-center gap-2.5 text-red-400">
-          <Trash2 className="h-5 w-5" />
-          <h3 className="font-bold text-white text-base">Privacy & Local Data Wipe</h3>
-        </div>
-        <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
-          MindSense stores your emotion assessments, check-ins, and daily journal notes locally in SQLite. If you wish to delete all records associated with your account, click the button below.
-        </p>
-
-        <button
-          onClick={handleClearUserData}
-          className="px-5 py-2.5 rounded-xl bg-red-600/80 hover:bg-red-500 text-white font-bold text-xs shadow-lg transition"
-        >
-          Permanently Wipe My Private Data
-        </button>
       </div>
 
     </div>

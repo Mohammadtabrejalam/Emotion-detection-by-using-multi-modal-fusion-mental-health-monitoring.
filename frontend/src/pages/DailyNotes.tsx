@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Plus, 
@@ -7,8 +7,8 @@ import {
   Calendar, 
   Tag, 
   CheckCircle2, 
-  AlertCircle,
-  Download,
+  AlertCircle, 
+  Download, 
   Sparkles
 } from 'lucide-react';
 import { apiService } from '../services/api';
@@ -21,11 +21,11 @@ interface DailyNotesProps {
 
 const MOOD_TAGS = [
   { label: '🌟 Grateful', value: 'grateful', color: 'border-amber-500/30 text-amber-300 bg-amber-500/10' },
-  { label: '🧘 Calm & Peaceful', value: 'calm', color: 'border-blue-500/30 text-blue-300 bg-blue-500/10' },
-  { label: '⚡ Energetic & Motivated', value: 'energetic', color: 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' },
+  { label: '🧘 Calm & Centered', value: 'calm', color: 'border-blue-500/30 text-blue-300 bg-blue-500/10' },
+  { label: '⚡ Focused & Energetic', value: 'energetic', color: 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10' },
   { label: '🌿 Reflective', value: 'reflective', color: 'border-indigo-500/30 text-indigo-300 bg-indigo-500/10' },
-  { label: '🌧️ Stressed / Overwhelmed', value: 'stressed', color: 'border-red-500/30 text-red-300 bg-red-500/10' },
-  { label: '😴 Low Energy / Tired', value: 'tired', color: 'border-purple-500/30 text-purple-300 bg-purple-500/10' },
+  { label: '🌧️ Overwhelmed / Stressed', value: 'stressed', color: 'border-red-500/30 text-red-300 bg-red-500/10' },
+  { label: '😴 Low Energy / Depleted', value: 'tired', color: 'border-purple-500/30 text-purple-300 bg-purple-500/10' },
 ];
 
 export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin }) => {
@@ -69,7 +69,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
       return;
     }
     if (!title.trim() || !content.trim()) {
-      setErrorMsg("Please provide both a title and reflection body.");
+      setErrorMsg("Please provide both a reflection title and body content.");
       return;
     }
 
@@ -81,19 +81,19 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
     setSubmitting(false);
 
     if (res.success) {
-      setSuccessMsg("Reflection recorded in your private daily journal!");
+      setSuccessMsg("Reflection recorded in your private daily journal.");
       setTitle('');
       setContent('');
       fetchNotes();
-      setTimeout(() => setSuccessMsg(null), 4000);
+      setTimeout(() => setSuccessMsg(null), 3500);
     } else {
-      setErrorMsg(res.error?.message || "Failed to save note.");
+      setErrorMsg(res.error?.message || "Failed to save journal reflection.");
     }
   };
 
   const handleDeleteNote = async (id: number) => {
     if (!currentUser) return;
-    if (window.confirm("Delete this reflection entry?")) {
+    if (window.confirm("Permanently remove this reflection entry?")) {
       const res = await apiService.deleteDailyNote(id, currentUser.id);
       if (res.success) {
         setNotes(prev => prev.filter(n => n.id !== id));
@@ -110,7 +110,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mindsense_reflections_${currentUser?.username || 'user'}.json`;
+    a.download = `mindsense_journal_${currentUser?.username || 'user'}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -122,19 +122,19 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
   );
 
   return (
-    <div className="space-y-8 py-2">
+    <div className="space-y-6 py-2">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
           <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block mb-1">
-            Personal Mood Journal
+            Subjective Longitudinal Reflection
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-            Daily Notes & Thought Capture
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Daily Journal & Thought Capture
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Log daily reflections, gratitude, and emotional triggers to cross-reference with AI multimodal evaluations.
+          <p className="text-xs text-slate-400 mt-0.5">
+            Record qualitative reflections and environmental triggers to correlate with multimodal model assessments.
           </p>
         </div>
 
@@ -142,37 +142,38 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
           {notes.length > 0 && (
             <button
               onClick={handleExportNotes}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition"
+              className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 border border-slate-700 transition"
             >
-              <Download className="h-3.5 w-3.5" /> Export Journal
+              <Download className="h-3.5 w-3.5" />
+              <span>Export (JSON)</span>
             </button>
           )}
         </div>
       </div>
 
       {!currentUser ? (
-        <div className="glass-panel p-8 rounded-3xl border border-slate-800 text-center space-y-4 max-w-xl mx-auto my-8">
+        <div className="academic-card p-8 text-center space-y-4 max-w-xl mx-auto my-8">
           <BookOpen className="h-10 w-10 text-brand-400 mx-auto" />
-          <h3 className="text-lg font-bold text-white">Sign In to Keep a Daily Journal</h3>
+          <h3 className="text-base font-bold text-white">Sign In to Maintain a Private Journal</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Your daily reflections and notes are private and tied to your personal user account. Sign in or register to begin capturing your daily journey.
+            Your daily reflections are private and tied exclusively to your personal user account profile.
           </p>
           <button
             onClick={onOpenLogin}
-            className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition"
+            className="px-5 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow"
           >
-            Sign In / Register Account
+            Sign In / Register Profile
           </button>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-12 gap-8">
+        <div className="grid lg:grid-cols-12 gap-6">
           
-          {/* LEFT: New Reflection Form */}
-          <div className="lg:col-span-5 space-y-6">
-            <form onSubmit={handleSaveNote} className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4 shadow-xl">
+          {/* LEFT: Journal Entry Form */}
+          <div className="lg:col-span-5 space-y-4">
+            <form onSubmit={handleSaveNote} className="academic-card p-6 space-y-4 shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <span className="font-bold text-sm text-white flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-brand-400" /> New Daily Reflection
+                  <Plus className="h-4 w-4 text-brand-400" /> New Journal Entry
                 </span>
                 <input 
                   type="date" 
@@ -183,21 +184,21 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
               </div>
 
               {/* Title input */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Title / Focus</label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Entry Focus / Title</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Morning walk thoughts, Work stress reflection..."
-                  className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-xl px-3.5 py-2 text-xs text-white outline-none"
+                  placeholder="e.g. Cognitive fatigue, Work breakthrough, Reflection..."
+                  className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
                 />
               </div>
 
               {/* Mood Tag Selection */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Tag className="h-3.5 w-3.5" /> Mood Tag
+                  <Tag className="h-3.5 w-3.5" /> Affect Category Tag
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {MOOD_TAGS.map(t => (
@@ -218,14 +219,14 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
               </div>
 
               {/* Content textarea */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Reflection Content</label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Qualitative Content</label>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   rows={5}
-                  placeholder="What is on your mind today? Write down events, triggers, physical feelings, or things you feel grateful for..."
-                  className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-xl p-3 text-xs text-slate-200 outline-none resize-none"
+                  placeholder="Record triggers, physical sensations, or things you feel grateful for..."
+                  className="w-full bg-slate-900/80 border border-slate-700/60 focus:border-brand-500 rounded-lg p-3 text-xs text-slate-200 outline-none resize-none leading-relaxed font-sans"
                 />
               </div>
 
@@ -246,49 +247,49 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg transition"
+                className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow"
               >
-                {submitting ? 'Saving entry...' : 'Save Daily Note'}
+                {submitting ? 'Saving entry...' : 'Save Reflection Entry'}
               </button>
             </form>
           </div>
 
           {/* RIGHT: Saved Reflections Feed */}
-          <div className="lg:col-span-7 space-y-4">
+          <div className="lg:col-span-7 space-y-3">
             
             {/* Search Bar */}
-            <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-2 text-xs">
-              <Search className="h-4 w-4 text-slate-500" />
+            <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3.5 py-2 text-xs">
+              <Search className="h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search notes by keyword or mood tag..."
-                className="bg-transparent text-white outline-none w-full placeholder-slate-500"
+                placeholder="Search reflections by keyword or mood tag..."
+                className="bg-transparent text-white outline-none w-full placeholder-slate-500 font-sans"
               />
             </div>
 
             {loading ? (
-              <div className="py-16 text-center text-xs text-slate-400">Loading journal...</div>
+              <div className="py-16 text-center text-xs text-slate-400">Loading journal records...</div>
             ) : filteredNotes.length === 0 ? (
-              <div className="glass-panel p-12 rounded-3xl border border-slate-800 text-center space-y-2">
-                <Sparkles className="h-8 w-8 text-slate-600 mx-auto" />
-                <p className="text-slate-300 font-semibold text-sm">No notes found</p>
+              <div className="academic-card p-12 text-center space-y-2">
+                <Sparkles className="h-7 w-7 text-slate-500 mx-auto" />
+                <p className="text-slate-300 font-semibold text-xs">No reflections found</p>
                 <p className="text-slate-500 text-xs max-w-xs mx-auto">
-                  {searchQuery ? "No entries match your search query." : "Write your first daily note on the left panel to begin journaling."}
+                  {searchQuery ? "No journal entries match your query." : "Write your first entry on the left to begin journaling."}
                 </p>
               </div>
             ) : (
-              <div className="space-y-3.5 max-h-[520px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
                 {filteredNotes.map((note) => {
                   const tagMeta = MOOD_TAGS.find(t => t.value === note.mood_tag) || { label: note.mood_tag, color: 'text-slate-400 bg-slate-800' };
                   return (
-                    <div key={note.id} className="glass-panel p-4.5 rounded-2xl border border-slate-800 space-y-2.5 transition hover:border-slate-700">
+                    <div key={note.id} className="academic-card p-4 space-y-2 transition hover:border-slate-700">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-0.5">
+                        <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-white text-sm">{note.title}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold border ${tagMeta.color}`}>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-semibold border ${tagMeta.color}`}>
                               {tagMeta.label}
                             </span>
                           </div>
@@ -299,8 +300,8 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ currentUser, onOpenLogin
 
                         <button
                           onClick={() => handleDeleteNote(note.id)}
-                          className="p-1 text-slate-500 hover:text-red-400 transition"
-                          title="Delete note"
+                          className="p-1 text-slate-400 hover:text-red-400 transition"
+                          title="Delete reflection"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

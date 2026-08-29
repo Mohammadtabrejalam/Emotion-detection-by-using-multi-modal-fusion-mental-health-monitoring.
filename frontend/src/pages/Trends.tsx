@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Heart, 
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { DashboardData, User } from '../types';
@@ -23,7 +23,7 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
     if (response.success && response.data) {
       setData(response.data);
     } else {
-      setErrorMsg(response.error?.message || "Failed to compile trend logs.");
+      setErrorMsg(response.error?.message || "Failed to compile longitudinal trend metrics.");
     }
     setLoading(false);
   };
@@ -40,8 +40,8 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
   if (loading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center space-y-3">
-        <RefreshCw className="h-8 w-8 text-brand-400 animate-spin" />
-        <p className="text-slate-400 text-sm">Aggregating historical trends...</p>
+        <RefreshCw className="h-6 w-6 text-brand-400 animate-spin" />
+        <p className="text-slate-400 text-xs">Aggregating longitudinal trends...</p>
       </div>
     );
   }
@@ -49,8 +49,8 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
   if (errorMsg || !data) {
     return (
       <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 space-y-3">
-        <AlertTriangle className="h-8 w-8 text-red-400" />
-        <p className="font-semibold">Failed to compile dashboard metrics</p>
+        <AlertTriangle className="h-6 w-6 text-red-400" />
+        <p className="font-semibold text-sm">Failed to compile dashboard metrics</p>
         <p className="text-xs text-slate-400">{errorMsg || "Database communication failed."}</p>
         <button 
           onClick={fetchDashboardData}
@@ -66,11 +66,9 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
   const historic = summary.historic_trends || [];
   const checkins = summary.checkin_trends || [];
 
-  // Total analysis check
   const hasHistory = historic.length > 0;
   const hasCheckins = checkins.length > 0;
 
-  // Emotion mapping for SVG line charts (0-6 mapping scale)
   const emotionYScale: Record<string, number> = {
     "happy": 5,
     "surprise": 4,
@@ -82,95 +80,96 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
   };
 
   return (
-    <div className="space-y-8 py-4">
+    <div className="space-y-8 py-2">
       {/* Title */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Trends & Insights</h2>
-          <p className="text-slate-400 text-sm">Longitudinal evaluation of emotional states and check-in scores.</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Longitudinal Affective Trajectory</h2>
+          <p className="text-slate-400 text-xs">Temporal analysis of emotional valence shifts and correlated self-reported wellness indices.</p>
         </div>
         <button
           onClick={fetchDashboardData}
-          className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition"
+          className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition self-start sm:self-auto"
+          title="Refresh Trends"
         >
-          <RefreshCw className="h-4.5 w-4.5" />
+          <RefreshCw className="h-4 w-4" />
         </button>
       </div>
 
-      {/* PERSISTENT NEGATIVE SIGNALS WARNING CARD */}
+      {/* Persistent Negative Warning Card */}
       {trends.alert && (
-        <div className="p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/20 text-amber-200 flex items-start gap-4">
-          <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
-          <div className="space-y-2">
-            <h4 className="font-bold text-white text-base">Longitudinal Signal Alert</h4>
-            <p className="text-sm text-slate-300 leading-relaxed">
+        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-start gap-3.5">
+          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1.5">
+            <h4 className="font-bold text-white text-sm">Longitudinal Pattern Notice</h4>
+            <p className="text-xs text-slate-300 leading-relaxed">
               {trends.recent_trend}
             </p>
             <p className="text-[10px] text-slate-500 leading-relaxed italic">
-              Note: This is an AI-generated warning threshold indicating elevated negative inputs. It is not a clinical assessment of mood disorders.
+              Note: This is an empirical research threshold indicating elevated negative valence. It does not constitute clinical psychiatric diagnosis.
             </p>
           </div>
         </div>
       )}
 
       {/* KPI METRIC CARDS */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total analyses */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total Assessments</span>
-          <p className="text-3xl font-extrabold text-white">{summary.total_analyses}</p>
-          <p className="text-xs text-slate-400">
-            {currentUser ? `@${currentUser.username}'s analyses` : 'Workspace total'}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Analyses */}
+        <div className="academic-card p-5 space-y-1.5">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Total Assessments</span>
+          <p className="text-2xl font-extrabold text-white">{summary.total_analyses}</p>
+          <p className="text-[11px] text-slate-500">
+            {currentUser ? `@${currentUser.username}'s profile` : 'Session total'}
           </p>
         </div>
 
         {/* Dominant Emotion */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Dominant Mood</span>
-          <p className="text-3xl font-extrabold text-brand-400 capitalize">{trends.dominant_emotion}</p>
-          <p className="text-xs text-slate-400">Variability: <span className="text-indigo-300 font-semibold">{trends.emotional_variability}</span></p>
+        <div className="academic-card p-5 space-y-1.5">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Dominant State</span>
+          <p className="text-2xl font-extrabold text-brand-400 capitalize">{trends.dominant_emotion}</p>
+          <p className="text-[11px] text-slate-500">Variability: <span className="text-slate-300 font-medium">{trends.emotional_variability}</span></p>
         </div>
 
-        {/* Mental Health Score */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Wellness Index</span>
+        {/* Wellness Score */}
+        <div className="academic-card p-5 space-y-1.5">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Wellness Index</span>
           <div className="flex items-baseline gap-1.5">
-            <p className="text-3xl font-extrabold text-emerald-400">{trends.wellness_score || 78}%</p>
-            <span className="text-xs text-emerald-300 font-medium">Positive balance</span>
+            <p className="text-2xl font-extrabold text-emerald-400">{trends.wellness_score || 78}%</p>
+            <span className="text-[10px] text-emerald-400 font-medium">Positive balance</span>
           </div>
-          <p className="text-xs text-slate-400">AI mood & check-in correlation</p>
+          <p className="text-[11px] text-slate-500">Multimodal correlation</p>
         </div>
 
         {/* Check-ins & Notes */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Logs & Reflections</span>
-          <p className="text-3xl font-extrabold text-indigo-400">{checkins.length + (summary.notes_count || 0)}</p>
-          <p className="text-xs text-slate-400">{checkins.length} check-ins, {summary.notes_count || 0} notes</p>
+        <div className="academic-card p-5 space-y-1.5">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Recorded Entries</span>
+          <p className="text-2xl font-extrabold text-indigo-400">{checkins.length + (summary.notes_count || 0)}</p>
+          <p className="text-[11px] text-slate-500">{checkins.length} check-ins, {summary.notes_count || 0} reflections</p>
         </div>
       </div>
 
-      {/* CHARTS GRAPH WORKSPACE */}
+      {/* CHARTS WORKSPACE */}
       <div className="grid lg:grid-cols-2 gap-6">
+        
         {/* 1. Emotion Trend Line (SVG) */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="academic-card p-6 space-y-4">
           <div>
-            <h4 className="font-bold text-slate-200">Assessment History Timeline</h4>
-            <p className="text-xs text-slate-400">Sequence of the 10 most recent emotional classifications.</p>
+            <h4 className="font-bold text-white text-sm">Classification Trajectory</h4>
+            <p className="text-xs text-slate-400">Chronological progression of the 10 most recent multimodal predictions.</p>
           </div>
           
           {!hasHistory ? (
-            <div className="py-20 text-center text-slate-500 text-xs italic">
-              Assess emotions in the workspace to view timeline.
+            <div className="py-16 text-center text-slate-500 text-xs italic">
+              Run analyses in the Live Studio to populate timeline.
             </div>
           ) : (
-            <div className="relative h-64 w-full">
-              {/* Native SVG plotting */}
+            <div className="relative h-60 w-full pt-2">
               <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
                 {/* Horizontal scale lines */}
                 {[1, 2, 3, 4, 5].map((level, i) => (
                   <line 
                     key={i} 
-                    x1="40" 
+                    x1="45" 
                     y1={20 + (level - 1) * 40} 
                     x2="490" 
                     y2={20 + (level - 1) * 40} 
@@ -181,46 +180,41 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
                 ))}
 
                 {/* Y Axis Labels */}
-                <text x="35" y="25" fill="#64748b" fontSize="8" textAnchor="end">Happy</text>
-                <text x="35" y="65" fill="#64748b" fontSize="8" textAnchor="end">Surprise</text>
-                <text x="35" y="105" fill="#64748b" fontSize="8" textAnchor="end">Neutral</text>
-                <text x="35" y="145" fill="#64748b" fontSize="8" textAnchor="end">Fear/Stress</text>
-                <text x="35" y="185" fill="#64748b" fontSize="8" textAnchor="end">Sad</text>
+                <text x="40" y="24" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">Happy</text>
+                <text x="40" y="64" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">Surprise</text>
+                <text x="40" y="104" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">Neutral</text>
+                <text x="40" y="144" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">Distress</text>
+                <text x="40" y="184" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">Sad</text>
 
-                {/* Plotting points & connecting lines */}
                 {(() => {
                   const points = historic.slice().reverse().map((h, i) => {
-                    const x = 50 + (i * 440) / Math.max(1, historic.length - 1);
-                    const val = emotionYScale[h.final_emotion.toLowerCase()] || 3.0; // Fallback neutral
-                    // map val (1 to 5) to y coordinates (180 to 20)
+                    const x = 55 + (i * 430) / Math.max(1, historic.length - 1);
+                    const val = emotionYScale[h.final_emotion.toLowerCase()] || 3.0;
                     const y = 180 - ((val - 1) * (160 / 4));
                     return { x, y, emotion: h.final_emotion, date: h.timestamp };
                   });
 
                   return (
                     <>
-                      {/* Connection Line */}
                       {points.length > 1 && (
                         <path
                           d={`M ${points.map(p => `${p.x} ${p.y}`).join(" L ")}`}
                           fill="none"
-                          stroke="#3b5eff"
+                          stroke="#2563eb"
                           strokeWidth="2.5"
                           strokeLinecap="round"
                         />
                       )}
-                      {/* Data Dots */}
                       {points.map((p, idx) => (
-                        <g key={idx} className="group cursor-pointer">
+                        <g key={idx} className="cursor-pointer">
                           <circle 
                             cx={p.x} 
                             cy={p.y} 
-                            r="5" 
-                            fill="#3b5eff" 
-                            stroke="#070a13" 
+                            r="4.5" 
+                            fill="#2563eb" 
+                            stroke="#0f172a" 
                             strokeWidth="2" 
                           />
-                          {/* Tooltip trigger hover */}
                           <title>{p.emotion} on {formatDateLabel(p.date)}</title>
                         </g>
                       ))}
@@ -233,24 +227,23 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
         </div>
 
         {/* 2. Daily Check-in Scores Line Graph (SVG) */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+        <div className="academic-card p-6 space-y-4">
           <div>
-            <h4 className="font-bold text-slate-200">Daily Wellness Score Trends</h4>
-            <p className="text-xs text-slate-400">Tracking daily levels (feeling, stress, sleep, energy) mapped on 1-5 scale.</p>
+            <h4 className="font-bold text-white text-sm">Self-Reported Wellness Indices</h4>
+            <p className="text-xs text-slate-400">Longitudinal self-reported Feeling Score vs. Stress Score (1–5 scale).</p>
           </div>
           
           {!hasCheckins ? (
-            <div className="py-20 text-center text-slate-500 text-xs italic">
+            <div className="py-16 text-center text-slate-500 text-xs italic">
               Log a Daily Check-in to view wellness trends.
             </div>
           ) : (
-            <div className="relative h-64 w-full">
+            <div className="relative h-60 w-full pt-2">
               <svg className="w-full h-full" viewBox="0 0 500 200" preserveAspectRatio="none">
-                {/* Horizontal scale lines */}
                 {[1, 2.5, 4, 5.5, 7].map((val) => (
                   <line 
                     key={val} 
-                    x1="30" 
+                    x1="35" 
                     y1={20 + (val - 1) * 25} 
                     x2="490" 
                     y2={20 + (val - 1) * 25} 
@@ -260,31 +253,27 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
                   />
                 ))}
 
-                {/* Y Axis labels (Scale 5 down to 1) */}
-                <text x="25" y="25" fill="#64748b" fontSize="8" textAnchor="end">5 (High)</text>
-                <text x="25" y="105" fill="#64748b" fontSize="8" textAnchor="end">3 (Avg)</text>
-                <text x="25" y="185" fill="#64748b" fontSize="8" textAnchor="end">1 (Low)</text>
+                <text x="30" y="24" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">5 (High)</text>
+                <text x="30" y="104" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">3 (Avg)</text>
+                <text x="30" y="184" fill="#64748b" fontSize="9" textAnchor="end" fontFamily="sans-serif">1 (Low)</text>
 
-                {/* Plotting feeling trend curve (Emerald) and stress curve (Red) */}
                 {(() => {
-                  // Last 10 checkins in chronological order
                   const activeLogs = checkins.slice(0, 10).reverse();
                   
                   const feelingPoints = activeLogs.map((c, i) => {
-                    const x = 40 + (i * 440) / Math.max(1, activeLogs.length - 1);
-                    const y = 180 - ((c.feeling_score - 1) * 40); // Map 1-5 to 180-20
+                    const x = 45 + (i * 440) / Math.max(1, activeLogs.length - 1);
+                    const y = 180 - ((c.feeling_score - 1) * 40);
                     return { x, y };
                   });
 
                   const stressPoints = activeLogs.map((c, i) => {
-                    const x = 40 + (i * 440) / Math.max(1, activeLogs.length - 1);
-                    const y = 180 - ((c.stress_score - 1) * 40); // Map 1-5 to 180-20
+                    const x = 45 + (i * 440) / Math.max(1, activeLogs.length - 1);
+                    const y = 180 - ((c.stress_score - 1) * 40);
                     return { x, y };
                   });
 
                   return (
                     <>
-                      {/* Feeling Curve */}
                       {feelingPoints.length > 1 && (
                         <path
                           d={`M ${feelingPoints.map(p => `${p.x} ${p.y}`).join(" L ")}`}
@@ -294,8 +283,6 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
                           strokeLinecap="round"
                         />
                       )}
-                      
-                      {/* Stress Curve */}
                       {stressPoints.length > 1 && (
                         <path
                           d={`M ${stressPoints.map(p => `${p.x} ${p.y}`).join(" L ")}`}
@@ -306,123 +293,99 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
                           strokeDasharray="3,3"
                         />
                       )}
-
-                      {/* Dots for Feeling */}
                       {feelingPoints.map((p, idx) => (
-                        <circle key={`f-${idx}`} cx={p.x} cy={p.y} r="4" fill="#10b981" stroke="#070a13" strokeWidth="1.5" />
+                        <circle key={`f-${idx}`} cx={p.x} cy={p.y} r="4" fill="#10b981" stroke="#0f172a" strokeWidth="1.5" />
                       ))}
-
-                      {/* Dots for Stress */}
                       {stressPoints.map((p, idx) => (
-                        <circle key={`s-${idx}`} cx={p.x} cy={p.y} r="4" fill="#ef4444" stroke="#070a13" strokeWidth="1.5" />
+                        <circle key={`s-${idx}`} cx={p.x} cy={p.y} r="4" fill="#ef4444" stroke="#0f172a" strokeWidth="1.5" />
                       ))}
                     </>
                   );
                 })()}
               </svg>
               
-              {/* Legend */}
-              <div className="absolute bottom-1 left-12 flex gap-4 text-[9px] font-semibold tracking-wider text-slate-400">
+              <div className="flex gap-4 text-[10px] font-medium text-slate-400 pt-2">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Feeling (Solid)
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Feeling Index (Solid)
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-red-500" /> Stress (Dashed)
+                  <span className="h-2 w-2 rounded-full bg-red-500" /> Stress Index (Dashed)
                 </span>
               </div>
             </div>
           )}
         </div>
+
       </div>
 
-      {/* 3. Modality usage and Advice Breakdown */}
+      {/* 3. Modality Usage Frequency & Psychoeducational Recommendation */}
       <div className="grid md:grid-cols-3 gap-6">
-        {/* Modality usage breakdown card */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
-          <h4 className="font-bold text-slate-200">Modality Usage Frequency</h4>
+        
+        {/* Modality Usage */}
+        <div className="academic-card p-6 space-y-4">
+          <h4 className="font-bold text-white text-sm">Modality Ingestion Volume</h4>
           
-          <div className="space-y-4 pt-2">
-            {/* Text usage */}
+          <div className="space-y-3 pt-1">
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="text-slate-400">Written Text</span>
-                <span className="font-semibold text-slate-300">{summary.modality_usage.text} runs</span>
+                <span className="font-mono text-slate-200 font-semibold">{summary.modality_usage.text} runs</span>
               </div>
-              <div className="h-2 bg-slate-850 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                 <div 
                   className="h-full bg-indigo-500" 
-                  style={{ width: `${(summary.modality_usage.text / Math.max(1, summary.total_analyses)) * 100}%` }}
+                  style={{ width: `${Math.min(100, (summary.modality_usage.text / Math.max(1, summary.total_analyses)) * 100)}%` }}
                 />
               </div>
             </div>
 
-            {/* Audio usage */}
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Voice Acoustics</span>
-                <span className="font-semibold text-slate-300">{summary.modality_usage.audio} runs</span>
+                <span className="text-slate-400">Speech Acoustics</span>
+                <span className="font-mono text-slate-200 font-semibold">{summary.modality_usage.audio} runs</span>
               </div>
-              <div className="h-2 bg-slate-850 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                 <div 
                   className="h-full bg-emerald-500" 
-                  style={{ width: `${(summary.modality_usage.audio / Math.max(1, summary.total_analyses)) * 100}%` }}
+                  style={{ width: `${Math.min(100, (summary.modality_usage.audio / Math.max(1, summary.total_analyses)) * 100)}%` }}
                 />
               </div>
             </div>
 
-            {/* Image usage */}
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Facial Expressions</span>
-                <span className="font-semibold text-slate-300">{summary.modality_usage.image} runs</span>
+                <span className="text-slate-400">Facial Vision</span>
+                <span className="font-mono text-slate-200 font-semibold">{summary.modality_usage.image} runs</span>
               </div>
-              <div className="h-2 bg-slate-850 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                 <div 
                   className="h-full bg-blue-500" 
-                  style={{ width: `${(summary.modality_usage.image / Math.max(1, summary.total_analyses)) * 100}%` }}
+                  style={{ width: `${Math.min(100, (summary.modality_usage.image / Math.max(1, summary.total_analyses)) * 100)}%` }}
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Emotion Distribution aggregation card */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
-          <h4 className="font-bold text-slate-200">Emotion Aggregate Distribution</h4>
-          
-          {Object.keys(summary.emotion_distribution).length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-6 text-center">No emotion distribution aggregates.</p>
-          ) : (
-            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-              {Object.entries(summary.emotion_distribution)
-                .sort((a,b) => b[1] - a[1])
-                .map(([emo, count]) => (
-                  <div key={emo} className="flex justify-between items-center text-xs border-b border-slate-850 py-1.5">
-                    <span className="capitalize text-slate-400">{emo}</span>
-                    <span className="font-bold text-slate-200">{count} assessments</span>
-                  </div>
-                ))}
+        {/* Longitudinal Wellness Recommendation */}
+        <div className="academic-card p-6 md:col-span-2 space-y-3 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-brand-400 text-xs font-semibold uppercase tracking-wider mb-2">
+              <Sparkles className="h-4 w-4" />
+              <span>Automated Research Insights</span>
             </div>
-          )}
-        </div>
-
-        {/* Wellness Tip Advisory card */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3 flex flex-col justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-brand-400">
-              <Heart className="h-5 w-5" />
-              <h4 className="font-bold text-slate-200">Wellness Advisory</h4>
-            </div>
-            
-            <p className="text-xs text-slate-400 leading-relaxed">
-              If your trends show continuous high stress or low feeling metrics, check in with a friend or write down details. Taking a 10-minute walk or practicing progressive muscle relaxation can help offset negative acoustics and tension signals.
+            <h4 className="font-bold text-white text-base">Longitudinal Affective Synthesis</h4>
+            <p className="text-xs text-slate-300 leading-relaxed mt-2">
+              {trends.recent_trend || "Maintain consistent multi-modal check-ins to build high-granularity temporal models of emotional transitions and stress recovery curves."}
             </p>
           </div>
 
-          <div className="text-[10px] text-slate-500 border-t border-slate-850 pt-2.5 leading-relaxed italic">
-            Advisory notice: Suggestions are lifestyle guidelines for wellness maintenance and are not medical plans.
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Aggregated across {summary.total_analyses} inference points</span>
+            <span className="font-mono text-slate-500">Cross-Attention Masked</span>
           </div>
         </div>
+
       </div>
     </div>
   );

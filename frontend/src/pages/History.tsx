@@ -4,11 +4,10 @@ import {
   Eye, 
   Filter, 
   RefreshCw, 
-  FileText, 
-  Mic, 
-  Camera, 
-  Calendar,
-  AlertCircle
+  Calendar, 
+  AlertCircle, 
+  X, 
+  Layers
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { AnalysisData, User } from '../types';
@@ -36,7 +35,7 @@ export const History: React.FC<HistoryProps> = ({ currentUser }) => {
     if (response.success && response.data) {
       setHistory(response.data.history);
     } else {
-      setErrorMsg(response.error?.message || "Failed to load history.");
+      setErrorMsg(response.error?.message || "Failed to load historical assessment logs.");
     }
     setLoading(false);
   };
@@ -46,18 +45,16 @@ export const History: React.FC<HistoryProps> = ({ currentUser }) => {
   }, [currentUser]);
 
   const handleClearHistory = async () => {
-    if (window.confirm("Are you sure you want to permanently delete all your emotion history and check-ins? This cannot be undone.")) {
+    if (window.confirm("Permanently erase assessment logs for this profile? This cannot be reversed.")) {
       const response = await apiService.clearHistory(currentUser?.id);
       if (response.success) {
         setHistory([]);
-        alert("All historical data has been cleared.");
       } else {
         alert("Failed to clear data: " + response.error?.message);
       }
     }
   };
 
-  // Format timestamp helper
   const formatDate = (isoStr: string) => {
     const d = new Date(isoStr);
     return d.toLocaleString('en-US', {
@@ -69,7 +66,6 @@ export const History: React.FC<HistoryProps> = ({ currentUser }) => {
     });
   };
 
-  // Filtered History computation
   const filteredHistory = history.filter(item => {
     const matchEmotion = emotionFilter === 'all' || item.emotion.toLowerCase() === emotionFilter.toLowerCase();
     const matchModality = modalityFilter === 'all' || item.modalities_used.includes(modalityFilter);
@@ -77,280 +73,242 @@ export const History: React.FC<HistoryProps> = ({ currentUser }) => {
   });
 
   return (
-    <div className="space-y-6 py-4">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">History Logs</h2>
-          <p className="text-slate-400 text-sm">Review, filter, and drill down into past emotional-state analyses.</p>
-        </div>
+    <div className="space-y-6 py-2">
+      {/* Top Filter and Controls Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800">
+            <Filter className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-300">Emotion:</span>
+            <select
+              value={emotionFilter}
+              onChange={(e) => setEmotionFilter(e.target.value)}
+              className="bg-transparent text-white outline-none cursor-pointer capitalize font-sans"
+            >
+              <option value="all" className="bg-slate-900 text-white">All Emotions</option>
+              <option value="happy" className="bg-slate-900 text-white">Happy</option>
+              <option value="sad" className="bg-slate-900 text-white">Sad</option>
+              <option value="angry" className="bg-slate-900 text-white">Angry</option>
+              <option value="fear" className="bg-slate-900 text-white">Fear</option>
+              <option value="surprise" className="bg-slate-900 text-white">Surprise</option>
+              <option value="disgust" className="bg-slate-900 text-white">Disgust</option>
+              <option value="neutral" className="bg-slate-900 text-white">Neutral</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800">
+            <Layers className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold text-slate-300">Modality:</span>
+            <select
+              value={modalityFilter}
+              onChange={(e) => setModalityFilter(e.target.value)}
+              className="bg-transparent text-white outline-none cursor-pointer font-sans"
+            >
+              <option value="all" className="bg-slate-900 text-white">All Combinations</option>
+              <option value="text" className="bg-slate-900 text-white">Includes Text</option>
+              <option value="audio" className="bg-slate-900 text-white">Includes Audio</option>
+              <option value="image" className="bg-slate-900 text-white">Includes Vision</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={fetchHistory}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition"
+            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
             title="Refresh History"
           >
-            <RefreshCw className="h-4.5 w-4.5" />
+            <RefreshCw className="h-4 w-4" />
           </button>
           
           {history.length > 0 && (
             <button
               onClick={handleClearHistory}
-              className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/15 text-red-400 border border-red-500/20 font-semibold text-sm transition flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-medium text-xs transition flex items-center gap-1.5"
             >
-              <Trash2 className="h-4 w-4" /> Clear Database
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Clear Log</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* FILTER CONTROLS */}
-      <div className="glass-panel p-4 rounded-xl border border-slate-800 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 text-slate-400 text-xs font-semibold uppercase tracking-wider pr-2">
-            <Filter className="h-3.5 w-3.5" /> Filter by:
-          </div>
-
-          {/* Emotion filter */}
-          <select
-            value={emotionFilter}
-            onChange={(e) => setEmotionFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-brand-500"
-          >
-            <option value="all">All Emotions</option>
-            {['happy', 'sad', 'angry', 'fear', 'surprise', 'disgust', 'neutral'].map(e => (
-              <option key={e} value={e} className="capitalize">{e}</option>
-            ))}
-          </select>
-
-          {/* Modality filter */}
-          <select
-            value={modalityFilter}
-            onChange={(e) => setModalityFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-brand-500"
-          >
-            <option value="all">All Modalities</option>
-            <option value="text">Text Only</option>
-            <option value="audio">Audio Only</option>
-            <option value="image">Image Only</option>
-          </select>
-        </div>
-
-        <div className="text-xs text-slate-500">
-          Showing {filteredHistory.length} of {history.length} records
-        </div>
-      </div>
-
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2.5">
-          <AlertCircle className="h-5 w-5 text-red-400" />
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2.5">
+          <AlertCircle className="h-4.5 w-4.5 text-red-400 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* HISTORY TABLE */}
+      {/* Record Feed */}
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center space-y-3">
-          <RefreshCw className="h-8 w-8 text-brand-400 animate-spin" />
-          <p className="text-slate-400 text-sm">Loading historical data...</p>
-        </div>
+        <div className="py-16 text-center text-xs text-slate-400">Loading historical records...</div>
       ) : filteredHistory.length === 0 ? (
-        <div className="glass-panel py-20 rounded-2xl border border-slate-800 text-center space-y-3">
-          <Calendar className="h-10 w-10 text-slate-600 mx-auto" />
-          <p className="text-slate-400 font-semibold">No records match your search criteria</p>
-          <p className="text-slate-500 text-xs max-w-sm mx-auto">Try resetting filters or click &quot;New Analysis&quot; to run an assessment.</p>
+        <div className="academic-card p-12 text-center space-y-2">
+          <p className="text-slate-300 font-semibold text-sm">No historical assessments found</p>
+          <p className="text-slate-500 text-xs max-w-sm mx-auto">
+            {history.length === 0 
+              ? "Run your first multimodal inference in the Live Studio above to log assessment records." 
+              : "No records match the selected emotion and modality filters."}
+          </p>
         </div>
       ) : (
-        <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-900 border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                  <th className="py-4 px-6">Timestamp</th>
-                  <th className="py-4 px-6">Modality Inputs</th>
-                  <th className="py-4 px-6">Resulting Emotion</th>
-                  <th className="py-4 px-6">Model Confidence</th>
-                  <th className="py-4 px-6">Scope</th>
-                  <th className="py-4 px-6 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-850">
-                {filteredHistory.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-800/20 transition-all">
-                    {/* Timestamp */}
-                    <td className="py-4.5 px-6 font-medium text-slate-300">
-                      {formatDate(row.timestamp)}
-                    </td>
-                    
-                    {/* Modalities Used Icons */}
-                    <td className="py-4.5 px-6">
-                      <div className="flex gap-2">
-                        {row.modalities_used.includes('text') && (
-                          <div className="p-1 bg-indigo-500/10 text-indigo-400 rounded" title="Text Input">
-                            <FileText className="h-4 w-4" />
-                          </div>
-                        )}
-                        {row.modalities_used.includes('audio') && (
-                          <div className="p-1 bg-emerald-500/10 text-emerald-400 rounded" title="Audio Input">
-                            <Mic className="h-4 w-4" />
-                          </div>
-                        )}
-                        {row.modalities_used.includes('image') && (
-                          <div className="p-1 bg-blue-500/10 text-blue-400 rounded" title="Image Input">
-                            <Camera className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-                    </td>
+        <div className="space-y-3">
+          {filteredHistory.map((item, idx) => (
+            <div 
+              key={idx} 
+              className="academic-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-700 transition cursor-pointer"
+              onClick={() => setSelectedRecord(item)}
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base font-bold text-white capitalize">{item.emotion}</span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    ({(item.confidence * 100).toFixed(0)}% Conf)
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-brand-500/10 border border-brand-500/20 text-brand-300 font-medium">
+                    {item.confidence_label}
+                  </span>
+                </div>
 
-                    {/* Final Emotion */}
-                    <td className="py-4.5 px-6 capitalize font-semibold text-white">
-                      {row.emotion}
-                    </td>
+                <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                  <span className="flex items-center gap-1 font-mono text-[11px] text-slate-500">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {formatDate(item.timestamp || new Date().toISOString())}
+                  </span>
 
-                    {/* Confidence percentage */}
-                    <td className="py-4.5 px-6 font-medium text-slate-300">
-                      {(row.confidence * 100).toFixed(0)}%
-                    </td>
+                  <div className="flex items-center gap-1.5">
+                    {item.modalities_used.includes('text') && (
+                      <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">Text</span>
+                    )}
+                    {item.modalities_used.includes('audio') && (
+                      <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Audio</span>
+                    )}
+                    {item.modalities_used.includes('image') && (
+                      <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">Vision</span>
+                    )}
+                  </div>
+                </div>
 
-                    {/* Scope label (is_demo indicator) */}
-                    <td className="py-4.5 px-6">
-                      {row.is_demo ? (
-                        <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 font-medium">
-                          Simulated
-                        </span>
-                      ) : (
-                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-medium">
-                          Trained
-                        </span>
-                      )}
-                    </td>
+                <p className="text-xs text-slate-300 line-clamp-1 max-w-2xl pt-0.5">
+                  {item.wellness_insight}
+                </p>
+              </div>
 
-                    {/* Actions button */}
-                    <td className="py-4.5 px-6 text-center">
-                      <button
-                        onClick={() => setSelectedRecord(row)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-brand-600 hover:text-white text-slate-400 transition"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedRecord(item);
+                }}
+                className="self-start sm:self-center px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5 shrink-0"
+              >
+                <Eye className="h-3.5 w-3.5 text-brand-400" />
+                <span>Inspect</span>
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* DETAIL MODAL DRAWER */}
+      {/* DETAILED RECORD INSPECTION MODAL */}
       {selectedRecord && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            {/* Modal header */}
-            <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="academic-card p-6 md:p-8 max-w-xl w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Analysis Report</span>
-                <h3 className="text-xl font-bold text-white capitalize">{selectedRecord.emotion} Report</h3>
-                <p className="text-xs text-slate-400 mt-1">{formatDate(selectedRecord.timestamp)}</p>
+                <span className="text-[10px] text-brand-400 font-semibold uppercase tracking-wider block">
+                  Assessment Record #{selectedRecord.id || 'N/A'}
+                </span>
+                <h3 className="text-2xl font-bold text-white capitalize">{selectedRecord.emotion}</h3>
               </div>
-              <button
+              <button 
                 onClick={() => setSelectedRecord(null)}
-                className="text-xs text-slate-400 hover:text-slate-200 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-750"
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
               >
-                Close
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Model Confidence Overview */}
-            <div className="grid md:grid-cols-2 gap-6 bg-slate-950/30 p-4 rounded-xl border border-slate-850">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Classification Result</span>
-                <p className="text-2xl font-bold text-white capitalize">{selectedRecord.emotion}</p>
-                <p className="text-xs text-slate-400">Confidence Score: <span className="font-semibold text-slate-200">{(selectedRecord.confidence * 100).toFixed(0)}%</span></p>
-              </div>
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Pipeline Metadata</span>
-                <p className="text-xs text-slate-300 font-medium">Model: {selectedRecord.model_version}</p>
-                <p className="text-xs text-slate-350">Mode: {selectedRecord.is_demo ? 'Demo Simulation (Fallback)' : 'PyTorch Live Inference'}</p>
-              </div>
-            </div>
-
-            {/* Wellness Insights */}
-            <div className="space-y-2">
-              <h4 className="font-semibold text-slate-300 text-sm">System Insights</h4>
-              <p className="text-slate-400 text-xs leading-relaxed">{selectedRecord.wellness_insight}</p>
-            </div>
-
-            {/* Modalities predictions comparison */}
-            <div className="space-y-3">
-              <h4 className="font-semibold text-slate-300 text-sm">Unimodal Breakdown</h4>
-              <div className="grid grid-cols-3 gap-3">
-                {/* Text prediction card */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 text-center">
-                  <p className="text-[9px] font-semibold text-indigo-400 uppercase tracking-wide">Text Modality</p>
-                  {selectedRecord.modality_predictions.text ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-bold text-white capitalize">{selectedRecord.modality_predictions.text.emotion}</p>
-                      <p className="text-[10px] text-slate-500">{(selectedRecord.modality_predictions.text.confidence * 100).toFixed(0)}% Conf</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-600 italic py-2 mt-1">Not used</p>
-                  )}
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                <div>
+                  <span className="text-slate-500 text-[10px] uppercase block">Confidence Score</span>
+                  <span className="text-sm font-bold text-white font-mono">{(selectedRecord.confidence * 100).toFixed(1)}%</span>
                 </div>
-
-                {/* Audio prediction card */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 text-center">
-                  <p className="text-[9px] font-semibold text-emerald-400 uppercase tracking-wide">Audio Modality</p>
-                  {selectedRecord.modality_predictions.audio ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-bold text-white capitalize">{selectedRecord.modality_predictions.audio.emotion}</p>
-                      <p className="text-[10px] text-slate-500">{(selectedRecord.modality_predictions.audio.confidence * 100).toFixed(0)}% Conf</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-600 italic py-2 mt-1">Not used</p>
-                  )}
-                </div>
-
-                {/* Image prediction card */}
-                <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 text-center">
-                  <p className="text-[9px] font-semibold text-blue-400 uppercase tracking-wide">Image Modality</p>
-                  {selectedRecord.modality_predictions.image ? (
-                    <div className="mt-1">
-                      <p className="text-sm font-bold text-white capitalize">{selectedRecord.modality_predictions.image.emotion}</p>
-                      <p className="text-[10px] text-slate-500">{(selectedRecord.modality_predictions.image.confidence * 100).toFixed(0)}% Conf</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-600 italic py-2 mt-1">Not used</p>
-                  )}
+                <div>
+                  <span className="text-slate-500 text-[10px] uppercase block">Timestamp</span>
+                  <span className="text-slate-300 font-mono">{formatDate(selectedRecord.timestamp || new Date().toISOString())}</span>
                 </div>
               </div>
-            </div>
 
-            {/* Probability spread */}
-            <div className="space-y-3">
-              <h4 className="font-semibold text-slate-300 text-sm">Classifier Probability Output</h4>
-              <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                {Object.entries(selectedRecord.probabilities)
-                  .sort((a,b) => b[1] - a[1])
-                  .map(([emo, val]) => (
-                    <div key={emo} className="flex justify-between items-center bg-slate-950/20 px-3.5 py-2 rounded-lg border border-slate-850">
-                      <span className="capitalize font-medium text-slate-300">{emo}</span>
-                      <span className="font-bold text-white">{(val * 100).toFixed(0)}%</span>
-                    </div>
-                  ))}
+              {/* Unimodal Outputs */}
+              <div className="space-y-2">
+                <span className="font-semibold text-slate-300 block">Modality Encoder Projections:</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-center">
+                    <span className="text-[10px] font-semibold text-indigo-400 block uppercase">Text</span>
+                    <span className="font-bold text-slate-200 capitalize">
+                      {selectedRecord.modality_predictions.text?.emotion || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-center">
+                    <span className="text-[10px] font-semibold text-emerald-400 block uppercase">Audio</span>
+                    <span className="font-bold text-slate-200 capitalize">
+                      {selectedRecord.modality_predictions.audio?.emotion || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/60 p-3 rounded-lg border border-slate-800 text-center">
+                    <span className="text-[10px] font-semibold text-blue-400 block uppercase">Vision</span>
+                    <span className="font-bold text-slate-200 capitalize">
+                      {selectedRecord.modality_predictions.image?.emotion || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Wellness Insight */}
+              <div className="space-y-1 bg-slate-900/40 p-4 rounded-xl border border-slate-800">
+                <span className="font-semibold text-slate-200 block">Clinical & Wellness Insight:</span>
+                <p className="text-slate-300 leading-relaxed">{selectedRecord.wellness_insight}</p>
+              </div>
+
+              {/* Probability bars */}
+              <div className="space-y-2 pt-2">
+                <span className="font-semibold text-slate-300 block">Probability Breakdown:</span>
+                <div className="space-y-1.5">
+                  {Object.entries(selectedRecord.probabilities)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([emo, val]) => (
+                      <div key={emo} className="space-y-0.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="capitalize text-slate-300">{emo}</span>
+                          <span className="text-slate-400 font-mono">{(val * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                          <div className="h-full bg-brand-500" style={{ width: `${val * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                </div>
               </div>
             </div>
 
-            {/* Advisory disclaimer footer */}
-            <p className="text-[10px] text-slate-500 border-t border-slate-800 pt-4 leading-relaxed italic text-center">
-              {selectedRecord.disclaimer}
-            </p>
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition"
+              >
+                Close Record
+              </button>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

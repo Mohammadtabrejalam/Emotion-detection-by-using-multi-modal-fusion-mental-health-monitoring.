@@ -1,36 +1,109 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-page: #090d16;
+  --bg-surface: #0f172a;
+  --bg-surface-elevated: #141e33;
+  --bg-card: rgba(15, 23, 42, 0.75);
+  --border-subtle: #1e293b;
+  --border-strong: #334155;
+  --text-main: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+}
+
+.light-theme {
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-card: #ffffff;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-main: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --accent-primary: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: #eff6ff;
+}
+
 body {
-  background-color: #070a13;
-  color: #f8fafc;
-  font-family: 'Outfit', 'Inter', sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* LIGHT THEME PREFERENCE */
-.light-theme body,
-.light-theme {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
+/* Academic Typography Elements */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-.light-theme .bg-\[\#070a13\] {
-  background-color: #f8fafc !important;
+/* Academic Panels & Cards */
+.academic-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.light-theme .bg-slate-950,
+.academic-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+}
+
+.glass-panel {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+}
+
+.glass-panel-hover:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.08);
+}
+
+/* Light Theme Component Helpers */
+.light-theme .academic-card,
+.light-theme .glass-panel {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+}
+
+.light-theme .academic-card:hover,
+.light-theme .glass-panel-hover:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+}
+
+.light-theme .bg-\[\#070a13\],
+.light-theme .bg-\[\#090d16\],
+.light-theme .bg-slate-950 {
+  background-color: #ffffff !important;
+}
+
 .light-theme .bg-slate-950\/40,
 .light-theme .bg-slate-950\/60,
 .light-theme .bg-slate-950\/70,
 .light-theme .bg-slate-950\/80,
 .light-theme .bg-slate-950\/90 {
-  background-color: #ffffff !important;
+  background-color: #f8fafc !important;
 }
 
 .light-theme .bg-slate-900,
@@ -54,64 +127,77 @@ body {
   color: #64748b !important;
 }
 
+.light-theme .text-slate-500 {
+  color: #64748b !important;
+}
+
 .light-theme .border-slate-800,
 .light-theme .border-slate-850,
-.light-theme .border-slate-700 {
+.light-theme .border-slate-700,
+.light-theme .border-slate-700\/50,
+.light-theme .border-slate-700\/60,
+.light-theme .border-slate-700\/80,
+.light-theme .border-slate-800\/80 {
   border-color: #e2e8f0 !important;
 }
 
-.light-theme .glass-panel {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border: 1px solid rgba(226, 232, 240, 0.8) !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-}
-
 .light-theme header {
-  background-color: rgba(255, 255, 255, 0.9) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
   border-bottom-color: #e2e8f0 !important;
 }
 
-/* Glass Panels */
-.glass-panel {
-  background: rgba(14, 19, 34, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+.light-theme footer {
+  background-color: #f8fafc !important;
+  border-top-color: #e2e8f0 !important;
 }
 
-.glass-panel-hover:hover {
-  border-color: rgba(59, 94, 255, 0.3);
-  box-shadow: 0 10px 30px -10px rgba(59, 94, 255, 0.15);
-  transition: all 0.3s ease;
-}
-
-.text-gradient {
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #3b82f6 100%);
+/* Subtle Academic Title Accent */
+.academic-headline {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Custom scrollbars */
+.dark .academic-headline,
+:not(.light-theme) .academic-headline {
+  background: linear-gradient(135deg, #ffffff 0%, #93c5fd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Focus and Accessibility */
+*:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Custom Minimal Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #070a13;
+  background: var(--bg-page);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-strong);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3b5eff;
+  background: var(--text-muted);
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 0.1; }
-  50% { opacity: 0.3; }
-}
-
-.animate-pulse-slow {
-  animation: pulse-slow 8s infinite ease-in-out;
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,15 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Sparkles, 
-  Sliders, 
   Camera, 
   Mic, 
   Download, 
-  Check, 
-  Play, 
-  Pause, 
   Wand2, 
-  Eye, 
   RotateCcw,
   Palette
 } from 'lucide-react';
@@ -21,71 +15,58 @@ interface AdobeStudioProps {
 export const AdobeStudio: React.FC<AdobeStudioProps> = ({ onSendToAnalyzer }) => {
   const [activeTool, setActiveTool] = useState<'photo' | 'audio' | 'poster'>('photo');
 
-  // ----------------- PHOTO STUDIO STATES (Photoshop / Lightroom) ----------------- //
+  // Photo Studio States
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [brightness, setBrightness] = useState<number>(100);
   const [contrast, setContrast] = useState<number>(100);
   const [saturation, setSaturation] = useState<number>(100);
-  const [warmth, setWarmth] = useState<number>(0);
   const [grayscale, setGrayscale] = useState<number>(0);
   const [blur, setBlur] = useState<number>(0);
-  const [showFaceBox, setShowFaceBox] = useState<boolean>(true);
   const [selectedPreset, setSelectedPreset] = useState<string>('normal');
 
-  // ----------------- AUDIO STUDIO STATES (Audition) ----------------- //
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  // Audio Studio States
   const [noiseReduction, setNoiseReduction] = useState<number>(30);
   const [clarityBoost, setClarityBoost] = useState<number>(50);
-  const [audioSpeed, setAudioSpeed] = useState<number>(1.0);
 
-  // ----------------- POSTER CREATOR STATES (Adobe Express) ----------------- //
-  const [posterMood, setPosterMood] = useState<string>('calm');
-  const [posterTitle, setPosterTitle] = useState<string>('Peace Within');
-  const [posterQuote, setPosterQuote] = useState<string>('Take a deep breath. You are capable of amazing things today.');
+  // Poster Creator States
+  const [posterTitle, setPosterTitle] = useState<string>('Emotional Equilibrium');
+  const [posterQuote, setPosterQuote] = useState<string>('Allow yourself the space to breathe and process. Clarity follows steady reflection.');
   const [posterTheme, setPosterTheme] = useState<string>('gradient-indigo');
-  const [posterFont, setPosterFont] = useState<string>('sans');
   const posterCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Reset photo filters
   const resetPhotoFilters = () => {
     setBrightness(100);
     setContrast(100);
     setSaturation(100);
-    setWarmth(0);
     setGrayscale(0);
     setBlur(0);
     setSelectedPreset('normal');
   };
 
-  // Apply photo presets (Lightroom Style)
   const applyPreset = (preset: string) => {
     setSelectedPreset(preset);
     if (preset === 'vibrant') {
       setBrightness(105);
       setContrast(115);
-      setSaturation(135);
-      setWarmth(10);
+      setSaturation(130);
       setGrayscale(0);
       setBlur(0);
     } else if (preset === 'monochrome') {
       setBrightness(100);
       setContrast(120);
       setSaturation(0);
-      setWarmth(0);
       setGrayscale(100);
       setBlur(0);
     } else if (preset === 'warm-glow') {
       setBrightness(110);
       setContrast(105);
       setSaturation(110);
-      setWarmth(35);
       setGrayscale(0);
       setBlur(0);
     } else if (preset === 'cool-focus') {
       setBrightness(95);
       setContrast(110);
       setSaturation(90);
-      setWarmth(-25);
       setGrayscale(0);
       setBlur(0);
     } else {
@@ -93,13 +74,11 @@ export const AdobeStudio: React.FC<AdobeStudioProps> = ({ onSendToAnalyzer }) =>
     }
   };
 
-  // Magic 1-Click Enhance (Adobe Sensei Style)
   const applyMagicEnhance = () => {
     setSelectedPreset('magic');
-    setBrightness(108);
-    setContrast(112);
-    setSaturation(115);
-    setWarmth(5);
+    setBrightness(106);
+    setContrast(110);
+    setSaturation(112);
     setGrayscale(0);
     setBlur(0);
   };
@@ -112,605 +91,382 @@ export const AdobeStudio: React.FC<AdobeStudioProps> = ({ onSendToAnalyzer }) =>
     }
   };
 
-  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsPlaying(true);
-    }
-  };
-
   // Render Poster Canvas
   useEffect(() => {
-    if (activeTool === 'poster' && posterCanvasRef.current) {
-      const canvas = posterCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+    if (activeTool !== 'poster') return;
+    const canvas = posterCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-      canvas.width = 600;
-      canvas.height = 600;
+    canvas.width = 600;
+    canvas.height = 600;
 
-      // Background Gradient
-      let grad = ctx.createLinearGradient(0, 0, 600, 600);
-      if (posterTheme === 'gradient-indigo') {
-        grad.addColorStop(0, '#312e81');
-        grad.addColorStop(0.5, '#4f46e5');
-        grad.addColorStop(1, '#06b6d4');
-      } else if (posterTheme === 'gradient-emerald') {
-        grad.addColorStop(0, '#064e3b');
-        grad.addColorStop(0.5, '#059669');
-        grad.addColorStop(1, '#10b981');
-      } else if (posterTheme === 'gradient-sunset') {
-        grad.addColorStop(0, '#831843');
-        grad.addColorStop(0.5, '#db2777');
-        grad.addColorStop(1, '#f59e0b');
+    // Theme Background
+    let bgGrad = ctx.createLinearGradient(0, 0, 600, 600);
+    if (posterTheme === 'gradient-indigo') {
+      bgGrad.addColorStop(0, '#0f172a');
+      bgGrad.addColorStop(0.5, '#1e1b4b');
+      bgGrad.addColorStop(1, '#090d16');
+    } else if (posterTheme === 'gradient-emerald') {
+      bgGrad.addColorStop(0, '#022c22');
+      bgGrad.addColorStop(0.5, '#064e3b');
+      bgGrad.addColorStop(1, '#022c22');
+    } else if (posterTheme === 'gradient-amber') {
+      bgGrad.addColorStop(0, '#451a03');
+      bgGrad.addColorStop(0.5, '#78350f');
+      bgGrad.addColorStop(1, '#1c1917');
+    } else {
+      bgGrad.addColorStop(0, '#090d16');
+      bgGrad.addColorStop(1, '#1e293b');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 600, 600);
+
+    // Border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(24, 24, 552, 552);
+
+    // Title
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.letterSpacing = '3px';
+    ctx.textAlign = 'center';
+    ctx.fillText('MINDSENSE AFFECTIVE COMPUTING', 300, 70);
+
+    // Header Focus
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px Inter, sans-serif';
+    ctx.fillText(posterTitle, 300, 180);
+
+    // Quote Body
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '16px Inter, sans-serif';
+    
+    // Multi-line wrap helper
+    const words = posterQuote.split(' ');
+    let line = '';
+    let y = 260;
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > 460 && n > 0) {
+        ctx.fillText(line, 300, y);
+        line = words[n] + ' ';
+        y += 28;
       } else {
-        grad.addColorStop(0, '#0f172a');
-        grad.addColorStop(1, '#1e293b');
+        line = testLine;
       }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 600, 600);
-
-      // Decorative concentric rings
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(300, 300, 220, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(300, 300, 160, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Badge
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      ctx.roundRect(220, 90, 160, 32, 16);
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(posterMood.toUpperCase() + ' VIBE', 300, 111);
-
-      // Title
-      ctx.font = posterFont === 'serif' ? 'bold 38px Georgia, serif' : 'bold 42px sans-serif';
-      ctx.fillText(posterTitle, 300, 220);
-
-      // Divider
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(250, 250);
-      ctx.lineTo(350, 250);
-      ctx.stroke();
-
-      // Quote text wrapped
-      ctx.font = posterFont === 'serif' ? 'italic 18px Georgia, serif' : '18px sans-serif';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      
-      const words = posterQuote.split(' ');
-      let line = '';
-      let y = 320;
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > 460 && n > 0) {
-          ctx.fillText(line, 300, y);
-          line = words[n] + ' ';
-          y += 32;
-        } else {
-          line = testLine;
-        }
-      }
-      ctx.fillText(line, 300, y);
-
-      // Brand Watermark
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '12px sans-serif';
-      ctx.fillText('Created with MindSense Creative Studio', 300, 540);
     }
-  }, [activeTool, posterMood, posterTitle, posterQuote, posterTheme, posterFont]);
+    ctx.fillText(line, 300, y);
 
-  // Download Poster
-  const downloadPoster = () => {
-    if (posterCanvasRef.current) {
-      const url = posterCanvasRef.current.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `mindsense_poster_${posterMood}.png`;
-      a.click();
-    }
+    // Footer
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px JetBrains Mono, monospace';
+    ctx.fillText('Research & Longitudinal Wellness Protocol', 300, 530);
+
+  }, [activeTool, posterTitle, posterQuote, posterTheme]);
+
+  const handleDownloadPoster = () => {
+    const canvas = posterCanvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `mindsense_poster_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   };
 
   return (
-    <div className="space-y-10 py-4 max-w-6xl mx-auto">
+    <div className="space-y-8 py-2 max-w-6xl mx-auto">
       
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold uppercase tracking-wider mb-1">
-            <Sparkles className="h-3.5 w-3.5 text-brand-400" /> Adobe Creative Media Suite
-          </div>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-            Creative Expression & Media Studio
+          <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block mb-1">
+            Media Calibration & Synthesis
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Affective Pre-Processing Studio
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Enhance, crop, filter facial photos, clean voice recordings, and design wellness mood cards.
+          <p className="text-xs text-slate-400 mt-0.5">
+            Calibrate raw webcam imagery, filter acoustic noise frequencies, and synthesize reflective affective posters.
           </p>
         </div>
 
-        {/* Tool Switcher Tabs */}
-        <div className="flex bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs">
+        {/* Tab switcher */}
+        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
           <button
             onClick={() => setActiveTool('photo')}
-            className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-1.5 ${
-              activeTool === 'photo' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3.5 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${
+              activeTool === 'photo' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Camera className="h-3.5 w-3.5" /> Photo & Face Editor
+            <Camera className="h-3.5 w-3.5" /> Facial Calibration
           </button>
           <button
             onClick={() => setActiveTool('audio')}
-            className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-1.5 ${
-              activeTool === 'audio' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3.5 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${
+              activeTool === 'audio' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Mic className="h-3.5 w-3.5" /> Audio Clean & Pitch
+            <Mic className="h-3.5 w-3.5" /> Acoustic DSP
           </button>
           <button
             onClick={() => setActiveTool('poster')}
-            className={`px-4 py-2 rounded-xl font-bold transition flex items-center gap-1.5 ${
-              activeTool === 'poster' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+            className={`px-3.5 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${
+              activeTool === 'poster' ? 'bg-brand-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Palette className="h-3.5 w-3.5" /> Express Mood Poster
+            <Palette className="h-3.5 w-3.5" /> Affect Poster
           </button>
         </div>
       </div>
 
-      {/* ======================================================== */}
-      {/* 1. PHOTO & FACE EDITOR (Lightroom / Photoshop Tools)     */}
-      {/* ======================================================== */}
+      {/* 1. PHOTO STUDIO (FACIAL CALIBRATION) */}
       {activeTool === 'photo' && (
-        <div className="grid lg:grid-cols-12 gap-8">
+        <div className="grid lg:grid-cols-12 gap-6">
           
-          {/* Canvas & Preview Viewport */}
-          <div className="lg:col-span-7 glass-panel p-6 rounded-3xl border border-slate-800 flex flex-col justify-between space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="text-xs font-bold text-white flex items-center gap-2">
-                <Eye className="h-4 w-4 text-brand-400" /> Interactive Canvas Viewport
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFaceBox(!showFaceBox)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
-                    showFaceBox ? 'bg-brand-500/20 text-brand-300 border-brand-500/40' : 'bg-slate-900 text-slate-500 border-slate-800'
-                  }`}
+          {/* Controls */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="academic-card p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span className="font-bold text-white text-xs uppercase tracking-wider">Calibration Presets</span>
+                <button 
+                  onClick={resetPhotoFilters}
+                  className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1"
                 >
-                  Face Bounding Box: {showFaceBox ? 'ON' : 'OFF'}
+                  <RotateCcw className="h-3 w-3" /> Reset
                 </button>
               </div>
-            </div>
 
-            {/* Live Canvas / Image Element */}
-            <div className="relative bg-slate-950 rounded-2xl min-h-[340px] flex items-center justify-center overflow-hidden border border-slate-850">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {['normal', 'vibrant', 'monochrome', 'warm-glow', 'cool-focus'].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => applyPreset(p)}
+                    className={`px-2.5 py-1.5 rounded-lg border capitalize text-[11px] font-medium transition ${
+                      selectedPreset === p 
+                        ? 'bg-brand-600 text-white border-brand-500 font-semibold shadow' 
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {p.replace('-', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={applyMagicEnhance}
+                className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow flex items-center justify-center gap-1.5"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                <span>Auto Contrast Enhance</span>
+              </button>
+
+              {/* Sliders */}
+              <div className="space-y-3 pt-2 border-t border-slate-800 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Brightness</span>
+                    <span className="font-mono">{brightness}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    value={brightness}
+                    onChange={(e) => setBrightness(Number(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Contrast</span>
+                    <span className="font-mono">{contrast}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="50"
+                    max="150"
+                    value={contrast}
+                    onChange={(e) => setContrast(Number(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Saturation</span>
+                    <span className="font-mono">{saturation}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    value={saturation}
+                    onChange={(e) => setSaturation(Number(e.target.value))}
+                    className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview Panel */}
+          <div className="lg:col-span-8 space-y-4">
+            <div className="academic-card p-6 flex flex-col items-center justify-center min-h-[380px] relative overflow-hidden">
               {imageSrc ? (
-                <div className="relative max-h-[340px]">
+                <div className="relative max-w-md w-full">
                   <img
                     src={imageSrc}
-                    alt="Loaded in studio"
+                    alt="Calibrated Preview"
                     style={{
-                      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) grayscale(${grayscale}%) blur(${blur}px) sepia(${warmth > 0 ? warmth : 0}%) hue-rotate(${warmth < 0 ? warmth : 0}deg)`,
-                      maxHeight: '340px',
-                      borderRadius: '12px'
+                      filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) grayscale(${grayscale}%) blur(${blur}px)`
                     }}
+                    className="w-full rounded-xl object-contain border border-slate-700 shadow"
                   />
-                  {showFaceBox && (
-                    <div className="absolute inset-x-1/4 inset-y-1/6 border-2 border-dashed border-emerald-400 rounded-xl pointer-events-none animate-pulse">
-                      <span className="absolute -top-3 left-2 bg-emerald-500 text-slate-950 font-extrabold text-[9px] px-1.5 py-0.2 rounded shadow">
-                        FACE DETECTED (48x48)
-                      </span>
-                    </div>
-                  )}
                 </div>
               ) : (
-                <div className="text-center p-8 space-y-3">
-                  <Camera className="h-10 w-10 text-slate-600 mx-auto" />
-                  <p className="text-xs text-slate-400">Upload a face photo or selfie to adjust filters</p>
-                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs cursor-pointer shadow-lg transition">
-                    Select Photo File
+                <div className="text-center space-y-3 p-8">
+                  <Camera className="h-10 w-10 text-slate-500 mx-auto" />
+                  <p className="text-slate-300 font-semibold text-xs">No image loaded for calibration</p>
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow">
+                    <span>Choose Image</span>
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
                 </div>
               )}
             </div>
-
-            {/* Quick Actions Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <label className="text-xs text-slate-400 hover:text-white cursor-pointer flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
-                Replace Photo
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              </label>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={resetPhotoFilters}
-                  className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 rounded-xl text-xs"
-                  title="Reset Filters"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => onSendToAnalyzer()}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5"
-                >
-                  <Check className="h-3.5 w-3.5" /> Send to Live Analyzer
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Controls & Adjustment Sliders (Lightroom Style) */}
-          <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-slate-800 space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="text-xs font-bold text-white flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-brand-400" /> Color & Expression Controls
-              </span>
-              <button
-                onClick={applyMagicEnhance}
-                className="text-[11px] font-bold text-brand-300 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition"
-              >
-                <Wand2 className="h-3 w-3" /> Magic Enhance
-              </button>
-            </div>
-
-            {/* Presets Grid */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Quick Presets</span>
-              <div className="grid grid-cols-4 gap-1.5">
-                {['normal', 'vibrant', 'monochrome', 'warm-glow'].map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => applyPreset(p)}
-                    className={`py-1.5 rounded-lg text-[10px] font-bold uppercase transition border ${
-                      selectedPreset === p 
-                        ? 'bg-brand-600 text-white border-brand-500 shadow' 
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sliders */}
-            <div className="space-y-3 text-xs">
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Brightness</span>
-                  <span className="font-mono text-white">{brightness}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={50}
-                  max={150}
-                  value={brightness}
-                  onChange={(e) => setBrightness(Number(e.target.value))}
-                  className="w-full accent-brand-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Contrast</span>
-                  <span className="font-mono text-white">{contrast}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={50}
-                  max={150}
-                  value={contrast}
-                  onChange={(e) => setContrast(Number(e.target.value))}
-                  className="w-full accent-brand-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Saturation</span>
-                  <span className="font-mono text-white">{saturation}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={200}
-                  value={saturation}
-                  onChange={(e) => setSaturation(Number(e.target.value))}
-                  className="w-full accent-brand-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Warmth / Tone</span>
-                  <span className="font-mono text-white">{warmth}</span>
-                </div>
-                <input
-                  type="range"
-                  min={-50}
-                  max={50}
-                  value={warmth}
-                  onChange={(e) => setWarmth(Number(e.target.value))}
-                  className="w-full accent-amber-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Soft Focus / Blur</span>
-                  <span className="font-mono text-white">{blur}px</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={8}
-                  value={blur}
-                  onChange={(e) => setBlur(Number(e.target.value))}
-                  className="w-full accent-indigo-500"
-                />
-              </div>
-
-            </div>
           </div>
 
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* 2. AUDIO ACOUSTIC STUDIO (Adobe Audition Tools)          */}
-      {/* ======================================================== */}
+      {/* 2. AUDIO STUDIO (Acoustic DSP) */}
       {activeTool === 'audio' && (
-        <div className="glass-panel p-8 rounded-3xl border border-slate-800 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div>
-              <h3 className="text-xl font-bold text-white">Voice Acoustic Enhancer & Spectral Strip</h3>
-              <p className="text-xs text-slate-400">Clean noise, boost speech clarity, and analyze vocal tone MFCCs.</p>
-            </div>
-
-            <label className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs cursor-pointer shadow-lg transition">
-              Upload Audio File
-              <input type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
-            </label>
+        <div className="academic-card p-6 md:p-8 space-y-6 max-w-2xl mx-auto">
+          <div className="space-y-1 border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white">Spectral Acoustic Filtering</h3>
+            <p className="text-xs text-slate-400">Pre-processing filters to isolate speech prosody before Mel-Frequency Cepstral analysis.</p>
           </div>
 
-          {/* Waveform visual simulation */}
-          <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850 space-y-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Acoustic Frequency Waveform</span>
-              <span className="font-mono text-emerald-400">16,000 Hz Mono (DSP Ready)</span>
-            </div>
-
-            {/* Animated Waveform Bars */}
-            <div className="flex items-center justify-center gap-1.5 h-24 px-4 bg-slate-900/60 rounded-xl overflow-hidden">
-              {Array.from({ length: 48 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-1.5 rounded-full transition-all duration-300 ${
-                    isPlaying ? 'bg-gradient-to-t from-emerald-500 to-indigo-400' : 'bg-slate-700'
-                  }`}
-                  style={{
-                    height: isPlaying ? `${Math.max(15, (Math.sin(i * 0.4) * 35 + 45))}%` : '20%'
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Playback Controls */}
-            <div className="flex items-center justify-between pt-2">
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg transition"
-              >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isPlaying ? 'Pause Playback' : 'Play Acoustic Preview'}
-              </button>
-
-              <button
-                onClick={() => onSendToAnalyzer()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-1.5"
-              >
-                <Check className="h-3.5 w-3.5" /> Send Voice to Live Analyzer
-              </button>
-            </div>
-          </div>
-
-          {/* Sliders Grid */}
-          <div className="grid md:grid-cols-3 gap-6 pt-2">
-            
-            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-850 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span className="font-bold">Noise Gate / De-Noise</span>
-                <span className="font-mono text-brand-400">{noiseReduction}%</span>
+          <div className="space-y-4 text-xs">
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>Ambient Noise Suppression</span>
+                <span className="font-mono text-emerald-400">{noiseReduction}%</span>
               </div>
               <input
                 type="range"
-                min={0}
-                max={100}
+                min="0"
+                max="100"
                 value={noiseReduction}
                 onChange={(e) => setNoiseReduction(Number(e.target.value))}
-                className="w-full accent-brand-500"
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
               />
-              <p className="text-[10px] text-slate-500">Eliminates background fan and room hiss.</p>
             </div>
 
-            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-850 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span className="font-bold">Vocal Clarity Boost</span>
-                <span className="font-mono text-emerald-400">{clarityBoost}%</span>
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>Vocal Harmonic Clarity</span>
+                <span className="font-mono text-indigo-400">{clarityBoost}%</span>
               </div>
               <input
                 type="range"
-                min={0}
-                max={100}
+                min="0"
+                max="100"
                 value={clarityBoost}
                 onChange={(e) => setClarityBoost(Number(e.target.value))}
-                className="w-full accent-emerald-500"
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
               />
-              <p className="text-[10px] text-slate-500">High-pass EQ enhancement for speech frequencies.</p>
             </div>
+          </div>
 
-            <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-850 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-300">
-                <span className="font-bold">Playback Speed & Pitch</span>
-                <span className="font-mono text-indigo-400">{audioSpeed}x</span>
-              </div>
-              <input
-                type="range"
-                min={0.75}
-                max={1.5}
-                step={0.05}
-                value={audioSpeed}
-                onChange={(e) => setAudioSpeed(Number(e.target.value))}
-                className="w-full accent-indigo-500"
-              />
-              <p className="text-[10px] text-slate-500">Pitch modulation and speech tempo control.</p>
-            </div>
-
+          <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-800 flex items-center justify-between">
+            <span className="text-xs text-slate-300">SciPy 16kHz DSP Engine</span>
+            <span className="text-[11px] font-mono text-emerald-400">Active</span>
           </div>
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* 3. WELLNESS MOOD POSTER (Adobe Express Tools)            */}
-      {/* ======================================================== */}
+      {/* 3. POSTER CREATOR */}
       {activeTool === 'poster' && (
-        <div className="grid lg:grid-cols-12 gap-8">
+        <div className="grid lg:grid-cols-12 gap-6">
           
-          {/* Left Canvas Preview */}
-          <div className="lg:col-span-7 glass-panel p-6 rounded-3xl border border-slate-800 space-y-4 flex flex-col items-center justify-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block w-full text-left">
-              High-Resolution Poster Canvas
-            </span>
+          <div className="lg:col-span-5 space-y-4">
+            <div className="academic-card p-6 space-y-4">
+              <span className="font-bold text-white text-xs uppercase tracking-wider block border-b border-slate-800 pb-2">
+                Poster Configuration
+              </span>
 
-            <canvas
-              ref={posterCanvasRef}
-              className="w-full max-w-[420px] aspect-square rounded-2xl shadow-2xl border border-slate-700"
-            />
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Title Heading</label>
+                <input
+                  type="text"
+                  value={posterTitle}
+                  onChange={(e) => setPosterTitle(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700/60 focus:border-brand-500 rounded-lg px-3 py-2 text-xs text-white outline-none"
+                />
+              </div>
 
-            <div className="flex items-center gap-3 w-full max-w-[420px] pt-2">
-              <button
-                onClick={downloadPoster}
-                className="flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition"
-              >
-                <Download className="h-4 w-4" /> Download Poster PNG
-              </button>
-              <button
-                onClick={() => onSendToAnalyzer(posterQuote)}
-                className="px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition"
-                title="Send Quote to Analyzer"
-              >
-                Test in AI
-              </button>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Affect Reflection Quote</label>
+                <textarea
+                  value={posterQuote}
+                  onChange={(e) => setPosterQuote(e.target.value)}
+                  rows={4}
+                  className="w-full bg-slate-900 border border-slate-700/60 focus:border-brand-500 rounded-lg p-3 text-xs text-white outline-none resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Palette Theme</label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { id: 'gradient-indigo', name: 'Indigo Deep' },
+                    { id: 'gradient-emerald', name: 'Emerald Calm' },
+                    { id: 'gradient-amber', name: 'Amber Glow' },
+                    { id: 'slate', name: 'Slate Obsidian' }
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setPosterTheme(t.id)}
+                      className={`px-3 py-2 rounded-lg border text-[11px] font-medium transition ${
+                        posterTheme === t.id 
+                          ? 'bg-brand-600 text-white border-brand-500 font-semibold shadow' 
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  onClick={handleDownloadPoster}
+                  className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow flex items-center justify-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download High-Res PNG</span>
+                </button>
+                <button
+                  onClick={() => onSendToAnalyzer(posterQuote)}
+                  className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs border border-slate-700 transition"
+                >
+                  Send Quote to Live Studio →
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Right Poster Customizer Controls */}
-          <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-slate-800 space-y-5">
-            <h3 className="font-bold text-white text-base flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Palette className="h-4 w-4 text-brand-400" /> Poster Styling & Typography
-            </h3>
-
-            {/* Poster Mood Tag */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Mood Category</label>
-              <div className="grid grid-cols-3 gap-2">
-                {['calm', 'inspired', 'grateful', 'focus', 'resilient', 'peace'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setPosterMood(m)}
-                    className={`py-1.5 rounded-lg text-[11px] font-bold capitalize transition border ${
-                      posterMood === m 
-                        ? 'bg-brand-600 text-white border-brand-500 shadow' 
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+          <div className="lg:col-span-7 flex items-center justify-center">
+            <div className="academic-card p-4 shadow-xl">
+              <canvas ref={posterCanvasRef} className="rounded-lg max-w-full h-auto shadow-inner" />
             </div>
-
-            {/* Background Theme */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Color Theme</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Indigo Nebula', id: 'gradient-indigo' },
-                  { label: 'Emerald Forest', id: 'gradient-emerald' },
-                  { label: 'Sunset Glow', id: 'gradient-sunset' },
-                  { label: 'Midnight Slate', id: 'gradient-dark' },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setPosterTheme(t.id)}
-                    className={`py-2 rounded-xl text-[11px] font-semibold transition border text-left px-3 ${
-                      posterTheme === t.id 
-                        ? 'border-brand-500 bg-brand-500/10 text-white ring-1 ring-brand-500' 
-                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Title input */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Poster Heading</label>
-              <input
-                type="text"
-                value={posterTitle}
-                onChange={(e) => setPosterTitle(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 rounded-xl px-3.5 py-2 text-xs text-white outline-none"
-              />
-            </div>
-
-            {/* Quote input */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Affirmation / Quote</label>
-              <textarea
-                rows={3}
-                value={posterQuote}
-                onChange={(e) => setPosterQuote(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-brand-500 rounded-xl p-3 text-xs text-slate-200 outline-none resize-none"
-              />
-            </div>
-
-            {/* Font Style */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Font Family</label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  onClick={() => setPosterFont('sans')}
-                  className={`py-2 rounded-xl font-bold border transition ${
-                    posterFont === 'sans' ? 'bg-brand-600 text-white border-brand-500' : 'bg-slate-950 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  Modern Sans
-                </button>
-                <button
-                  onClick={() => setPosterFont('serif')}
-                  className={`py-2 rounded-xl font-serif font-bold border transition ${
-                    posterFont === 'serif' ? 'bg-brand-600 text-white border-brand-500' : 'bg-slate-950 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  Classic Serif
-                </button>
-              </div>
-            </div>
-
           </div>
 
         </div>
