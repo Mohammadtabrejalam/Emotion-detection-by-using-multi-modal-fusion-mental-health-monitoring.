@@ -30,12 +30,13 @@ import { MentalHealthAwareness } from './pages/MentalHealthAwareness';
 import { DatasetHub } from './pages/DatasetHub';
 import { ProblemScenarios } from './pages/ProblemScenarios';
 import { AboutOverview } from './pages/AboutOverview';
+import { AdobeStudio } from './pages/AdobeStudio';
 import { apiService } from './services/api';
 import type { User } from './types';
 
 export const App: React.FC = () => {
   const [backendAlive, setBackendAlive] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<'home' | 'about' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'settings' | 'auth'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'about' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'adobe' | 'settings' | 'auth'>('home');
   const [activeModal, setActiveModal] = useState<'checkin' | 'config' | null>(null);
   const [studioText, setStudioText] = useState<string>('');
   
@@ -194,6 +195,12 @@ export const App: React.FC = () => {
             >
               <BookOpen className="h-3.5 w-3.5 text-emerald-400" /> Daily Notes
             </button>
+            <button 
+              onClick={() => setCurrentView('adobe')} 
+              className={`px-3 py-2 rounded-lg transition flex items-center gap-1.5 ${currentView === 'adobe' ? 'text-pink-300 bg-pink-500/10 border border-pink-500/20 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-pink-400" /> Adobe Studio
+            </button>
           </nav>
 
           {/* Action, Theme & User Status */}
@@ -294,6 +301,13 @@ export const App: React.FC = () => {
           <div className="max-w-6xl mx-auto">
             <DailyNotes currentUser={currentUser} onOpenLogin={() => setCurrentView('auth')} />
           </div>
+        </main>
+      )}
+
+      {/* VIEW: ADOBE CREATIVE STUDIO */}
+      {currentView === 'adobe' && (
+        <main className="px-6 py-12">
+          <AdobeStudio onSendToAnalyzer={(quote) => handleLoadTestPrompt(quote || '')} />
         </main>
       )}
 
