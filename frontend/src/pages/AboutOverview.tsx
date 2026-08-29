@@ -10,7 +10,7 @@ import {
 import { MindSenseLogo } from '../components/MindSenseLogo';
 
 interface AboutOverviewProps {
-  onStartAnalysis: () => void;
+  onStartAnalysis?: () => void;
 }
 
 export const AboutOverview: React.FC<AboutOverviewProps> = ({ onStartAnalysis }) => {

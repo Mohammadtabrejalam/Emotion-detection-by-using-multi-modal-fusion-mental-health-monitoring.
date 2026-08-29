@@ -8,11 +8,11 @@ import {
   Palette
 } from 'lucide-react';
 
-interface AdobeStudioProps {
+interface MediaProcessingProps {
   onSendToAnalyzer: (text?: string, file?: File) => void;
 }
 
-export const AdobeStudio: React.FC<AdobeStudioProps> = ({ onSendToAnalyzer }) => {
+export const MediaProcessing: React.FC<MediaProcessingProps> = ({ onSendToAnalyzer }) => {
   const [activeTool, setActiveTool] = useState<'photo' | 'audio' | 'poster'>('photo');
 
   // Photo Studio States
@@ -178,24 +178,11 @@ export const AdobeStudio: React.FC<AdobeStudioProps> = ({ onSendToAnalyzer }) =>
   };
 
   return (
-    <div className="space-y-8 py-2 max-w-6xl mx-auto">
+    <div className="space-y-6">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-        <div>
-          <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block mb-1">
-            Media Calibration & Synthesis
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Affective Pre-Processing Studio
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Calibrate raw webcam imagery, filter acoustic noise frequencies, and synthesize reflective affective posters.
-          </p>
-        </div>
-
-        {/* Tab switcher */}
-        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+      {/* Sub-tool Selector */}
+      <div className="flex justify-start">
+        <div className="flex bg-slate-900/60 p-1 rounded-xl border border-slate-800 text-xs">
           <button
             onClick={() => setActiveTool('photo')}
             className={`px-3.5 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 ${
