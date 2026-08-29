@@ -159,32 +159,74 @@ def test_developer_portal_flow():
     login_res = client.post("/api/developer/auth/login", json={"username_or_email": "admin@mindsense.ai", "password": "admin123"})
     assert login_res.status_code == 200
     assert login_res.json()["success"] is True
-    assert login_res.json()["data"]["developer"]["role"] == "ADMIN"
+    dev_token = login_res.json()["data"]["token"]
+    assert dev_token is not None
 
-    # 2. Developer Dashboard
-    dash_res = client.get("/api/developer/dashboard")
+    headers = {"Authorization": f"Bearer {dev_token}"}
+
+    # 2. Developer Dashboard with Token
+    dash_res = client.get("/api/developer/dashboard", headers=headers)
     assert dash_res.status_code == 200
     assert "total_visits" in dash_res.json()["data"]
 
     # 3. Submit feedback & update status
     client.post("/api/feedback", json={"rating": 5, "category": "UI/UX", "comment": "Great layout overhaul!"})
-    fb_res = client.get("/api/developer/feedback")
+    fb_res = client.get("/api/developer/feedback", headers=headers)
     assert fb_res.status_code == 200
     fb_list = fb_res.json()["data"]["feedback"]
     assert len(fb_list) > 0
     fb_id = fb_list[0]["id"]
 
     # 4. Developer updates feedback status
-    update_res = client.put(f"/api/developer/feedback/{fb_id}", json={"status": "In Review", "priority": "High", "internal_notes": "Assigned to UI team."})
+    update_res = client.put(f"/api/developer/feedback/{fb_id}", json={"status": "In Review", "priority": "High", "internal_notes": "Assigned to UI team."}, headers=headers)
     assert update_res.status_code == 200
     assert update_res.json()["success"] is True
 
     # 5. Developer Audit Logs & Health
-    audit_res = client.get("/api/developer/audit-logs")
+    audit_res = client.get("/api/developer/audit-logs", headers=headers)
     assert audit_res.status_code == 200
     assert len(audit_res.json()["data"]["logs"]) > 0
 
-    health_res = client.get("/api/developer/health")
+    health_res = client.get("/api/developer/health", headers=headers)
     assert health_res.status_code == 200
     assert health_res.json()["data"]["status"] == "operational"
+
+def test_user_isolation_and_rbac_security():
+    # 1. Unauthenticated request to developer dashboard must fail with 401
+    unauth_dev = client.get("/api/developer/dashboard")
+    assert unauth_dev.status_code == 401
+
+    # 2. Register User A & User B
+    import uuid
+    u1_name = f"user_a_{uuid.uuid4().hex[:6]}"
+    u2_name = f"user_b_{uuid.uuid4().hex[:6]}"
+
+    reg_a = client.post("/api/auth/register", json={"username": u1_name, "email": f"{u1_name}@mindsense.ai", "password": "password123", "name": "User A"})
+    assert reg_a.status_code == 200
+    token_a = reg_a.json()["data"]["token"]
+
+    reg_b = client.post("/api/auth/register", json={"username": u2_name, "email": f"{u2_name}@mindsense.ai", "password": "password123", "name": "User B"})
+    assert reg_b.status_code == 200
+    token_b = reg_b.json()["data"]["token"]
+
+    # 3. User A submits analysis with token A
+    anal_a = client.post("/api/analyze", data={"text": "User A private thought"}, headers={"Authorization": f"Bearer {token_a}"})
+    assert anal_a.status_code == 200
+
+    # 4. User B fetches history with token B -> User B must NOT see User A's history
+    hist_b = client.get("/api/history", headers={"Authorization": f"Bearer {token_b}"})
+    assert hist_b.status_code == 200
+    b_records = hist_b.json()["data"]["history"]
+    assert len(b_records) == 0
+
+    # 5. User A fetches history with token A -> User A sees 1 record
+    hist_a = client.get("/api/history", headers={"Authorization": f"Bearer {token_a}"})
+    assert hist_a.status_code == 200
+    a_records = hist_a.json()["data"]["history"]
+    assert len(a_records) == 1
+
+    # 6. User A token cannot access developer dashboard (must fail with 401)
+    user_access_dev = client.get("/api/developer/dashboard", headers={"Authorization": f"Bearer {token_a}"})
+    assert user_access_dev.status_code == 401
+
 

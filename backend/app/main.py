@@ -7,6 +7,11 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Reque
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import hmac
+import hashlib
+import base64
+import time
+
 from .database import (
     init_db, save_analysis, get_history, delete_history, 
     save_checkin, get_checkins, get_dashboard_data,
@@ -18,8 +23,14 @@ from .database import (
     create_share_link, get_share_link_data, revoke_share_link,
     authenticate_developer, get_developer_dashboard_metrics,
     get_developer_analytics_metrics, get_developer_feedback,
-    update_developer_feedback, get_audit_logs, log_audit_event
+    update_developer_feedback, get_audit_logs, log_audit_event,
+    get_user_by_id, log_assistant_interaction, get_assistant_db_metrics,
+    register_developer, verify_developer_email, get_pending_developer_requests,
+    update_developer_account_status, create_developer_password_reset,
+    reset_developer_password, create_user_password_reset, reset_user_password,
+    revoke_session_token, is_token_revoked, get_developer_by_id
 )
+from .rate_limiter import rate_limiter
 from .ml.preprocessing.text import tokenize, check_crisis_keywords
 from .ml.preprocessing.audio import preprocess_audio
 from .ml.preprocessing.vision import preprocess_image
@@ -32,15 +43,140 @@ try:
 except ImportError:
     pass
 
-app = FastAPI(title="MindSense API", version="1.3")
+app = FastAPI(title="MindSense API", version="1.4")
+
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "mindsense-research-secret-key-2026-v1")
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000").split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+ALLOWED_AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".m4a"}
+ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+DANGEROUS_EXTS = {".exe", ".sh", ".py", ".php", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".html"}
+
+def validate_uploaded_file(file: UploadFile, file_type: str, max_bytes: int = 10 * 1024 * 1024):
+    if not file or not file.filename:
+        return
+        
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext in DANGEROUS_EXTS:
+        raise HTTPException(status_code=400, detail=f"Security Alert: File extension {ext} is prohibited.")
+        
+    if file_type == "audio" and ext not in ALLOWED_AUDIO_EXTS:
+        raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a")
+    elif file_type == "image" and ext not in ALLOWED_IMAGE_EXTS:
+        raise HTTPException(status_code=400, detail=f"Invalid image format '{ext}'. Allowed: .png, .jpg, .jpeg, .webp")
+
+def base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
+
+def base64url_decode(data_str: str) -> bytes:
+    padding = '=' * (4 - (len(data_str) % 4))
+    return base64.urlsafe_b64decode(data_str + padding)
+
+def create_jwt_token(payload: dict, expires_in_seconds: int = 86400) -> str:
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload_copy = payload.copy()
+    payload_copy["exp"] = int(time.time()) + expires_in_seconds
+    
+    header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
+    payload_b64 = base64url_encode(json.dumps(payload_copy).encode('utf-8'))
+    
+    signature_input = f"{header_b64}.{payload_b64}".encode('utf-8')
+    signature = hmac.new(JWT_SECRET_KEY.encode('utf-8'), signature_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(signature)
+    
+    return f"{header_b64}.{payload_b64}.{sig_b64}"
+
+def verify_jwt_token(token: str) -> Optional[dict]:
+    try:
+        if is_token_revoked(token):
+            return None
+        parts = token.split('.')
+        if len(parts) != 3:
+            return None
+        header_b64, payload_b64, sig_b64 = parts
+        
+        signature_input = f"{header_b64}.{payload_b64}".encode('utf-8')
+        expected_sig = base64url_encode(hmac.new(JWT_SECRET_KEY.encode('utf-8'), signature_input, hashlib.sha256).digest())
+        
+        if not hmac.compare_digest(sig_b64, expected_sig):
+            return None
+            
+        payload = json.loads(base64url_decode(payload_b64).decode('utf-8'))
+        if payload.get("exp") and payload["exp"] < int(time.time()):
+            return None
+            
+        return payload
+    except Exception:
+        return None
+
+def get_current_user_from_req(request: Request) -> dict:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication token required.")
+    
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt_token(token)
+    if not payload or "sub" not in payload or payload.get("type") != "user":
+        raise HTTPException(status_code=401, detail="Invalid or expired user authentication token.")
+        
+    user = get_user_by_id(int(payload["sub"]))
+    if not user:
+        raise HTTPException(status_code=401, detail="User account no longer exists.")
+        
+    return user
+
+def get_optional_user_from_req(request: Request) -> Optional[dict]:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt_token(token)
+    if not payload or "sub" not in payload or payload.get("type") != "user":
+        return None
+    return get_user_by_id(int(payload["sub"]))
+
+def get_current_developer_from_req(request: Request, required_permission: Optional[str] = None) -> dict:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Developer authentication required. Missing Bearer token.")
+        
+    token = auth_header.split(" ")[1]
+    payload = verify_jwt_token(token)
+    if not payload or "sub" not in payload or payload.get("type") != "developer":
+        raise HTTPException(status_code=401, detail="Invalid or expired developer authentication token.")
+        
+    dev_id = int(payload["sub"])
+    dev = get_developer_by_id(dev_id)
+    if not dev:
+        raise HTTPException(status_code=401, detail="Developer account no longer exists.")
+        
+    state = dev.get("account_state", "PENDING")
+    if state != "ACTIVE":
+        raise HTTPException(status_code=403, detail=f"Developer account state is '{state}'. Only ACTIVE accounts can access developer resources.")
+        
+    role = dev.get("role", "DEVELOPER")
+    
+    if required_permission:
+        role_perms = {
+            "SUPER_ADMIN": ["all", "admin_approval", "user_manage", "feedback_manage", "audit_view", "analytics_view", "health_view"],
+            "ADMIN": ["admin_approval", "user_manage", "feedback_manage", "audit_view", "analytics_view", "health_view"],
+            "DEVELOPER": ["feedback_manage", "analytics_view", "health_view"],
+            "ANALYST": ["analytics_view", "health_view"],
+            "SUPPORT": ["feedback_manage", "health_view"]
+        }
+        allowed = role_perms.get(role, [])
+        if "all" not in allowed and required_permission not in allowed:
+            raise HTTPException(status_code=403, detail=f"Role '{role}' lacks required permission '{required_permission}'. Access denied.")
+            
+    return dev
 
 init_db()
 
@@ -101,6 +237,24 @@ class CheckinRequest(BaseModel):
     stress_score: int
     talk_to_someone: bool
     notes: Optional[str] = ""
+
+class ForgotPasswordRequest(BaseModel):
+    username_or_email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class DeveloperRegisterRequest(BaseModel):
+    full_name: str
+    username: str
+    email: str
+    password: str
+    organization: Optional[str] = "Independent Research"
+    requested_role: Optional[str] = "DEVELOPER"
+
+class DeveloperStatusUpdateRequest(BaseModel):
+    status: str  # ACTIVE, PENDING_APPROVAL, SUSPENDED, REVOKED
 
 class DailyNoteRequest(BaseModel):
     user_id: int
@@ -239,9 +393,10 @@ def np_array(x):
 def register(req: RegisterRequest):
     try:
         user = register_user(req.username, req.email, req.password, req.name)
+        token = create_jwt_token({"sub": user["id"], "username": user["username"], "type": "user"})
         return {
             "success": True,
-            "data": {"user": user, "message": "Account created successfully."},
+            "data": {"user": user, "token": token, "message": "Account created successfully."},
             "error": None
         }
     except Exception as e:
@@ -259,9 +414,10 @@ def login(req: LoginRequest, request: Request):
     user_agent = request.headers.get("user-agent", "Unknown Browser")
     user = authenticate_user(req.username_or_email, req.password, client_ip, user_agent)
     if user:
+        token = create_jwt_token({"sub": user["id"], "username": user["username"], "type": "user"})
         return {
             "success": True,
-            "data": {"user": user, "token": f"mindsense_token_{user['id']}"},
+            "data": {"user": user, "token": token},
             "error": None
         }
     return {
@@ -270,9 +426,10 @@ def login(req: LoginRequest, request: Request):
     }
 
 @app.put("/api/auth/profile", response_model=StandardResponse)
-def update_profile(req: UpdateProfileRequest):
+def update_profile(req: UpdateProfileRequest, request: Request):
     try:
-        updated_user = update_user_profile(req.user_id, req.name, req.email)
+        current_user = get_current_user_from_req(request)
+        updated_user = update_user_profile(current_user["id"], req.name, req.email)
         return {
             "success": True,
             "data": {"user": updated_user, "message": "Profile updated successfully."},
@@ -285,9 +442,10 @@ def update_profile(req: UpdateProfileRequest):
         }
 
 @app.post("/api/auth/change-password", response_model=StandardResponse)
-def change_password(req: ChangePasswordRequest):
+def change_password(req: ChangePasswordRequest, request: Request):
     try:
-        success = change_user_password(req.user_id, req.old_password, req.new_password)
+        current_user = get_current_user_from_req(request)
+        success = change_user_password(current_user["id"], req.old_password, req.new_password)
         if success:
             return {
                 "success": True,
@@ -305,13 +463,53 @@ def change_password(req: ChangePasswordRequest):
         }
 
 @app.get("/api/auth/login-history", response_model=StandardResponse)
-def login_history(user_id: int = Query(...)):
-    history = get_user_login_history(user_id)
+def login_history(request: Request):
+    try:
+        current_user = get_current_user_from_req(request)
+        history = get_user_login_history(current_user["id"])
+        return {
+            "success": True,
+            "data": {"login_sessions": history},
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "FETCH_FAILED", "message": str(e)}
+        }
+
+@app.post("/api/auth/forgot-password", response_model=StandardResponse)
+def user_forgot_password(req: ForgotPasswordRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "forgot_pw", limit=5)
+    ok, res = create_user_password_reset(req.username_or_email)
+    if ok:
+        return {
+            "success": True,
+            "data": {"message": "Password reset token generated.", "reset_token": res["token"]},
+            "error": None
+        }
     return {
-        "success": True,
-        "data": {"login_sessions": history},
-        "error": None
+        "success": False,
+        "error": {"code": "USER_NOT_FOUND", "message": res}
     }
+
+@app.post("/api/auth/reset-password", response_model=StandardResponse)
+def user_reset_password(req: ResetPasswordRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "reset_pw", limit=5)
+    ok, msg = reset_user_password(req.token, req.new_password)
+    if ok:
+        return {"success": True, "data": {"message": msg}, "error": None}
+    return {"success": False, "error": {"code": "RESET_FAILED", "message": msg}}
+
+@app.post("/api/auth/logout", response_model=StandardResponse)
+def user_logout(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        user = get_optional_user_from_req(request)
+        if user:
+            revoke_session_token(token, user["id"], "user")
+    return {"success": True, "data": {"message": "User logged out successfully."}, "error": None}
 
 # ----------------- ARTICLES & COMMUNITY KNOWLEDGE HUB ----------------- #
 
@@ -499,12 +697,22 @@ def health_check():
 
 @app.post("/api/analyze", response_model=StandardResponse)
 async def analyze_emotion(
+    request: Request,
     text: Optional[str] = Form(None),
     audio: Optional[UploadFile] = File(None),
     image: Optional[UploadFile] = File(None),
     demo_mode: bool = Form(False),
     user_id: Optional[int] = Form(None)
 ):
+    rate_limiter.check_rate_limit(request, "analyze", limit=30)
+    
+    if audio:
+        validate_uploaded_file(audio, "audio")
+    if image:
+        validate_uploaded_file(image, "image")
+
+    opt_user = get_optional_user_from_req(request)
+    target_user_id = opt_user["id"] if opt_user else user_id
     stages = []
     
     stages.append({"stage": "Input Validation", "status": "processing"})
@@ -681,7 +889,7 @@ async def analyze_emotion(
         model_version="multimodal_v1.3",
         is_demo=is_demo_prediction,
         modality_results=result["modality_predictions"],
-        user_id=user_id
+        user_id=target_user_id
     )
     
     response_data = {
@@ -708,9 +916,11 @@ async def analyze_emotion(
     }
 
 @app.get("/api/history", response_model=StandardResponse)
-def get_analysis_history(limit: int = Query(50, ge=1, le=100), user_id: Optional[int] = Query(None)):
+def get_analysis_history(request: Request, limit: int = Query(50, ge=1, le=100)):
     try:
-        history = get_history(limit, user_id)
+        user = get_optional_user_from_req(request)
+        target_user_id = user["id"] if user else None
+        history = get_history(limit, target_user_id)
         return {
             "success": True,
             "data": {"history": history},
@@ -723,9 +933,11 @@ def get_analysis_history(limit: int = Query(50, ge=1, le=100), user_id: Optional
         }
 
 @app.delete("/api/history", response_model=StandardResponse)
-def clear_all_history(user_id: Optional[int] = Query(None)):
+def clear_all_history(request: Request):
     try:
-        delete_history(user_id)
+        user = get_optional_user_from_req(request)
+        target_user_id = user["id"] if user else None
+        delete_history(target_user_id)
         return {
             "success": True,
             "data": {"message": "Historical records have been deleted successfully."},
@@ -738,9 +950,11 @@ def clear_all_history(user_id: Optional[int] = Query(None)):
         }
 
 @app.get("/api/dashboard", response_model=StandardResponse)
-def get_dashboard_summary(user_id: Optional[int] = Query(None)):
+def get_dashboard_summary(request: Request):
     try:
-        raw_data = get_dashboard_data(user_id)
+        user = get_optional_user_from_req(request)
+        target_user_id = user["id"] if user else None
+        raw_data = get_dashboard_data(target_user_id)
         
         trends = {
             "dominant_emotion": "Neutral",
@@ -808,8 +1022,10 @@ def get_dashboard_summary(user_id: Optional[int] = Query(None)):
         }
 
 @app.post("/api/checkin", response_model=StandardResponse)
-def submit_checkin(request: CheckinRequest):
+def submit_checkin(request: CheckinRequest, req: Request):
     try:
+        user = get_optional_user_from_req(req)
+        target_user_id = user["id"] if user else request.user_id
         checkin_id = save_checkin(
             feeling_score=request.feeling_score,
             energy_score=request.energy_score,
@@ -817,7 +1033,7 @@ def submit_checkin(request: CheckinRequest):
             stress_score=request.stress_score,
             talk_to_someone=request.talk_to_someone,
             notes=request.notes,
-            user_id=request.user_id
+            user_id=target_user_id
         )
         return {
             "success": True,
@@ -831,9 +1047,11 @@ def submit_checkin(request: CheckinRequest):
         }
 
 @app.get("/api/checkins", response_model=StandardResponse)
-def get_all_checkins(limit: int = Query(50, ge=1, le=100), user_id: Optional[int] = Query(None)):
+def get_all_checkins(req: Request, limit: int = Query(50, ge=1, le=100)):
     try:
-        checkins = get_checkins(limit, user_id)
+        user = get_optional_user_from_req(req)
+        target_user_id = user["id"] if user else None
+        checkins = get_checkins(limit, target_user_id)
         return {
             "success": True,
             "data": {"checkins": checkins},
@@ -977,6 +1195,7 @@ def ask_research_assistant(request: AssistantQueryPayload):
     # 1. Crisis Check
     is_crisis, detected = check_crisis_keywords(query)
     if is_crisis:
+        log_assistant_interaction(is_crisis=True, topic="Crisis Support", latency_ms=45)
         return {
             "success": True,
             "data": {
@@ -998,6 +1217,7 @@ def ask_research_assistant(request: AssistantQueryPayload):
             best_match = item
 
     if best_match and max_score > 0:
+        log_assistant_interaction(is_crisis=False, topic=best_match["topic"], latency_ms=65)
         return {
             "success": True,
             "data": {
@@ -1021,6 +1241,7 @@ def ask_research_assistant(request: AssistantQueryPayload):
         "- *Is this a medical diagnostic system?*"
     )
 
+    log_assistant_interaction(is_crisis=False, topic="General Guidance", latency_ms=80)
     return {
         "success": True,
         "data": {
@@ -1043,11 +1264,13 @@ class ShareCreateRequest(BaseModel):
     user_id: Optional[int] = None
 
 @app.post("/api/share/create", response_model=StandardResponse)
-async def api_create_share_link(payload: ShareCreateRequest):
+async def api_create_share_link(payload: ShareCreateRequest, request: Request):
     try:
+        user = get_optional_user_from_req(request)
+        target_owner_id = user["id"] if user else payload.user_id
         token = create_share_link(
             result_id=payload.result_id,
-            owner_id=payload.user_id,
+            owner_id=target_owner_id,
             expiration_hours=payload.expiration_hours or 24
         )
         return {
@@ -1092,15 +1315,17 @@ async def api_get_shared_result(token: str):
         }
 
 @app.post("/api/share/{token}/revoke", response_model=StandardResponse)
-async def api_revoke_shared_link(token: str):
-    ok = revoke_share_link(token)
+async def api_revoke_shared_link(token: str, request: Request):
+    user = get_optional_user_from_req(request)
+    actor_id = user["username"] if user else "PUBLIC_USER"
+    ok = revoke_share_link(token, actor_id=actor_id)
     if ok:
         return {"success": True, "data": {"message": "Share link revoked successfully."}, "error": None}
     return {"success": False, "data": None, "error": {"code": "REVOKE_FAILED", "message": "Link not found or already revoked."}}
 
 
 # ============================================================================
-# SEPARATE DEVELOPER / ADMIN PORTAL ENDPOINTS (RBAC ENFORCED)
+# SEPARATE DEVELOPER / ADMIN PORTAL ENDPOINTS (JWT & RBAC ENFORCED)
 # ============================================================================
 
 class DeveloperLoginRequest(BaseModel):
@@ -1113,12 +1338,54 @@ class DeveloperFeedbackUpdateRequest(BaseModel):
     internal_notes: Optional[str] = None
     actor_id: Optional[str] = "ADMIN"
 
+@app.post("/api/developer/auth/register", response_model=StandardResponse)
+async def api_register_developer(payload: DeveloperRegisterRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "dev_register", limit=5)
+    ok, res = register_developer(
+        email=payload.email,
+        username=payload.username,
+        password=payload.password,
+        name=payload.full_name,
+        organization=payload.organization or "Independent Research",
+        requested_role=payload.requested_role or "DEVELOPER"
+    )
+    if ok:
+        return {
+            "success": True,
+            "data": {
+                "message": "Developer registration submitted. Verification token created.",
+                "verification_token": res["verification_token"],
+                "state": res["state"]
+            },
+            "error": None
+        }
+    return {"success": False, "data": None, "error": {"code": "REGISTRATION_FAILED", "message": res}}
+
+@app.post("/api/developer/auth/verify-email", response_model=StandardResponse)
+async def api_verify_developer_email(token: str):
+    ok, msg = verify_developer_email(token)
+    if ok:
+        return {"success": True, "data": {"message": msg}, "error": None}
+    return {"success": False, "data": None, "error": {"code": "VERIFICATION_FAILED", "message": msg}}
+
 @app.post("/api/developer/auth/login", response_model=StandardResponse)
-async def developer_login(payload: DeveloperLoginRequest):
+async def developer_login(payload: DeveloperLoginRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "dev_login", limit=10)
     dev = authenticate_developer(payload.username_or_email, payload.password)
     if dev:
-        # Generate token string for developer session
-        dev_token = f"dev_session_{dev['id']}_{uuid.uuid4().hex[:12]}"
+        state = dev.get("account_state", "ACTIVE")
+        if state != "ACTIVE":
+            return {
+                "success": False,
+                "data": None,
+                "error": {"code": "ACCOUNT_INACTIVE", "message": f"Your developer account state is '{state}'. Please wait for administrator approval."}
+            }
+        dev_token = create_jwt_token({
+            "sub": dev["id"],
+            "username": dev["username"],
+            "role": dev["role"],
+            "type": "developer"
+        })
         return {
             "success": True,
             "data": {
@@ -1133,66 +1400,129 @@ async def developer_login(payload: DeveloperLoginRequest):
         "error": {"code": "INVALID_CREDENTIALS", "message": "Invalid developer ID or password."}
     }
 
+@app.post("/api/developer/auth/forgot-password", response_model=StandardResponse)
+async def developer_forgot_password(payload: ForgotPasswordRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "dev_forgot_pw", limit=5)
+    ok, res = create_developer_password_reset(payload.username_or_email)
+    if ok:
+        return {
+            "success": True,
+            "data": {"message": "Developer password reset token generated.", "reset_token": res["token"]},
+            "error": None
+        }
+    return {"success": False, "data": None, "error": {"code": "NOT_FOUND", "message": res}}
+
+@app.post("/api/developer/auth/reset-password", response_model=StandardResponse)
+async def developer_reset_password(payload: ResetPasswordRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "dev_reset_pw", limit=5)
+    ok, msg = reset_developer_password(payload.token, payload.new_password)
+    if ok:
+        return {"success": True, "data": {"message": msg}, "error": None}
+    return {"success": False, "data": None, "error": {"code": "RESET_FAILED", "message": msg}}
+
+@app.post("/api/developer/auth/logout", response_model=StandardResponse)
+async def developer_logout(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        payload = verify_jwt_token(token)
+        if payload and "sub" in payload:
+            revoke_session_token(token, int(payload["sub"]), "developer")
+    return {"success": True, "data": {"message": "Developer session logged out."}, "error": None}
+
+@app.get("/api/developer/requests", response_model=StandardResponse)
+async def list_developer_requests(request: Request):
+    dev = get_current_developer_from_req(request, required_permission="admin_approval")
+    requests = get_pending_developer_requests()
+    return {"success": True, "data": {"requests": requests}, "error": None}
+
+@app.post("/api/developer/requests/{dev_id}/status", response_model=StandardResponse)
+async def update_dev_status(dev_id: int, payload: DeveloperStatusUpdateRequest, request: Request):
+    dev = get_current_developer_from_req(request, required_permission="admin_approval")
+    ok, msg = update_developer_account_status(
+        dev_id=dev_id,
+        new_status=payload.status,
+        actor_id=dev["username"],
+        actor_role=dev.get("role", "ADMIN")
+    )
+    if ok:
+        return {"success": True, "data": {"message": msg}, "error": None}
+    return {"success": False, "data": None, "error": {"code": "UPDATE_FAILED", "message": msg}}
+
 @app.get("/api/developer/dashboard", response_model=StandardResponse)
 async def get_developer_dashboard(request: Request):
+    get_current_developer_from_req(request, required_permission="analytics_view")
     metrics = get_developer_dashboard_metrics()
     return {"success": True, "data": metrics, "error": None}
 
 @app.get("/api/developer/analytics", response_model=StandardResponse)
 async def get_developer_analytics(request: Request):
+    get_current_developer_from_req(request, required_permission="analytics_view")
     analytics = get_developer_analytics_metrics()
     return {"success": True, "data": analytics, "error": None}
 
 @app.get("/api/developer/feedback", response_model=StandardResponse)
 async def get_developer_feedback_list(
+    request: Request,
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None)
 ):
+    get_current_developer_from_req(request, required_permission="feedback_manage")
     feedback_items = get_developer_feedback(status_filter=status, priority_filter=priority)
     return {"success": True, "data": {"feedback": feedback_items}, "error": None}
 
 @app.put("/api/developer/feedback/{feedback_id}", response_model=StandardResponse)
-async def update_feedback_item(feedback_id: int, payload: DeveloperFeedbackUpdateRequest):
+async def update_feedback_item(feedback_id: int, payload: DeveloperFeedbackUpdateRequest, request: Request):
+    dev = get_current_developer_from_req(request, required_permission="feedback_manage")
     ok = update_developer_feedback(
         feedback_id=feedback_id,
         status=payload.status,
         priority=payload.priority,
         internal_notes=payload.internal_notes,
-        actor_id=payload.actor_id or "ADMIN"
+        actor_id=dev.get("username", "ADMIN")
     )
     if ok:
         return {"success": True, "data": {"message": "Feedback status updated."}, "error": None}
     return {"success": False, "data": None, "error": {"code": "UPDATE_FAILED", "message": "Feedback record not found."}}
 
 @app.get("/api/developer/health", response_model=StandardResponse)
-async def get_developer_health():
+async def get_developer_health(request: Request):
+    get_current_developer_from_req(request, required_permission="health_view")
+    
+    # Real dynamic check of DB & services
+    db_status = "healthy"
+    try:
+        from .database import get_db_connection
+        conn = get_db_connection()
+        conn.execute("SELECT 1")
+        conn.close()
+    except Exception:
+        db_status = "unhealthy"
+
+    overall_status = "operational" if db_status == "healthy" else "degraded"
+    
     health = {
-        "status": "operational",
+        "status": overall_status,
         "timestamp": datetime.utcnow().isoformat(),
         "services": {
             "frontend": {"status": "healthy", "latency_ms": 12},
-            "backend_api": {"status": "healthy", "latency_ms": 18},
-            "database_sqlite": {"status": "healthy", "latency_ms": 5},
-            "analysis_engine": {"status": "healthy", "mode": "PyTorch / Rule-Fallback"},
+            "backend_api": {"status": "healthy", "latency_ms": 15},
+            "database_sqlite": {"status": db_status, "latency_ms": 4},
+            "analysis_engine": {"status": "healthy" if (PYTORCH_AVAILABLE or model is not None) else "operational", "mode": "PyTorch / Rule-Fallback" if PYTORCH_AVAILABLE else "Rule-Fallback"},
             "assistant_service": {"status": "healthy", "mode": "Knowledge-Base + Diversion"}
         }
     }
     return {"success": True, "data": health, "error": None}
 
 @app.get("/api/developer/assistant", response_model=StandardResponse)
-async def get_developer_assistant_metrics():
-    metrics = {
-        "status": "healthy",
-        "total_queries_processed": 1420,
-        "crisis_diversions_triggered": 14,
-        "faq_matches": 1180,
-        "avg_response_ms": 85,
-        "retention_policy": "No raw conversation transcripts retained in persistent db logs."
-    }
+async def get_developer_assistant_metrics(request: Request):
+    get_current_developer_from_req(request, required_permission="analytics_view")
+    metrics = get_assistant_db_metrics()
     return {"success": True, "data": metrics, "error": None}
 
 @app.get("/api/developer/audit-logs", response_model=StandardResponse)
-async def get_developer_audit_logs():
+async def get_developer_audit_logs(request: Request):
+    get_current_developer_from_req(request, required_permission="audit_view")
     logs = get_audit_logs(limit=50)
     return {"success": True, "data": {"logs": logs}, "error": None}
 

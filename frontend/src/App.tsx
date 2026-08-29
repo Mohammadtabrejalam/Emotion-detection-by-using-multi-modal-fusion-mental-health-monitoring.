@@ -22,6 +22,7 @@ import { HowToUsePage } from './pages/HowToUsePage';
 import { RulesPage } from './pages/RulesPage';
 import { SharedResultPage } from './pages/SharedResultPage';
 import { DeveloperPortal } from './pages/developer/DeveloperPortal';
+import { DashboardPage } from './pages/DashboardPage';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { MindSenseAssistant } from './components/MindSenseAssistant';
 import { HelpCenterModal } from './components/HelpCenterModal';
@@ -35,6 +36,7 @@ export interface NavLocation {
   isAccountView?: boolean;
   isHowToUse?: boolean;
   isRules?: boolean;
+  isSettingsView?: boolean;
 }
 
 export const App: React.FC = () => {
@@ -52,6 +54,7 @@ export const App: React.FC = () => {
   const isAccountView = Boolean(currentLocation.isAccountView);
   const isHowToUse = Boolean(currentLocation.isHowToUse) || currentHash === '#/how-to-use';
   const isRules = Boolean(currentLocation.isRules) || currentHash === '#/rules';
+  const isSettingsView = Boolean(currentLocation.isSettingsView) || currentHash === '#/settings';
 
   // Sub-navigation states for multi-tab pillars
   const [analyzeSubTab, setAnalyzeSubTab] = useState<'live' | 'media'>('live');
@@ -60,7 +63,6 @@ export const App: React.FC = () => {
   const [resourcesSubTab, setResourcesSubTab] = useState<'publications' | 'casestudies' | 'awareness'>('publications');
 
   // Overlay Modals
-  const [isSettingsModal, setIsSettingsModal] = useState<boolean>(false);
   const [isSearchModal, setIsSearchModal] = useState<boolean>(false);
   const [isHelpModal, setIsHelpModal] = useState<boolean>(false);
 
@@ -293,7 +295,7 @@ export const App: React.FC = () => {
         onStartAnalysis={handleStartAnalysis}
         currentUser={currentUser}
         onOpenAccount={handleOpenAccount}
-        onOpenSettings={() => setIsSettingsModal(true)}
+        onOpenSettings={() => { window.location.hash = '#/settings'; setCurrentHash('#/settings'); }}
         onOpenSearch={() => setIsSearchModal(true)}
         onOpenHelp={() => setIsHelpModal(true)}
         isLightMode={isLightMode}
@@ -355,18 +357,42 @@ export const App: React.FC = () => {
               onOpenLogin={() => handleNavigate('home', undefined, true, false)}
             />
           </div>
+        ) : isSettingsView ? (
+          <div className="space-y-6">
+            <PageHeader
+              title="System Settings & Privacy Architecture"
+              description="Manage platform preferences, privacy controls, data export, and local database reset."
+              onBack={handleBack}
+              backLabel={getBackLabel()}
+              breadcrumbs={[
+                { label: 'Home', onClick: () => handleNavigate('home') },
+                { label: 'Settings' }
+              ]}
+            />
+            <div className="academic-card p-6 md:p-8 space-y-6">
+              <Settings />
+            </div>
+          </div>
         ) : (
           /* PRIMARY PILLARS */
           <>
-            {/* PILLAR 1: HOME (ROOT PAGE - NO BACK BUTTON) */}
+            {/* PILLAR 1: HOME / DASHBOARD */}
             {currentPillar === 'home' && (
-              <Home
-                currentUser={currentUser}
-                onStartAnalysis={handleStartAnalysis}
-                onNavigate={handleNavigate}
-                onOpenHelp={() => setIsHelpModal(true)}
-                recentAnalysis={recentAnalysis}
-              />
+              currentHash === '#/dashboard' ? (
+                <DashboardPage
+                  currentUser={currentUser}
+                  onStartAnalysis={handleStartAnalysis}
+                  onNavigate={handleNavigate}
+                />
+              ) : (
+                <Home
+                  currentUser={currentUser}
+                  onStartAnalysis={handleStartAnalysis}
+                  onNavigate={handleNavigate}
+                  onOpenHelp={() => setIsHelpModal(true)}
+                  recentAnalysis={recentAnalysis}
+                />
+              )
             )}
 
             {/* PILLAR 2: ANALYZE */}
@@ -509,23 +535,6 @@ export const App: React.FC = () => {
         onOpenHelp={() => setIsHelpModal(true)}
       />
 
-      {isSettingsModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="academic-card p-6 max-w-xl w-full shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">System Settings & Data Transparency</h3>
-              <button
-                onClick={() => setIsSettingsModal(false)}
-                className="text-slate-400 hover:text-white text-xs font-semibold px-2.5 py-1 rounded bg-slate-800"
-              >
-                Close
-              </button>
-            </div>
-            <Settings />
-          </div>
-        </div>
-      )}
-
       {/* INSTITUTIONAL FOOTER */}
       <footer className="border-t border-slate-800/80 bg-slate-950 mt-16 py-12 transition-colors font-sans">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -567,7 +576,7 @@ export const App: React.FC = () => {
                 <li><a href="#/how-to-use" className="hover:text-white transition">User Guide Walkthrough</a></li>
                 <li><a href="#/rules" className="hover:text-white transition">Rules & Regulations</a></li>
                 <li><a href="/MindSense_How_to_Use_Rules_and_Regulations.pdf" download className="hover:text-white transition">Download PDF Guide</a></li>
-                <li><button onClick={() => setIsSettingsModal(true)} className="hover:text-white transition">Privacy Architecture</button></li>
+                <li><a href="#/settings" className="hover:text-white transition">Privacy Architecture</a></li>
               </ul>
             </div>
 

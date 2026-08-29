@@ -12,6 +12,22 @@ import type {
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('mindsense_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
+const getDevAuthHeaders = (): Record<string, string> => {
+  const saved = localStorage.getItem('mindsense_dev_session');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.token) return { 'Authorization': `Bearer ${parsed.token}` };
+    } catch {}
+  }
+  return {};
+};
+
 export const apiService = {
   async checkHealth(): Promise<boolean> {
     try {
@@ -26,14 +42,18 @@ export const apiService = {
 
   // ----------------- AUTHENTICATION ----------------- //
 
-  async register(username: string, email: string, password: string, name: string): Promise<ApiResponse<{ user: User; message: string }>> {
+  async register(username: string, email: string, password: string, name: string): Promise<ApiResponse<{ user: User; token: string; message: string }>> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password, name }),
       });
-      return await response.json();
+      const res = await response.json();
+      if (res.success && res.data?.token) {
+        localStorage.setItem('mindsense_token', res.data.token);
+      }
+      return res;
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
     }
@@ -46,15 +66,21 @@ export const apiService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username_or_email, password }),
       });
-      return await response.json();
+      const res = await response.json();
+      if (res.success && res.data?.token) {
+        localStorage.setItem('mindsense_token', res.data.token);
+      }
+      return res;
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
     }
   },
 
-  async getLoginHistory(userId: number): Promise<ApiResponse<{ login_sessions: LoginSession[] }>> {
+  async getLoginHistory(_userId?: number): Promise<ApiResponse<{ login_sessions: LoginSession[] }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login-history?user_id=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/auth/login-history`, {
+        headers: getAuthHeaders(),
+      });
       return await response.json();
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
@@ -65,7 +91,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ user_id: userId, name, email }),
       });
       return await response.json();
@@ -78,7 +104,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ user_id: userId, old_password: oldPassword, new_password: newPassword }),
       });
       return await response.json();
@@ -218,6 +244,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/analyze`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
       });
       if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
@@ -234,10 +261,11 @@ export const apiService = {
     }
   },
 
-  async getHistory(userId?: number): Promise<ApiResponse<{ history: AnalysisData[] }>> {
+  async getHistory(_userId?: number): Promise<ApiResponse<{ history: AnalysisData[] }>> {
     try {
-      const url = userId ? `${API_BASE_URL}/history?user_id=${userId}` : `${API_BASE_URL}/history`;
-      const response = await fetch(url);
+      const response = await fetch(`${API_BASE_URL}/history`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error('Failed to fetch history');
       return await response.json();
     } catch (error: any) {
@@ -245,10 +273,12 @@ export const apiService = {
     }
   },
 
-  async clearHistory(userId?: number): Promise<ApiResponse<{ message: string }>> {
+  async clearHistory(_userId?: number): Promise<ApiResponse<{ message: string }>> {
     try {
-      const url = userId ? `${API_BASE_URL}/history?user_id=${userId}` : `${API_BASE_URL}/history`;
-      const response = await fetch(url, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/history`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error('Failed to reset history');
       return await response.json();
     } catch (error: any) {
@@ -256,10 +286,11 @@ export const apiService = {
     }
   },
 
-  async getDashboard(userId?: number): Promise<ApiResponse<DashboardData>> {
+  async getDashboard(_userId?: number): Promise<ApiResponse<DashboardData>> {
     try {
-      const url = userId ? `${API_BASE_URL}/dashboard?user_id=${userId}` : `${API_BASE_URL}/dashboard`;
-      const response = await fetch(url);
+      const response = await fetch(`${API_BASE_URL}/dashboard`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error('Failed to fetch dashboard data');
       return await response.json();
     } catch (error: any) {
@@ -271,7 +302,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/checkin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(checkin),
       });
       if (!response.ok) throw new Error('Failed to submit check-in');
@@ -281,10 +312,11 @@ export const apiService = {
     }
   },
 
-  async getCheckins(userId?: number): Promise<ApiResponse<{ checkins: DailyCheckin[] }>> {
+  async getCheckins(_userId?: number): Promise<ApiResponse<{ checkins: DailyCheckin[] }>> {
     try {
-      const url = userId ? `${API_BASE_URL}/checkins?user_id=${userId}` : `${API_BASE_URL}/checkins`;
-      const response = await fetch(url);
+      const response = await fetch(`${API_BASE_URL}/checkins`, {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error('Failed to fetch check-ins history');
       return await response.json();
     } catch (error: any) {
@@ -360,7 +392,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/share/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ result_id: resultId, expiration_hours: expirationHours, user_id: userId }),
       });
       if (!response.ok) throw new Error('Failed to create share link');
@@ -382,7 +414,10 @@ export const apiService = {
 
   async revokeShareLink(token: string): Promise<ApiResponse<{ message: string }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/share/${token}/revoke`, { method: 'POST' });
+      const response = await fetch(`${API_BASE_URL}/share/${token}/revoke`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
       if (!response.ok) throw new Error('Failed to revoke share link');
       return await response.json();
     } catch (error: any) {
@@ -390,7 +425,74 @@ export const apiService = {
     }
   },
 
+  async forgotPassword(username_or_email: string): Promise<ApiResponse<{ message: string; reset_token?: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username_or_email }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async resetPassword(token: string, new_password: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+    } catch {}
+    localStorage.removeItem('mindsense_token');
+  },
+
   // ----------------- DEVELOPER / ADMIN PORTAL APIS ----------------- //
+
+  async developerRegister(payload: {
+    full_name: string;
+    username: string;
+    email: string;
+    password: string;
+    organization?: string;
+    requested_role?: string;
+  }): Promise<ApiResponse<{ message: string; verification_token: string; state: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async developerVerifyEmail(token: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/auth/verify-email?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
 
   async developerLogin(usernameOrEmail: string, password: string): Promise<ApiResponse<{ developer: any; token: string }>> {
     try {
@@ -399,18 +501,76 @@ export const apiService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
       });
-      if (!response.ok) throw new Error('Developer login failed');
       return await response.json();
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'AUTH_ERROR', message: error.message } };
     }
   },
 
+  async developerForgotPassword(username_or_email: string): Promise<ApiResponse<{ message: string; reset_token?: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username_or_email }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async developerResetPassword(token: string, new_password: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async developerLogout(): Promise<void> {
+    try {
+      await fetch(`${API_BASE_URL}/developer/auth/logout`, {
+        method: 'POST',
+        headers: getDevAuthHeaders(),
+      });
+    } catch {}
+    localStorage.removeItem('mindsense_dev_session');
+  },
+
+  async getDeveloperRequests(): Promise<ApiResponse<{ requests: any[] }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/requests`, {
+        headers: getDevAuthHeaders(),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'FETCH_ERROR', message: error.message } };
+    }
+  },
+
+  async updateDeveloperStatus(devId: number, status: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/developer/requests/${devId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getDevAuthHeaders() },
+        body: JSON.stringify({ status }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'UPDATE_ERROR', message: error.message } };
+    }
+  },
+
   async getDeveloperDashboard(token?: string): Promise<ApiResponse<any>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/developer/dashboard`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : getDevAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/developer/dashboard`, { headers });
       if (!response.ok) throw new Error('Failed to fetch developer dashboard metrics');
       return await response.json();
     } catch (error: any) {
@@ -420,9 +580,8 @@ export const apiService = {
 
   async getDeveloperAnalytics(token?: string): Promise<ApiResponse<any>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/developer/analytics`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : getDevAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/developer/analytics`, { headers });
       if (!response.ok) throw new Error('Failed to fetch developer analytics metrics');
       return await response.json();
     } catch (error: any) {
@@ -438,7 +597,7 @@ export const apiService = {
       if (priority) params.append('priority', priority);
       if (params.toString()) url += `?${params.toString()}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: getDevAuthHeaders() });
       if (!response.ok) throw new Error('Failed to fetch feedback list');
       return await response.json();
     } catch (error: any) {
@@ -450,7 +609,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/developer/feedback/${feedbackId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getDevAuthHeaders() },
         body: JSON.stringify({ status, priority, internal_notes: internalNotes, actor_id: actorId }),
       });
       if (!response.ok) throw new Error('Failed to update feedback status');
@@ -462,7 +621,7 @@ export const apiService = {
 
   async getDeveloperHealth(): Promise<ApiResponse<any>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/developer/health`);
+      const response = await fetch(`${API_BASE_URL}/developer/health`, { headers: getDevAuthHeaders() });
       if (!response.ok) throw new Error('Failed to fetch developer system health');
       return await response.json();
     } catch (error: any) {
@@ -472,7 +631,7 @@ export const apiService = {
 
   async getDeveloperAssistant(): Promise<ApiResponse<any>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/developer/assistant`);
+      const response = await fetch(`${API_BASE_URL}/developer/assistant`, { headers: getDevAuthHeaders() });
       if (!response.ok) throw new Error('Failed to fetch assistant metrics');
       return await response.json();
     } catch (error: any) {
@@ -482,7 +641,7 @@ export const apiService = {
 
   async getDeveloperAuditLogs(): Promise<ApiResponse<{ logs: any[] }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/developer/audit-logs`);
+      const response = await fetch(`${API_BASE_URL}/developer/audit-logs`, { headers: getDevAuthHeaders() });
       if (!response.ok) throw new Error('Failed to fetch audit logs');
       return await response.json();
     } catch (error: any) {
