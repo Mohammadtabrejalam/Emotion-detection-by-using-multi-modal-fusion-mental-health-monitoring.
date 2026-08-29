@@ -63,13 +63,15 @@ def tokenize(text: str, max_length: int = 64) -> list:
         
     return token_ids
 
-def check_crisis_keywords(text: str) -> bool:
+def check_crisis_keywords(text: str) -> tuple[bool, list[str]]:
+    if not text:
+        return False, []
     cleaned = clean_text(text)
     crisis_phrases = [
         "suicide", "kill myself", "end my life", "self-harm", "hurting myself",
         "want to die", "hang myself", "commit suicide", "cut myself"
     ]
-    for phrase in crisis_phrases:
-        if phrase in cleaned:
-            return True
-    return False
+    detected = [phrase for phrase in crisis_phrases if phrase in cleaned]
+    if detected:
+        return True, detected
+    return False, []

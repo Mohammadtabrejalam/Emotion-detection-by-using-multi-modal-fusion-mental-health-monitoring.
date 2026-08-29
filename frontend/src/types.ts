@@ -139,3 +139,27 @@ export interface ResearchData {
     classes: number;
   };
 }
+
+export interface SiteStats {
+  total_visits: number;
+  total_analyses: number;
+  total_checkins: number;
+  total_articles: number;
+  registered_users: number;
+  is_real_data: boolean;
+}
+
+export interface FeedbackPayload {
+  rating: number;
+  category: string;
+  comment?: string;
+  user_id?: number;
+}
+
+export interface AssistantResponse {
+  response: string;
+  topic?: string;
+  is_crisis?: boolean;
+  suggested_actions?: string[];
+}
+

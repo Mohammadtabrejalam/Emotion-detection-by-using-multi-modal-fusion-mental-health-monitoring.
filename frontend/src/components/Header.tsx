@@ -10,9 +10,12 @@ import {
   BarChart3,
   BrainCircuit,
   BookOpen,
-  ChevronDown
+  ChevronDown,
+  Search,
+  HelpCircle
 } from 'lucide-react';
 import { MindSenseLogo } from './MindSenseLogo';
+import { SystemStatusIndicator } from './SystemStatusIndicator';
 import type { User } from '../types';
 
 export type MainPillar = 'home' | 'analyze' | 'insights' | 'research' | 'resources';
@@ -24,6 +27,8 @@ interface HeaderProps {
   currentUser: User | null;
   onOpenAccount: () => void;
   onOpenSettings: () => void;
+  onOpenSearch: () => void;
+  onOpenHelp: () => void;
   isLightMode: boolean;
   onToggleTheme: () => void;
 }
@@ -35,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onOpenAccount,
   onOpenSettings,
+  onOpenSearch,
+  onOpenHelp,
   isLightMode,
   onToggleTheme
 }) => {
@@ -68,13 +75,13 @@ export const Header: React.FC<HeaderProps> = ({
                   Research
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 hidden sm:block font-normal">
+              <p className="text-[10px] text-slate-400 hidden lg:block font-normal">
                 Multimodal Affective Computing AI
               </p>
             </div>
           </button>
 
-          {/* Primary Desktop Navigation: Exactly 5 Pillars */}
+          {/* Primary Desktop Navigation: Main Pillars */}
           <nav className="hidden md:flex items-center gap-1">
             {pillars.map((item) => {
               const isActive = currentPillar === item.id;
@@ -95,15 +102,46 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               );
             })}
+            <button
+              onClick={() => window.location.hash = '#/how-to-use'}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition text-slate-400 hover:text-slate-100 hover:bg-slate-900/60"
+            >
+              How to Use
+            </button>
+            <button
+              onClick={() => window.location.hash = '#/rules'}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition text-slate-400 hover:text-slate-100 hover:bg-slate-900/60"
+            >
+              Rules
+            </button>
           </nav>
 
-          {/* Right Utility & Primary CTA Actions */}
-          <div className="hidden md:flex items-center gap-2.5">
+          {/* Right Utility Actions & Primary CTA */}
+          <div className="hidden md:flex items-center gap-2">
             
-            {/* Primary Action Button */}
+            {/* Global Search Button */}
+            <button
+              onClick={onOpenSearch}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition flex items-center gap-2 text-xs"
+              title="Search MindSense (Cmd/Ctrl + K)"
+              aria-label="Global search"
+            >
+              <Search className="h-3.5 w-3.5 text-brand-400" />
+              <span className="hidden lg:inline text-[11px]">Search</span>
+              <kbd className="hidden lg:inline-block px-1.5 py-0.2 text-[9px] font-mono text-slate-400 bg-slate-800 rounded border border-slate-700">
+                ⌘K
+              </kbd>
+            </button>
+
+            {/* System Status Pill */}
+            <div className="hidden lg:block">
+              <SystemStatusIndicator />
+            </div>
+
+            {/* Primary CTA Action Button */}
             <button
               onClick={onStartAnalysis}
-              className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs transition shadow flex items-center gap-1.5"
             >
               <Activity className="h-3.5 w-3.5" />
               <span>Start Analysis</span>
@@ -112,42 +150,54 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Account Profile / Login */}
             <button
               onClick={onOpenAccount}
-              className="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium border border-slate-800 transition flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-medium border border-slate-800 transition flex items-center gap-1.5"
               title={currentUser ? `Signed in as ${currentUser.username}` : "Sign In / Account"}
             >
               <UserIcon className="h-3.5 w-3.5 text-brand-400" />
-              <span className="max-w-[100px] truncate">{currentUser ? currentUser.name.split(' ')[0] : 'Account'}</span>
+              <span className="max-w-[90px] truncate">{currentUser ? currentUser.name.split(' ')[0] : 'Account'}</span>
             </button>
 
-            {/* Secondary Utility Controls (Restrained) */}
-            <div className="flex items-center gap-1 border-l border-slate-800 pl-2">
-              
-              {/* Theme Toggle */}
-              <button
-                onClick={onToggleTheme}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition"
-                title={isLightMode ? "Switch to Dark Theme" : "Switch to Light Theme"}
-                aria-label="Toggle theme"
-              >
-                {isLightMode ? <Moon className="h-4 w-4 text-indigo-400" /> : <Sun className="h-4 w-4 text-amber-400" />}
-              </button>
+            {/* Help / Documentation */}
+            <button
+              onClick={onOpenHelp}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition"
+              title="Help & User Guide"
+              aria-label="Help & User Guide"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
 
-              {/* Settings / Privacy */}
-              <button
-                onClick={onOpenSettings}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition"
-                title="System Settings & Privacy"
-                aria-label="Settings"
-              >
-                <SettingsIcon className="h-4 w-4" />
-              </button>
+            {/* Theme Toggle */}
+            <button
+              onClick={onToggleTheme}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition"
+              title={isLightMode ? "Switch to Dark Theme" : "Switch to Light Theme"}
+              aria-label="Toggle theme"
+            >
+              {isLightMode ? <Moon className="h-4 w-4 text-indigo-400" /> : <Sun className="h-4 w-4 text-amber-400" />}
+            </button>
 
-            </div>
+            {/* Settings & Privacy */}
+            <button
+              onClick={onOpenSettings}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition"
+              title="System Settings & Privacy"
+              aria-label="Settings"
+            >
+              <SettingsIcon className="h-4 w-4" />
+            </button>
 
           </div>
 
           {/* Mobile Hamburger Button */}
           <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={onOpenSearch}
+              className="p-2 rounded-lg text-slate-400 hover:text-white"
+              aria-label="Search"
+            >
+              <Search className="h-4 w-4" />
+            </button>
             <button
               onClick={onToggleTheme}
               className="p-2 rounded-lg text-slate-400 hover:text-white"
@@ -157,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 min-h-[44px] min-w-[44px] flex items-center justify-center"
               aria-label="Toggle navigation menu"
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -167,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Mobile Drawer Navigation */}
+      {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 pt-3 pb-5 space-y-3 animate-fadeIn">
           
@@ -197,23 +247,30 @@ export const Header: React.FC<HeaderProps> = ({
             })}
           </div>
 
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <div className="pt-3 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs">
+            <button
+              onClick={() => { onOpenHelp(); setIsMobileMenuOpen(false); }}
+              className="p-2.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white flex items-center gap-2 font-medium"
+            >
+              <HelpCircle className="h-4 w-4 text-brand-400" />
+              <span>How to Use / FAQ</span>
+            </button>
+
             <button
               onClick={() => { onOpenAccount(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-1.5 text-slate-300 hover:text-white font-medium"
+              className="p-2.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white flex items-center gap-2 font-medium"
             >
               <UserIcon className="h-4 w-4 text-brand-400" />
-              <span>{currentUser ? currentUser.name : 'Account Profile'}</span>
-            </button>
-            <button
-              onClick={() => { onOpenSettings(); setIsMobileMenuOpen(false); }}
-              className="flex items-center gap-1 text-slate-400 hover:text-white"
-            >
-              <SettingsIcon className="h-3.5 w-3.5" />
-              <span>Settings</span>
+              <span>{currentUser ? currentUser.name.split(' ')[0] : 'Account'}</span>
             </button>
           </div>
 
+          <div className="pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/80">
+            <SystemStatusIndicator />
+            <button onClick={onOpenSettings} className="text-slate-400 hover:text-white text-xs font-medium">
+              Privacy Settings
+            </button>
+          </div>
         </div>
       )}
     </header>

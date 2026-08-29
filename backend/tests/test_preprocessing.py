@@ -21,9 +21,17 @@ def test_tokenize():
     assert tokens[6] == 0  # padding index
 
 def test_crisis_keywords():
-    assert check_crisis_keywords("I want to commit suicide") is True
-    assert check_crisis_keywords("I am just tired and going to sleep") is False
-    assert check_crisis_keywords("Self-harm is dangerous") is True
+    is_crisis, detected = check_crisis_keywords("I want to commit suicide")
+    assert is_crisis is True
+    assert "suicide" in detected
+
+    is_crisis, detected = check_crisis_keywords("I am just tired and going to sleep")
+    assert is_crisis is False
+    assert detected == []
+
+    is_crisis, detected = check_crisis_keywords("Self-harm is dangerous")
+    assert is_crisis is True
+    assert "self-harm" in detected
 
 def test_audio_preprocessing_fallback():
     # Test that empty or corrupted audio returns a fallback matrix of shape (200, 13)
