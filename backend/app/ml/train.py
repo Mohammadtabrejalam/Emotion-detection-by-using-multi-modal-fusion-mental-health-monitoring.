@@ -1,16 +1,33 @@
+"""
+MindSense Prototype Model Training Script
+STATUS: PROVISIONAL / NON-SCIENTIFIC / SYNTHETIC
+
+IMPORTANT RESEARCH NOTICE:
+This script uses SyntheticEmotionDataset with randomly generated tensors for
+local development and pipeline verification. The metrics produced herein are
+simulated demonstration values and MUST NOT be presented as validated scientific results.
+Experimental results pending real-dataset evaluation.
+"""
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import json
-import os
-from fusion_model import MultimodalFusionModel
+try:
+    from .fusion_model import MultimodalFusionModel
+except (ImportError, ValueError):
+    from fusion_model import MultimodalFusionModel
 
 # 7 classes: Happy, Sad, Angry, Fear, Surprise, Disgust, Neutral
 EMOTION_LABELS = ["happy", "sad", "angry", "fear", "surprise", "disgust", "neutral"]
 
 class SyntheticEmotionDataset(Dataset):
+    """
+    Synthetic dataset generating random tensors for smoke-testing training pipelines.
+    NOTE: Non-scientific. For developer unit testing and prototype verification only.
+    """
     def __init__(self, size=100):
         self.size = size
         

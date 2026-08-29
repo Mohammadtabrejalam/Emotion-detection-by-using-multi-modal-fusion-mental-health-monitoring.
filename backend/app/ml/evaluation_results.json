@@ -1,4 +1,7 @@
 {
+    "status": "PROVISIONAL / NON-SCIENTIFIC / SYNTHETIC",
+    "note": "Provisional development metrics generated from synthetic tensor training and baseline simulation. Experimental results pending real-dataset evaluation.",
+    "is_provisional": true,
     "metrics": [
         {
             "model_type": "Text only",
@@ -55,9 +58,11 @@
         "neutral"
     ],
     "dataset_info": {
-        "name": "MindSense Multimodal Emotion Dataset (IEMOCAP + FER2013 + MELD Adaptations)",
+        "name": "MindSense Prototype Synthetic Dataset (Simulated Benchmark Demonstration)",
         "train_samples": 8520,
         "test_samples": 2130,
-        "classes": 7
+        "classes": 7,
+        "validation_status": "SYNTHETIC_SIMULATION",
+        "research_notice": "Non-scientific prototype values. Real empirical benchmarks to be established in future research phases."
     }
 }

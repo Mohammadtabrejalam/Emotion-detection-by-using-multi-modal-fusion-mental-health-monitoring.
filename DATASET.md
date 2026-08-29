@@ -1,6 +1,9 @@
 # Dataset Adaptability & Separation — MindSense
 
-MindSense uses modular dataset adapters to allow plugging in external multimodal datasets (e.g., IEMOCAP, MELD, RAVDESS) without modifying core training scripts.
+> [!NOTE]
+> **Research Status (Phase 0 Foundation)**: No real-world benchmark datasets are downloaded or trained in Phase 0. External dataset integration specifications and subject-independent evaluation protocols are defined in [docs/DATA_STRATEGY.md](file:///docs/DATA_STRATEGY.md) and [docs/EVALUATION_PROTOCOL.md](file:///docs/EVALUATION_PROTOCOL.md).
+
+MindSense uses modular dataset adapters to allow plugging in external multimodal datasets (e.g., IEMOCAP, MELD, CMU-MOSEI) without modifying core training scripts.
 
 ---
 

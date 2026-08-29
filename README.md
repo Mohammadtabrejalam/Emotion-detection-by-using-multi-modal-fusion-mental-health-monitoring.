@@ -15,6 +15,9 @@ The platform uses a custom **PyTorch Multimodal Fusion Transformer** featuring d
 > * The emotional estimations are AI-generated models and are not diagnostic thresholds.
 > * In case distress thresholds are met, the application provides references to professional crisis helplines (988 Lifeline).
 
+> [!NOTE]
+> **Research & Empirical Status (Phase 0 Foundation)**: Current machine learning models and metrics in the codebase represent **provisional development baselines** (trained on synthetic tensors for software verification). **Experimental results pending real-dataset evaluation.** Formal research specifications and evaluation protocols are documented in the `docs/` directory.
+
 ---
 
 ## 2. Directory Layout
@@ -27,8 +30,8 @@ The workspace is organized into modular directories:
 │   │   ├── main.py                 # FastAPI Web Server Routing
 │   │   ├── database.py             # SQLite Schemas and CRUD functions
 │   │   └── ml/
-│   │       ├── mindsense_fusion.pt # Pretrained PyTorch state dict weights
-│   │       ├── evaluation_results.json # Precomputed scientific metrics
+│   │       ├── mindsense_fusion.pt # Prototype PyTorch state dict weights (synthetic baseline)
+│   │       ├── evaluation_results.json # Provisional prototype metrics (pending real-dataset evaluation)
 │   │       ├── text_encoder.py     # Unimodal Text PyTorch model
 │   │       ├── audio_encoder.py    # Unimodal Audio PyTorch model
 │   │       ├── vision_encoder.py   # Unimodal Vision PyTorch model
