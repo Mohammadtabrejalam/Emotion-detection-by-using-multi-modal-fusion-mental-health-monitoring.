@@ -10,9 +10,68 @@ body {
   font-family: 'Outfit', 'Inter', sans-serif;
   overflow-x: hidden;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Custom styles for animations and premium glassmorphism card layout */
+/* LIGHT THEME PREFERENCE */
+.light-theme body,
+.light-theme {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.light-theme .bg-\[\#070a13\] {
+  background-color: #f8fafc !important;
+}
+
+.light-theme .bg-slate-950,
+.light-theme .bg-slate-950\/40,
+.light-theme .bg-slate-950\/60,
+.light-theme .bg-slate-950\/70,
+.light-theme .bg-slate-950\/80,
+.light-theme .bg-slate-950\/90 {
+  background-color: #ffffff !important;
+}
+
+.light-theme .bg-slate-900,
+.light-theme .bg-slate-900\/40,
+.light-theme .bg-slate-900\/60,
+.light-theme .bg-slate-900\/80 {
+  background-color: #f1f5f9 !important;
+}
+
+.light-theme .text-white {
+  color: #0f172a !important;
+}
+
+.light-theme .text-slate-100,
+.light-theme .text-slate-200,
+.light-theme .text-slate-300 {
+  color: #1e293b !important;
+}
+
+.light-theme .text-slate-400 {
+  color: #64748b !important;
+}
+
+.light-theme .border-slate-800,
+.light-theme .border-slate-850,
+.light-theme .border-slate-700 {
+  border-color: #e2e8f0 !important;
+}
+
+.light-theme .glass-panel {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+.light-theme header {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+/* Glass Panels */
 .glass-panel {
   background: rgba(14, 19, 34, 0.7);
   backdrop-filter: blur(12px);
@@ -27,7 +86,7 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #3b82f6 100%);
+  background: linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #3b82f6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -48,7 +107,6 @@ body {
   background: #3b5eff;
 }
 
-/* Animation Utilities */
 @keyframes pulse-slow {
   0%, 100% { opacity: 0.1; }
   50% { opacity: 0.3; }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { 
-  Brain, 
   Activity, 
   FileText, 
   Mic, 
@@ -12,8 +11,12 @@ import {
   Lock, 
   Database,
   BookOpen,
-  Heart
+  Heart,
+  Sun,
+  Moon,
+  Info
 } from 'lucide-react';
+import { MindSenseLogo } from './components/MindSenseLogo';
 import { Analysis } from './pages/Analysis';
 import { History } from './pages/History';
 import { Trends } from './pages/Trends';
@@ -26,15 +29,31 @@ import { AccountSettings } from './pages/AccountSettings';
 import { MentalHealthAwareness } from './pages/MentalHealthAwareness';
 import { DatasetHub } from './pages/DatasetHub';
 import { ProblemScenarios } from './pages/ProblemScenarios';
+import { AboutOverview } from './pages/AboutOverview';
 import { apiService } from './services/api';
 import type { User } from './types';
 
 export const App: React.FC = () => {
   const [backendAlive, setBackendAlive] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<'home' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'settings' | 'auth'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'about' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'settings' | 'auth'>('home');
   const [activeModal, setActiveModal] = useState<'checkin' | 'config' | null>(null);
   const [studioText, setStudioText] = useState<string>('');
   
+  // Light / Dark Theme State
+  const [isLightMode, setIsLightMode] = useState<boolean>(() => {
+    return localStorage.getItem('mindsense_theme') === 'light';
+  });
+
+  useEffect(() => {
+    if (isLightMode) {
+      document.documentElement.classList.add('light-theme');
+      localStorage.setItem('mindsense_theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light-theme');
+      localStorage.setItem('mindsense_theme', 'dark');
+    }
+  }, [isLightMode]);
+
   // Persistent User State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
@@ -106,20 +125,28 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="bg-[#070a13] text-slate-100 min-h-screen font-sans selection:bg-brand-500/30 selection:text-brand-200">
+    <div className={`min-h-screen font-sans selection:bg-brand-500/30 selection:text-brand-200 transition-colors duration-300 ${isLightMode ? 'light-theme bg-slate-50 text-slate-900' : 'bg-[#070a13] text-slate-100'}`}>
       
       {/* 1. STICKY TOP NAVBAR */}
       <header className="sticky top-0 z-50 bg-[#070a13]/90 backdrop-blur-xl border-b border-slate-800/80 px-6 py-3.5 transition-all">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
-            <div className="bg-gradient-to-tr from-brand-600 to-indigo-500 text-white p-2.5 rounded-xl shadow-lg shadow-brand-500/25 flex items-center justify-center">
-              <Brain className="h-5 w-5" />
+          {/* Logo & Brand (Clicking opens the Plain-English About Page!) */}
+          <div 
+            className="flex items-center gap-3 cursor-pointer group" 
+            onClick={() => setCurrentView('about')}
+            title="Click to view simple explanation of MindSense"
+          >
+            <div className="p-1 rounded-2xl bg-brand-500/10 border border-brand-500/20 group-hover:border-brand-500/40 transition">
+              <MindSenseLogo size={32} />
             </div>
             <div>
-              <span className="font-bold text-lg tracking-tight text-white block leading-none">MindSense</span>
-              <span className="text-[10px] text-slate-400 font-medium tracking-wide">Multimodal AI Platform</span>
+              <span className="font-extrabold text-lg tracking-tight text-white block leading-none group-hover:text-brand-300 transition">
+                MindSense
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium tracking-wide flex items-center gap-1">
+                <Info className="h-2.5 w-2.5 text-brand-400" /> Click to Learn What It Is
+              </span>
             </div>
           </div>
 
@@ -130,6 +157,12 @@ export const App: React.FC = () => {
               className={`px-3 py-2 rounded-lg transition ${currentView === 'home' ? 'text-white bg-slate-800/80 font-bold' : 'hover:text-white hover:bg-slate-800/60'}`}
             >
               Home
+            </button>
+            <button 
+              onClick={() => setCurrentView('about')} 
+              className={`px-3 py-2 rounded-lg transition flex items-center gap-1.5 ${currentView === 'about' ? 'text-brand-300 bg-brand-500/10 border border-brand-500/20 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`}
+            >
+              <Info className="h-3.5 w-3.5 text-brand-400" /> Simple Overview
             </button>
             <button 
               onClick={() => { setCurrentView('home'); scrollTo('analyzer'); }} 
@@ -147,7 +180,7 @@ export const App: React.FC = () => {
               onClick={() => setCurrentView('awareness')} 
               className={`px-3 py-2 rounded-lg transition flex items-center gap-1.5 ${currentView === 'awareness' ? 'text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`}
             >
-              <Heart className="h-3.5 w-3.5 text-indigo-400" /> Symptoms Awareness
+              <Heart className="h-3.5 w-3.5 text-indigo-400" /> Symptoms Guide
             </button>
             <button 
               onClick={() => setCurrentView('datasets')} 
@@ -163,8 +196,18 @@ export const App: React.FC = () => {
             </button>
           </nav>
 
-          {/* Action & User Status */}
+          {/* Action, Theme & User Status */}
           <div className="flex items-center gap-2.5">
+            
+            {/* LIGHT / DARK THEME TOGGLE BUTTON */}
+            <button
+              onClick={() => setIsLightMode(!isLightMode)}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-amber-300 border border-slate-700/80 text-xs transition flex items-center gap-1"
+              title={isLightMode ? "Switch to Dark Theme" : "Switch to Light Theme"}
+            >
+              {isLightMode ? <Moon className="h-4 w-4 text-indigo-400" /> : <Sun className="h-4 w-4 text-amber-400" />}
+            </button>
+
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px]">
               <span className={`h-2 w-2 rounded-full ${backendAlive ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
               <span className="text-slate-400">{backendAlive ? 'API Live' : 'API Offline'}</span>
@@ -217,6 +260,13 @@ export const App: React.FC = () => {
 
       {/* 2. DYNAMIC PAGE ROUTING VIEWS */}
       
+      {/* VIEW: SIMPLE ABOUT / OVERVIEW */}
+      {currentView === 'about' && (
+        <main className="px-6 py-12">
+          <AboutOverview onStartAnalysis={() => { setCurrentView('home'); scrollTo('analyzer'); }} />
+        </main>
+      )}
+
       {/* VIEW: PROBLEM SCENARIOS */}
       {currentView === 'scenarios' && (
         <main className="px-6 py-12">
@@ -292,16 +342,16 @@ export const App: React.FC = () => {
                   <Activity className="h-4.5 w-4.5" /> Start Live Analysis
                 </button>
                 <button
+                  onClick={() => setCurrentView('about')}
+                  className="px-6 py-3.5 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-300 border border-brand-500/30 font-semibold text-sm transition hover:-translate-y-0.5 flex items-center gap-2"
+                >
+                  <Info className="h-4 w-4 text-brand-400" /> What is MindSense?
+                </button>
+                <button
                   onClick={() => setCurrentView('scenarios')}
                   className="px-6 py-3.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold text-sm transition hover:-translate-y-0.5 flex items-center gap-2"
                 >
                   <AlertTriangle className="h-4 w-4 text-amber-400" /> Test Real Scenarios
-                </button>
-                <button
-                  onClick={() => setCurrentView('awareness')}
-                  className="px-6 py-3.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold text-sm transition hover:-translate-y-0.5 flex items-center gap-2"
-                >
-                  <Heart className="h-4 w-4 text-indigo-400" /> Symptom Guide
                 </button>
               </div>
 
@@ -442,7 +492,7 @@ export const App: React.FC = () => {
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-                    <Brain className="h-4 w-4" /> AI & Backend
+                    <MindSenseLogo className="h-4 w-4" size={16} /> AI & Backend
                   </div>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Python 3.10+, FastAPI Web Server, PyTorch 2.0+ Fusion Model, SciPy FFT DSP audio engine, and Pillow/OpenCV.
@@ -593,9 +643,13 @@ export const App: React.FC = () => {
       {/* FOOTER */}
       <footer className="py-12 px-6 border-t border-slate-800/80 bg-slate-950 text-xs text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-brand-500 p-1.5 rounded-lg text-white">
-              <Brain className="h-4 w-4" />
+          <div 
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => setCurrentView('about')}
+            title="Click to view simple overview"
+          >
+            <div className="p-1 rounded-xl bg-brand-500/10">
+              <MindSenseLogo size={24} />
             </div>
             <span className="font-bold text-slate-300 text-sm">MindSense AI</span>
           </div>
@@ -605,7 +659,7 @@ export const App: React.FC = () => {
           </p>
 
           <div className="text-[11px] text-slate-500">
-            Version 1.2.0 (Full Multi-Page Suite)
+            Version 1.3.0 (Plain-English & Theme Edition)
           </div>
         </div>
       </footer>
