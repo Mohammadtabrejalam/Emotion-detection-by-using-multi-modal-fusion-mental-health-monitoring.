@@ -32,6 +32,25 @@ backend/app/*.db-journal
 .env.*
 !.env.example
 
+# Datasets & Media Caches (Never commit raw audio/video/image data)
+data/raw/
+data/interim/
+data/processed/
+data/**/*.wav
+data/**/*.mp4
+data/**/*.mp3
+data/**/*.png
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.tar.gz
+data/**/*.zip
+data/**/*.h5
+data/**/*.hdf5
+!data/manifests/
+!data/splits/
+!data/metadata/
+!data/**/.gitkeep
+
 # OS & IDE
 .DS_Store
 Thumbs.db

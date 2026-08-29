@@ -3,6 +3,7 @@ import json
 import os
 import hashlib
 from datetime import datetime
+from typing import Optional, List, Dict, Any, Tuple
 
 DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mindsense.db")
 

@@ -1,0 +1,29 @@
+{
+  "total_samples": 45,
+  "speaker_count": 8,
+  "split_distribution": {
+    "test": 10,
+    "train": 31,
+    "val": 4
+  },
+  "class_distribution": {
+    "neutral": 11,
+    "surprise": 5,
+    "fear": 5,
+    "happy": 9,
+    "sad": 4,
+    "angry": 8,
+    "disgust": 3
+  },
+  "modality_availability": {
+    "text_available": 45,
+    "audio_available": 45,
+    "vision_available": 45,
+    "complete_triples": 45
+  },
+  "duration_statistics": {
+    "min_sec": 1.0,
+    "max_sec": 3.8,
+    "mean_sec": 2.36
+  }
+}
