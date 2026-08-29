@@ -100,6 +100,24 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
     )
     """)
+
+    # 7. Articles & Publishing Hub Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS articles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        title TEXT NOT NULL,
+        author TEXT NOT NULL,
+        category TEXT NOT NULL,
+        read_time TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        content TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        likes INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
+    )
+    """)
     
     # Run automatic migrations for older schemas
     cursor.execute("PRAGMA table_info(analyses)")
@@ -112,7 +130,7 @@ def init_db():
     if "user_id" not in c_cols:
         cursor.execute("ALTER TABLE daily_checkins ADD COLUMN user_id INTEGER")
     
-    # Insert a default guest user if no users exist
+    # Insert default guest user if no users exist
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         guest_pw = hash_password("demo123")
@@ -120,6 +138,61 @@ def init_db():
         INSERT INTO users (username, email, password_hash, name, created_at)
         VALUES (?, ?, ?, ?, ?)
         """, ("guest_user", "guest@mindsense.ai", guest_pw, "Demo Explorer", datetime.utcnow().isoformat()))
+
+    # Seed curated articles if empty
+    cursor.execute("SELECT COUNT(*) FROM articles")
+    if cursor.fetchone()[0] == 0:
+        seed_articles = [
+            (
+                "How Multimodal AI Decodes Unspoken Human Emotion",
+                "Dr. Elena Vance, AI Research Fellow",
+                "AI & Research",
+                "4 min read",
+                "Why single-modality emotion detection fails on sarcasm and poker faces, and how intermediate Cross-Attention Fusion deciphers the true underlying affective state.",
+                "Human emotion is inherently multifaceted. When people communicate, lexical words carry only a portion of the emotional signal. Vocal prosody—including pitch variation, speech cadence, and energy standard deviations—conveys involuntary autonomic arousal.\n\nSimultaneously, micro-expressions in facial musculature (such as subtle cheek elevation or eyebrow furrowing) provide direct insights into subconscious psychological valence.\n\nTraditional systems rely either on text NLP models (which fail completely when sarcasm or irony is used) or computer vision alone (which can be deceived by social poker faces). MindSense implements intermediate multi-head self-attention fusion to align and weigh all three modalities dynamically.",
+                json.dumps(["AI", "Multimodal", "Emotion Detection", "Deep Learning"]),
+                24,
+                datetime.utcnow().isoformat()
+            ),
+            (
+                "5 Evidence-Based Techniques to De-escalate Workplace Anxiety",
+                "Marcus Thorne, Cognitive Behavioral Therapist",
+                "Mental Wellness",
+                "3 min read",
+                "Practical, actionable grounding exercises and somatic breathing patterns designed to calm the sympathetic nervous system during intense work stress.",
+                "When workplace stress triggers acute anxiety, the sympathetic nervous system floods the body with cortisol and adrenaline. Here are five clinically proven techniques to down-regulate your nervous system in minutes:\n\n1. 4-4-4-4 Box Breathing: Inhale for 4 seconds, hold for 4, exhale for 4, and hold empty for 4. This stimulates the vagus nerve.\n\n2. 5-4-3-2-1 Sensory Grounding: Anchor yourself by naming 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste.\n\n3. Cold Water Somatic Reset: Splash cold water on your face to trigger the mammalian dive reflex, naturally slowing your heart rate.\n\n4. Cognitive Re-labeling: Notice catastrophic thoughts without accepting them as facts. Ask: 'Is this thought helpful right now?'\n\n5. Micro-Walks: Even 3 minutes of physical movement disrupts the fight-or-flight freeze state.",
+                json.dumps(["Anxiety", "Mental Health", "Mindfulness", "Grounding"]),
+                41,
+                datetime.utcnow().isoformat()
+            ),
+            (
+                "The Science of Speech Emotion Recognition (SER) & 13 MFCCs",
+                "Prof. Arvind Sharma, Audio DSP Engineer",
+                "Speech & Acoustics",
+                "5 min read",
+                "A deep technical dive into Mel-Frequency Cepstral Coefficients, Hamming windowing, and how Fourier transforms capture vocal inflection.",
+                "Speech Emotion Recognition (SER) relies on extracting acoustic features that reflect physiological changes in the vocal tract caused by emotional excitation.\n\nWhen a person experiences anger or high surprise, tension in the vocal folds elevates fundamental frequency (F0) and increases spectral energy in higher harmonics.\n\nTo compute 13 MFCCs:\n1. Resample audio to 16,000 Hz mono.\n2. Apply 25ms Hamming window with 10ms frame stride to prevent spectral leakage.\n3. Compute Discrete Fourier Transform (FFT) power spectrum.\n4. Map frequency bins onto a non-linear Mel-scale filterbank.\n5. Apply Discrete Cosine Transform (DCT) to yield 13 orthogonal cepstral coefficients.\n\nThese 13 coefficients serve as the acoustic fingerprint passed to our 1D Convolutional Neural Network.",
+                json.dumps(["Audio", "MFCC", "Speech Emotion", "DSP"]),
+                19,
+                datetime.utcnow().isoformat()
+            ),
+            (
+                "Recognizing the Subtle Signs of Chronic Fatigue & Burnout",
+                "Dr. Sarah Jenkins, Occupational Health Specialist",
+                "Stress & Burnout",
+                "4 min read",
+                "How to distinguish everyday tiredness from systemic occupational burnout, and structural strategies to recover emotional vitality.",
+                "Unlike acute fatigue which resolves after a restful weekend, chronic burnout is characterized by three clinical dimensions: emotional exhaustion, depersonalization (cynicism), and a perceived lack of personal accomplishment.\n\nSubtle warning signs include:\n- Procrastinating on routine tasks that used to be easy\n- A flat, monotonic vocal delivery when answering work calls\n- Increased sensitivity to minor friction or feedback\n- Physical tension in the neck, jaw, and lower back\n\nRecovery requires setting non-negotiable availability boundaries, scheduling true disconnected downtime, and logging daily reflections to track energy trends.",
+                json.dumps(["Burnout", "Wellness", "Workplace Stress", "Self Care"]),
+                33,
+                datetime.utcnow().isoformat()
+            )
+        ]
+        for art in seed_articles:
+            cursor.execute("""
+            INSERT INTO articles (title, author, category, read_time, summary, content, tags, likes, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, art)
     
     conn.commit()
     conn.close()
@@ -221,6 +294,85 @@ def get_user_login_history(user_id: int, limit: int = 20):
         LIMIT ?
         """, (user_id, limit))
         return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+# ----------------- ARTICLES & COMMUNITY FUNCTIONS ----------------- #
+
+def get_articles(search: str = None, category: str = None, limit: int = 50):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        query = "SELECT * FROM articles WHERE 1=1"
+        params = []
+        
+        if category and category != 'All':
+            query += " AND category = ?"
+            params.append(category)
+            
+        if search and search.strip():
+            query += " AND (title LIKE ? OR summary LIKE ? OR content LIKE ? OR tags LIKE ?)"
+            s_param = f"%{search.strip()}%"
+            params.extend([s_param, s_param, s_param, s_param])
+            
+        query += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        articles = []
+        for row in rows:
+            art = dict(row)
+            try:
+                art["tags"] = json.loads(art["tags"])
+            except:
+                art["tags"] = [t.strip() for t in art["tags"].split(",") if t.strip()]
+            articles.append(art)
+        return articles
+    finally:
+        conn.close()
+
+def create_article(title: str, author: str, category: str, summary: str, content: str, tags: list, user_id: int = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        created_at = datetime.utcnow().isoformat()
+        # Calculate estimated read time
+        word_count = len(content.split())
+        read_time = f"{max(1, round(word_count / 200))} min read"
+        tags_json = json.dumps(tags)
+        
+        cursor.execute("""
+        INSERT INTO articles (user_id, title, author, category, read_time, summary, content, tags, likes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+        """, (user_id, title.strip(), author.strip(), category.strip(), read_time, summary.strip(), content.strip(), tags_json, created_at))
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+def like_article(article_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE articles SET likes = likes + 1 WHERE id = ?", (article_id,))
+        conn.commit()
+        cursor.execute("SELECT likes FROM articles WHERE id = ?", (article_id,))
+        row = cursor.fetchone()
+        return row[0] if row else 0
+    finally:
+        conn.close()
+
+def delete_article(article_id: int, user_id: int = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        if user_id:
+            cursor.execute("DELETE FROM articles WHERE id = ? AND user_id = ?", (article_id, user_id))
+        else:
+            cursor.execute("DELETE FROM articles WHERE id = ?", (article_id,))
+        conn.commit()
+        return cursor.rowcount > 0
     finally:
         conn.close()
 
@@ -383,15 +535,12 @@ def get_dashboard_data(user_id: int = None):
         user_clause = "WHERE user_id = ?" if user_id is not None else ""
         params = (user_id,) if user_id is not None else ()
         
-        # 1. Total Analyses count
         cursor.execute(f"SELECT COUNT(*) FROM analyses {user_clause}", params)
         total_analyses = cursor.fetchone()[0]
         
-        # 2. Emotion frequency distribution
         cursor.execute(f"SELECT final_emotion, COUNT(*) as count FROM analyses {user_clause} GROUP BY final_emotion", params)
         emotion_counts = {row["final_emotion"]: row["count"] for row in cursor.fetchall()}
         
-        # 3. Latest analysis
         cursor.execute(f"SELECT * FROM analyses {user_clause} ORDER BY timestamp DESC LIMIT 1", params)
         latest_row = cursor.fetchone()
         latest_analysis = dict(latest_row) if latest_row else None
@@ -403,7 +552,6 @@ def get_dashboard_data(user_id: int = None):
             mod_rows = cursor.fetchall()
             latest_analysis["modality_predictions"] = {row["modality"]: {"emotion": row["emotion"], "confidence": row["confidence"]} for row in mod_rows}
 
-        # 4. Modality usage breakdown
         cursor.execute(f"SELECT modalities_used FROM analyses {user_clause}", params)
         modality_freqs = {"text": 0, "audio": 0, "image": 0}
         for row in cursor.fetchall():
@@ -412,15 +560,12 @@ def get_dashboard_data(user_id: int = None):
                 if m in modality_freqs:
                     modality_freqs[m] += 1
                     
-        # 5. Checkin trend (last 10)
         cursor.execute(f"SELECT timestamp, feeling_score, energy_score, sleep_score, stress_score FROM daily_checkins {user_clause} ORDER BY timestamp ASC LIMIT 10", params)
         checkin_trends = [dict(row) for row in cursor.fetchall()]
         
-        # 6. Historic analyses (last 10)
         cursor.execute(f"SELECT timestamp, final_emotion, confidence_score FROM analyses {user_clause} ORDER BY timestamp DESC LIMIT 10", params)
         historic_trends = [dict(row) for row in cursor.fetchall()]
 
-        # 7. Recent daily notes count
         notes_count = 0
         if user_id is not None:
             cursor.execute("SELECT COUNT(*) FROM daily_notes WHERE user_id = ?", (user_id,))

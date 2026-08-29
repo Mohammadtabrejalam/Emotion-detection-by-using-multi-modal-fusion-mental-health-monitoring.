@@ -12,7 +12,8 @@ from .database import (
     save_checkin, get_checkins, get_dashboard_data,
     register_user, authenticate_user, get_user_login_history,
     update_user_profile, change_user_password,
-    save_daily_note, get_daily_notes, delete_daily_note
+    save_daily_note, get_daily_notes, delete_daily_note,
+    get_articles, create_article, like_article, delete_article
 )
 from .ml.preprocessing.text import tokenize, check_crisis_keywords
 from .ml.preprocessing.audio import preprocess_audio
@@ -26,7 +27,7 @@ try:
 except ImportError:
     pass
 
-app = FastAPI(title="MindSense API", version="1.2")
+app = FastAPI(title="MindSense API", version="1.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -102,6 +103,15 @@ class DailyNoteRequest(BaseModel):
     title: str
     content: str
     mood_tag: str
+
+class ArticleCreateRequest(BaseModel):
+    user_id: Optional[int] = None
+    title: str
+    author: str
+    category: str
+    summary: str
+    content: str
+    tags: List[str]
 
 def get_confidence_label(prob: float) -> str:
     if prob < 0.40:
@@ -298,6 +308,78 @@ def login_history(user_id: int = Query(...)):
         "error": None
     }
 
+# ----------------- ARTICLES & COMMUNITY KNOWLEDGE HUB ----------------- #
+
+@app.get("/api/articles", response_model=StandardResponse)
+def list_articles(
+    search: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    limit: int = Query(50)
+):
+    try:
+        articles = get_articles(search=search, category=category, limit=limit)
+        return {
+            "success": True,
+            "data": {"articles": articles},
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "FETCH_FAILED", "message": str(e)}
+        }
+
+@app.post("/api/articles", response_model=StandardResponse)
+def publish_article(req: ArticleCreateRequest):
+    try:
+        article_id = create_article(
+            title=req.title,
+            author=req.author,
+            category=req.category,
+            summary=req.summary,
+            content=req.content,
+            tags=req.tags,
+            user_id=req.user_id
+        )
+        return {
+            "success": True,
+            "data": {"id": article_id, "message": "Article published to community hub successfully."},
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "PUBLISH_FAILED", "message": str(e)}
+        }
+
+@app.post("/api/articles/{article_id}/like", response_model=StandardResponse)
+def like_post(article_id: int):
+    try:
+        new_likes = like_article(article_id)
+        return {
+            "success": True,
+            "data": {"likes": new_likes},
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "LIKE_FAILED", "message": str(e)}
+        }
+
+@app.delete("/api/articles/{article_id}", response_model=StandardResponse)
+def remove_article(article_id: int, user_id: Optional[int] = Query(None)):
+    try:
+        deleted = delete_article(article_id, user_id)
+        if deleted:
+            return {"success": True, "data": {"message": "Article deleted."}, "error": None}
+        return {"success": False, "error": {"code": "NOT_FOUND", "message": "Article not found."}}
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "DELETE_FAILED", "message": str(e)}
+        }
+
 # ----------------- REAL-WORLD DATASET SAMPLES ----------------- #
 
 @app.get("/api/datasets/samples", response_model=StandardResponse)
@@ -406,7 +488,7 @@ def health_check():
             "status": "healthy",
             "database_connected": db_ok,
             "pytorch_loaded": PYTORCH_AVAILABLE and model is not None,
-            "model_version": "multimodal_v1.2"
+            "model_version": "multimodal_v1.3"
         }
     }
 
@@ -591,7 +673,7 @@ async def analyze_emotion(
         modalities_used=result["modalities_used"],
         final_emotion=final_emo,
         confidence_score=conf,
-        model_version="multimodal_v1.2",
+        model_version="multimodal_v1.3",
         is_demo=is_demo_prediction,
         modality_results=result["modality_predictions"],
         user_id=user_id
@@ -607,7 +689,7 @@ async def analyze_emotion(
         "modalities_used": result["modalities_used"],
         "modality_predictions": result["modality_predictions"],
         "is_demo": is_demo_prediction,
-        "model_version": "multimodal_v1.2",
+        "model_version": "multimodal_v1.3",
         "disclaimer": disclaimer,
         "crisis_alert": crisis_alert,
         "wellness_insight": insight_text,

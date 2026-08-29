@@ -25,6 +25,20 @@ export interface DailyNote {
   updated_at: string;
 }
 
+export interface Article {
+  id: number;
+  user_id?: number | null;
+  title: string;
+  author: string;
+  category: string;
+  read_time: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  likes: number;
+  created_at: string;
+}
+
 export interface PipelineStage {
   stage: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';

@@ -31,12 +31,11 @@ import { DatasetHub } from './pages/DatasetHub';
 import { ProblemScenarios } from './pages/ProblemScenarios';
 import { AboutOverview } from './pages/AboutOverview';
 import { AdobeStudio } from './pages/AdobeStudio';
-import { apiService } from './services/api';
+import { ArticlesHub } from './pages/ArticlesHub';
 import type { User } from './types';
 
 export const App: React.FC = () => {
-  const [backendAlive, setBackendAlive] = useState<boolean>(false);
-  const [currentView, setCurrentView] = useState<'home' | 'about' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'adobe' | 'settings' | 'auth'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'about' | 'scenarios' | 'awareness' | 'datasets' | 'notes' | 'adobe' | 'articles' | 'settings' | 'auth'>('home');
   const [activeModal, setActiveModal] = useState<'checkin' | 'config' | null>(null);
   const [studioText, setStudioText] = useState<string>('');
   
@@ -71,15 +70,7 @@ export const App: React.FC = () => {
     };
   });
 
-  useEffect(() => {
-    const ping = async () => {
-      const isHealthy = await apiService.checkHealth();
-      setBackendAlive(isHealthy);
-    };
-    ping();
-    const interval = setInterval(ping, 10000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
@@ -201,6 +192,12 @@ export const App: React.FC = () => {
             >
               <Sparkles className="h-3.5 w-3.5 text-pink-400" /> Adobe Studio
             </button>
+            <button 
+              onClick={() => setCurrentView('articles')} 
+              className={`px-3 py-2 rounded-lg transition flex items-center gap-1.5 ${currentView === 'articles' ? 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 font-bold' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`}
+            >
+              <BookOpen className="h-3.5 w-3.5 text-cyan-400" /> Articles Hub
+            </button>
           </nav>
 
           {/* Action, Theme & User Status */}
@@ -214,11 +211,6 @@ export const App: React.FC = () => {
             >
               {isLightMode ? <Moon className="h-4 w-4 text-indigo-400" /> : <Sun className="h-4 w-4 text-amber-400" />}
             </button>
-
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px]">
-              <span className={`h-2 w-2 rounded-full ${backendAlive ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-              <span className="text-slate-400">{backendAlive ? 'API Live' : 'API Offline'}</span>
-            </div>
 
             {/* Quick Check-in Button */}
             <button
@@ -308,6 +300,16 @@ export const App: React.FC = () => {
       {currentView === 'adobe' && (
         <main className="px-6 py-12">
           <AdobeStudio onSendToAnalyzer={(quote) => handleLoadTestPrompt(quote || '')} />
+        </main>
+      )}
+
+      {/* VIEW: ARTICLES & COMMUNITY HUB */}
+      {currentView === 'articles' && (
+        <main className="px-6 py-12">
+          <ArticlesHub 
+            currentUser={currentUser} 
+            onOpenLogin={() => setCurrentView('auth')} 
+          />
         </main>
       )}
 

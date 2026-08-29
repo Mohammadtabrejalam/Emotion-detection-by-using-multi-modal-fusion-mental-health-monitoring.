@@ -6,7 +6,8 @@ import type {
   ResearchData,
   User,
   LoginSession,
-  DailyNote
+  DailyNote,
+  Article
 } from '../types';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -122,6 +123,65 @@ export const apiService = {
   async deleteDailyNote(noteId: number, userId: number): Promise<ApiResponse<{ message: string }>> {
     try {
       const response = await fetch(`${API_BASE_URL}/notes/${noteId}?user_id=${userId}`, {
+        method: 'DELETE',
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  // ----------------- ARTICLES & COMMUNITY KNOWLEDGE HUB ----------------- //
+
+  async getArticles(search?: string, category?: string): Promise<ApiResponse<{ articles: Article[] }>> {
+    try {
+      const params = new URLSearchParams();
+      if (search && search.trim()) params.append('search', search.trim());
+      if (category && category !== 'All') params.append('category', category);
+      
+      const response = await fetch(`${API_BASE_URL}/articles?${params.toString()}`);
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async publishArticle(article: {
+    user_id?: number | null;
+    title: string;
+    author: string;
+    category: string;
+    summary: string;
+    content: string;
+    tags: string[];
+  }): Promise<ApiResponse<{ id: number; message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/articles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(article),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async likeArticle(articleId: number): Promise<ApiResponse<{ likes: number }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/articles/${articleId}/like`, {
+        method: 'POST',
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async deleteArticle(articleId: number, userId?: number): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const url = userId ? `${API_BASE_URL}/articles/${articleId}?user_id=${userId}` : `${API_BASE_URL}/articles/${articleId}`;
+      const response = await fetch(url, {
         method: 'DELETE',
       });
       return await response.json();
