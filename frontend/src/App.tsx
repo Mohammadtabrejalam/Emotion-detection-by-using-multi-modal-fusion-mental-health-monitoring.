@@ -32,6 +32,7 @@ import { ProblemScenarios } from './pages/ProblemScenarios';
 import { AboutOverview } from './pages/AboutOverview';
 import { AdobeStudio } from './pages/AdobeStudio';
 import { ArticlesHub } from './pages/ArticlesHub';
+import { HomeHealthAndAbout } from './components/HomeHealthAndAbout';
 import type { User } from './types';
 
 export const App: React.FC = () => {
@@ -651,6 +652,15 @@ export const App: React.FC = () => {
               </div>
 
             </div>
+          </section>
+
+          {/* HOME PAGE LOWER: ABOUT THE WEBSITE, HEALTH-CONSCIOUS ARTICLES, SELF-CARE CHECKLIST, FAQS & CRISIS DIRECTORY */}
+          <section className="px-6 border-t border-slate-800">
+            <HomeHealthAndAbout 
+              onNavigateArticles={() => { setCurrentView('articles'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onNavigateNotes={() => { setCurrentView('notes'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onNavigateAwareness={() => { setCurrentView('awareness'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            />
           </section>
 
         </main>
