@@ -60,6 +60,41 @@ export const apiService = {
     }
   },
 
+  async updateProfile(userId: number, name: string, email: string): Promise<ApiResponse<{ user: User; message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, name, email }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async changePassword(userId: number, oldPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, old_password: oldPassword, new_password: newPassword }),
+      });
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
+  async getDatasetSamples(): Promise<ApiResponse<{ samples: any[] }>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/datasets/samples`);
+      return await response.json();
+    } catch (error: any) {
+      return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
+    }
+  },
+
   // ----------------- DAILY NOTES / JOURNAL ----------------- //
 
   async saveDailyNote(userId: number, date: string, title: string, content: string, moodTag: string): Promise<ApiResponse<{ id: number; message: string }>> {

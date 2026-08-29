@@ -17,11 +17,18 @@ import type { AnalysisData, PipelineStage, User } from '../types';
 
 interface AnalysisProps {
   currentUser?: User | null;
+  initialText?: string;
 }
 
-export const Analysis: React.FC<AnalysisProps> = ({ currentUser }) => {
+export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) => {
   // Input States
-  const [text, setText] = useState<string>('');
+  const [text, setText] = useState<string>(initialText || '');
+
+  useEffect(() => {
+    if (initialText) {
+      setText(initialText);
+    }
+  }, [initialText]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [demoMode, setDemoMode] = useState<boolean>(true); // Default to true if PyTorch not locally loaded

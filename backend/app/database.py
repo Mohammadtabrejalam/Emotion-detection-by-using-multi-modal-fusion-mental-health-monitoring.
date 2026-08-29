@@ -101,6 +101,17 @@ def init_db():
     )
     """)
     
+    # Run automatic migrations for older schemas
+    cursor.execute("PRAGMA table_info(analyses)")
+    a_cols = [row[1] for row in cursor.fetchall()]
+    if "user_id" not in a_cols:
+        cursor.execute("ALTER TABLE analyses ADD COLUMN user_id INTEGER")
+        
+    cursor.execute("PRAGMA table_info(daily_checkins)")
+    c_cols = [row[1] for row in cursor.fetchall()]
+    if "user_id" not in c_cols:
+        cursor.execute("ALTER TABLE daily_checkins ADD COLUMN user_id INTEGER")
+    
     # Insert a default guest user if no users exist
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
@@ -113,7 +124,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ----------------- USER AUTH FUNCTIONS ----------------- #
+# ----------------- USER AUTH & PROFILE FUNCTIONS ----------------- #
 
 def register_user(username: str, email: str, password: str, name: str):
     conn = get_db_connection()
@@ -145,7 +156,6 @@ def authenticate_user(username_or_email: str, password: str, ip_address: str = "
         timestamp = datetime.utcnow().isoformat()
         if user_row:
             user = dict(user_row)
-            # Record successful login session
             cursor.execute("""
             INSERT INTO login_sessions (user_id, timestamp, ip_address, user_agent, status)
             VALUES (?, ?, ?, ?, ?)
@@ -159,7 +169,6 @@ def authenticate_user(username_or_email: str, password: str, ip_address: str = "
                 "created_at": user["created_at"]
             }
         else:
-            # Check if user exists to log failed attempt
             cursor.execute("SELECT id FROM users WHERE username = ? OR email = ?", (query_val, query_val))
             existing = cursor.fetchone()
             if existing:
@@ -169,6 +178,34 @@ def authenticate_user(username_or_email: str, password: str, ip_address: str = "
                 """, (existing[0], timestamp, ip_address, user_agent, "FAILED_PASSWORD"))
                 conn.commit()
             return None
+    finally:
+        conn.close()
+
+def update_user_profile(user_id: int, name: str, email: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        UPDATE users SET name = ?, email = ? WHERE id = ?
+        """, (name.strip(), email.strip().lower(), user_id))
+        conn.commit()
+        cursor.execute("SELECT id, username, email, name, created_at FROM users WHERE id = ?", (user_id,))
+        return dict(cursor.fetchone())
+    finally:
+        conn.close()
+
+def change_user_password(user_id: int, old_password: str, new_password: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        old_hash = hash_password(old_password)
+        cursor.execute("SELECT id FROM users WHERE id = ? AND password_hash = ?", (user_id, old_hash))
+        if not cursor.fetchone():
+            return False
+        new_hash = hash_password(new_password)
+        cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+        conn.commit()
+        return True
     finally:
         conn.close()
 
@@ -245,7 +282,6 @@ def delete_history(user_id: int = None):
     cursor = conn.cursor()
     try:
         if user_id is not None:
-            # Delete user's analysis results and checkins
             cursor.execute("SELECT id FROM analyses WHERE user_id = ?", (user_id,))
             a_ids = [row[0] for row in cursor.fetchall()]
             for aid in a_ids:
