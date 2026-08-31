@@ -1,5 +1,6 @@
 """
-PyTorch Multimodal Dataset & Collate Implementation — MindSense
+PyTorch Multimodal Dataset & DataLoader Implementation — MindSense
+Version: 1.1.0 (Real Dataset & Experimental Masking Support)
 """
 
 from pathlib import Path
@@ -14,16 +15,25 @@ from .preprocessing import DatasetPreprocessor
 class MultimodalEmotionDataset(Dataset):
     """
     Validated PyTorch Dataset for multimodal emotion classification.
-    Produces strictly aligned multimodal triples with explicit modality masking
-    and full metadata provenance.
+    Consumes verified dataset manifests with real media file references.
+    Supports both natural dataset missing modalities and experimentally masked modalities.
     """
 
     def __init__(
         self,
         manifest_or_path: Union[DatasetManifest, List[SampleRecord], str, Path],
         split: Optional[str] = None,
-        preprocessor: Optional[DatasetPreprocessor] = None
+        preprocessor: Optional[DatasetPreprocessor] = None,
+        masked_modalities: Optional[List[str]] = None
     ):
+        """
+        Args:
+            manifest_or_path: DatasetManifest object, list of records, or path to manifest JSON.
+            split: Optional split filter ('train', 'val', 'test').
+            preprocessor: DatasetPreprocessor instance.
+            masked_modalities: Optional list of modality names to artificially mask for ablation experiments
+                              (e.g., ['audio'], ['vision'], ['audio', 'vision']).
+        """
         if isinstance(manifest_or_path, DatasetManifest):
             self.manifest = manifest_or_path
         elif isinstance(manifest_or_path, list):
@@ -37,6 +47,7 @@ class MultimodalEmotionDataset(Dataset):
             self.records = self.manifest.records
 
         self.preprocessor = preprocessor or DatasetPreprocessor()
+        self.masked_modalities = [m.lower() for m in (masked_modalities or [])]
 
     def __len__(self) -> int:
         return len(self.records)
@@ -44,20 +55,23 @@ class MultimodalEmotionDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         record = self.records[idx]
 
-        # 1. Process Text
-        text_tensor, text_avail = self.preprocessor.process_text(record.text_content)
-        if not record.has_text:
-            text_avail = False
+        # 1. Process Text (or experimentally mask)
+        if "text" in self.masked_modalities or not record.has_text:
+            text_tensor, text_avail = self.preprocessor.process_text(None)
+        else:
+            text_tensor, text_avail = self.preprocessor.process_text(record.text_content)
 
-        # 2. Process Audio
-        audio_tensor, audio_avail = self.preprocessor.process_audio(record.audio_path)
-        if not record.has_audio:
-            audio_avail = False
+        # 2. Process Audio (or experimentally mask)
+        if "audio" in self.masked_modalities or not record.has_audio:
+            audio_tensor, audio_avail = self.preprocessor.process_audio(None)
+        else:
+            audio_tensor, audio_avail = self.preprocessor.process_audio(record.audio_path)
 
-        # 3. Process Vision
-        vision_tensor, vision_avail = self.preprocessor.process_vision(record.video_path)
-        if not record.has_vision:
-            vision_avail = False
+        # 3. Process Vision (or experimentally mask)
+        if "vision" in self.masked_modalities or not record.has_vision:
+            vision_tensor, vision_avail = self.preprocessor.process_vision(None)
+        else:
+            vision_tensor, vision_avail = self.preprocessor.process_vision(record.video_path)
 
         # 4. Modality Presence Mask: [Text, Audio, Vision]
         modality_mask = torch.tensor([
@@ -84,7 +98,10 @@ class MultimodalEmotionDataset(Dataset):
                 "split": record.split,
                 "original_label": record.original_label,
                 "duration_sec": record.duration_sec,
-                "quality_status": record.quality_status
+                "quality_status": record.quality_status,
+                "has_text_raw": record.has_text,
+                "has_audio_raw": record.has_audio,
+                "has_vision_raw": record.has_vision
             }
         }
 

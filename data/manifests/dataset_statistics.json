@@ -1,29 +1,28 @@
 {
-  "total_samples": 45,
-  "speaker_count": 8,
+  "total_samples": 1,
+  "speaker_count": 1,
   "split_distribution": {
-    "test": 10,
-    "train": 31,
-    "val": 4
+    "train": 1
   },
   "class_distribution": {
-    "neutral": 11,
-    "surprise": 5,
-    "fear": 5,
-    "happy": 9,
-    "sad": 4,
-    "angry": 8,
-    "disgust": 3
+    "neutral": 1
   },
   "modality_availability": {
-    "text_available": 45,
-    "audio_available": 45,
-    "vision_available": 45,
-    "complete_triples": 45
+    "text_available": 1,
+    "audio_available": 1,
+    "vision_available": 1,
+    "complete_triples": 1
   },
   "duration_statistics": {
-    "min_sec": 1.0,
-    "max_sec": 3.8,
-    "mean_sec": 2.36
+    "min_sec": 2.0,
+    "max_sec": 2.0,
+    "mean_sec": 2.0
+  },
+  "meld_completeness": "PARTIAL_DATASET (1/13708 samples)",
+  "source_meld_root": "C:\\Users\\Mohammad Tabrej\\AppData\\Local\\Temp\\tmp98_5l471",
+  "media_counts": {
+    "matched_mp4s": 1,
+    "missing_mp4s": 0,
+    "skipped_csv_rows": 0
   }
 }

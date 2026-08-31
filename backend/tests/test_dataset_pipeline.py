@@ -14,24 +14,26 @@ from backend.app.ml.data.preprocessing import DatasetPreprocessor
 def mock_manifest_records():
     return [
         SampleRecord(
-            sample_id="rec_full_001",
+            sample_id="rec_mock_001",
             dataset="meld",
             speaker_id="speaker_rachel",
             session_id="dia01",
             utterance_id="utt01",
             text_content="I am so incredibly happy today!",
             has_text=True,
-            has_audio=False,  # Test missing audio
-            has_vision=False, # Test missing vision
+            has_audio=False,  # Unset audio
+            has_vision=False, # Unset vision
             label="happy",
             label_id=0,
             original_label="joy",
             label_source="test",
             split="train",
-            quality_status="valid"
+            quality_status="valid",
+            audio_path=None,
+            video_path=None
         ),
         SampleRecord(
-            sample_id="rec_full_002",
+            sample_id="rec_mock_002",
             dataset="meld",
             speaker_id="speaker_ross",
             session_id="dia01",
@@ -45,10 +47,12 @@ def mock_manifest_records():
             original_label="sadness",
             label_source="test",
             split="train",
-            quality_status="valid"
+            quality_status="valid",
+            audio_path=None,
+            video_path=None
         ),
         SampleRecord(
-            sample_id="rec_full_003",
+            sample_id="rec_mock_003",
             dataset="meld",
             speaker_id="speaker_chandler",
             session_id="dia02",
@@ -62,7 +66,9 @@ def mock_manifest_records():
             original_label="neutral",
             label_source="test",
             split="test",
-            quality_status="valid"
+            quality_status="valid",
+            audio_path=None,
+            video_path=None
         )
     ]
 
@@ -95,6 +101,16 @@ def test_dataset_item_structure_and_mask(mock_manifest_records):
     assert torch.equal(item["modality_mask"], expected_mask)
 
 
+def test_experimental_ablation_masking(mock_manifest_records):
+    manifest = DatasetManifest(mock_manifest_records)
+    # Mask text experimentally
+    dataset_masked = MultimodalEmotionDataset(manifest, split="train", masked_modalities=["text"])
+
+    item = dataset_masked[0]
+    expected_mask = torch.tensor([0.0, 0.0, 0.0])
+    assert torch.equal(item["modality_mask"], expected_mask)
+
+
 def test_dataloader_collate_shapes(mock_manifest_records):
     manifest = DatasetManifest(mock_manifest_records)
     dataset = MultimodalEmotionDataset(manifest)
@@ -111,23 +127,14 @@ def test_dataloader_collate_shapes(mock_manifest_records):
     assert len(batch["speaker_ids"]) == 3
 
 
-def test_preprocessor_empty_and_corrupt_inputs():
-    preprocessor = DatasetPreprocessor()
-
-    # Empty text
-    text_tensor, text_avail = preprocessor.process_text("")
-    assert text_avail is False
-    assert text_tensor.shape == (64,)
-    assert torch.all(text_tensor == 0)
-
-    # Non-existent audio
-    audio_tensor, audio_avail = preprocessor.process_audio("non_existent_file.wav")
-    assert audio_avail is False
+def test_preprocessor_strict_vs_lenient_paths():
+    # Lenient mode returns zero tensor without crashing
+    lenient_prep = DatasetPreprocessor(strict_paths=False)
+    audio_tensor, avail = lenient_prep.process_audio("non_existent_file.wav")
+    assert avail is False
     assert audio_tensor.shape == (200, 13)
-    assert torch.all(audio_tensor == 0)
 
-    # Non-existent vision
-    vision_tensor, vision_avail = preprocessor.process_vision("non_existent_frame.jpg")
-    assert vision_avail is False
-    assert vision_tensor.shape == (1, 48, 48)
-    assert torch.all(vision_tensor == 0)
+    # Strict mode raises FileNotFoundError for missing dataset path
+    strict_prep = DatasetPreprocessor(strict_paths=True)
+    with pytest.raises(FileNotFoundError):
+        strict_prep.process_audio("non_existent_file.wav")

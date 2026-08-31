@@ -29,20 +29,27 @@ class SampleRecord:
     text_path: Optional[str] = None
     audio_path: Optional[str] = None
     video_path: Optional[str] = None
+    audio_source_path: Optional[str] = None
+    image_source_path: Optional[str] = None
+    dialogue_id: Optional[str] = None
     duration_sec: Optional[float] = None
     sample_rate: Optional[int] = 16000
     frame_count: Optional[int] = 200
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        if not d.get("dialogue_id"):
+            d["dialogue_id"] = d.get("session_id")
+        return d
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SampleRecord":
+        session_id = data.get("session_id") or data.get("dialogue_id", "dia0")
         return cls(
             sample_id=data["sample_id"],
             dataset=data["dataset"],
             speaker_id=data["speaker_id"],
-            session_id=data["session_id"],
+            session_id=session_id,
             utterance_id=data["utterance_id"],
             text_content=data["text_content"],
             has_text=data.get("has_text", True),
@@ -57,6 +64,9 @@ class SampleRecord:
             text_path=data.get("text_path"),
             audio_path=data.get("audio_path"),
             video_path=data.get("video_path"),
+            audio_source_path=data.get("audio_source_path") or data.get("audio_path"),
+            image_source_path=data.get("image_source_path") or data.get("video_path"),
+            dialogue_id=data.get("dialogue_id") or session_id,
             duration_sec=data.get("duration_sec"),
             sample_rate=data.get("sample_rate", 16000),
             frame_count=data.get("frame_count", 200),

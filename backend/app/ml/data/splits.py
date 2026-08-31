@@ -127,9 +127,10 @@ def partition_dataset_by_speaker(
     return updated_records
 
 
-def validate_split_isolation(records: List[SampleRecord]) -> Tuple[bool, List[str]]:
+def validate_split_isolation(records: List[SampleRecord], allow_speaker_overlap: bool = False) -> Tuple[bool, List[str]]:
     """
-    Validates that no speaker ID or sample ID appears in more than one split partition.
+    Validates that no sample ID or dialogue ID appears in more than one split partition.
+    Optionally enforces zero speaker ID overlap across splits if allow_speaker_overlap=False.
 
     Returns:
         (is_valid: bool, errors: List[str])
@@ -138,10 +139,16 @@ def validate_split_isolation(records: List[SampleRecord]) -> Tuple[bool, List[st
     train_speakers: Set[str] = set()
     val_speakers: Set[str] = set()
     test_speakers: Set[str] = set()
+
+    train_dialogues: Set[str] = set()
+    val_dialogues: Set[str] = set()
+    test_dialogues: Set[str] = set()
+
     seen_samples: Dict[str, str] = {}
 
     for r in records:
         spk = r.speaker_id.strip().lower()
+        dia = (r.dialogue_id or r.session_id or "").strip().lower()
         split = r.split.strip().lower()
 
         # Check sample duplication across splits
@@ -152,28 +159,45 @@ def validate_split_isolation(records: List[SampleRecord]) -> Tuple[bool, List[st
         else:
             seen_samples[r.sample_id] = split
 
-        # Record speakers per split
+        # Record speakers and dialogues per split
         if split == "train":
             train_speakers.add(spk)
+            if dia: train_dialogues.add(dia)
         elif split in ["val", "dev"]:
             val_speakers.add(spk)
+            if dia: val_dialogues.add(dia)
         elif split == "test":
             test_speakers.add(spk)
+            if dia: test_dialogues.add(dia)
         else:
             errors.append(f"Unrecognized split name '{split}' for sample '{r.sample_id}'.")
 
-    # Check speaker overlap
-    train_val_overlap = train_speakers.intersection(val_speakers)
-    if train_val_overlap:
-        errors.append(f"Speaker overlap between TRAIN and VAL: {sorted(list(train_val_overlap))}")
+    # Check dialogue overlap across splits if preserving official dialogue splits
+    if allow_speaker_overlap:
+        t_v_dia = train_dialogues.intersection(val_dialogues)
+        if t_v_dia:
+            errors.append(f"Dialogue overlap between TRAIN and VAL: {sorted(list(t_v_dia))[:10]}")
 
-    train_test_overlap = train_speakers.intersection(test_speakers)
-    if train_test_overlap:
-        errors.append(f"Speaker overlap between TRAIN and TEST: {sorted(list(train_test_overlap))}")
+        t_t_dia = train_dialogues.intersection(test_dialogues)
+        if t_t_dia:
+            errors.append(f"Dialogue overlap between TRAIN and TEST: {sorted(list(t_t_dia))[:10]}")
 
-    val_test_overlap = val_speakers.intersection(test_speakers)
-    if val_test_overlap:
-        errors.append(f"Speaker overlap between VAL and TEST: {sorted(list(val_test_overlap))}")
+        v_t_dia = val_dialogues.intersection(test_dialogues)
+        if v_t_dia:
+            errors.append(f"Dialogue overlap between VAL and TEST: {sorted(list(v_t_dia))[:10]}")
+    else:
+        # Check speaker overlap if requested (strict speaker split)
+        train_val_overlap = train_speakers.intersection(val_speakers)
+        if train_val_overlap:
+            errors.append(f"Speaker overlap between TRAIN and VAL: {sorted(list(train_val_overlap))}")
+
+        train_test_overlap = train_speakers.intersection(test_speakers)
+        if train_test_overlap:
+            errors.append(f"Speaker overlap between TRAIN and TEST: {sorted(list(train_test_overlap))}")
+
+        val_test_overlap = val_speakers.intersection(test_speakers)
+        if val_test_overlap:
+            errors.append(f"Speaker overlap between VAL and TEST: {sorted(list(val_test_overlap))}")
 
     is_valid = len(errors) == 0
     return is_valid, errors
