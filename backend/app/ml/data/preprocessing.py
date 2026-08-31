@@ -138,8 +138,25 @@ class DatasetPreprocessor:
                         raise ValueError(f"Vision file is 0 bytes: {path}")
                     return torch.zeros((1, self.vision_img_size[0], self.vision_img_size[1]), dtype=torch.float32), False
 
-                with open(path, "rb") as f:
-                    img_bytes = f.read()
+                if path.suffix.lower() in [".mp4", ".avi", ".mov", ".mkv"]:
+                    import cv2
+                    cap = cv2.VideoCapture(str(path))
+                    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    target_frame = max(0, frame_count // 2)
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
+                    ret, frame = cap.read()
+                    cap.release()
+                    if not ret or frame is None:
+                        if self.strict_paths:
+                            raise ValueError(f"Failed to decode frame from video: {path}")
+                        return torch.zeros((1, self.vision_img_size[0], self.vision_img_size[1]), dtype=torch.float32), False
+                    is_ok, buffer = cv2.imencode(".jpg", frame)
+                    if not is_ok:
+                        return torch.zeros((1, self.vision_img_size[0], self.vision_img_size[1]), dtype=torch.float32), False
+                    img_bytes = buffer.tobytes()
+                else:
+                    with open(path, "rb") as f:
+                        img_bytes = f.read()
             elif isinstance(vision_source, bytes):
                 if len(vision_source) == 0:
                     return torch.zeros((1, self.vision_img_size[0], self.vision_img_size[1]), dtype=torch.float32), False
