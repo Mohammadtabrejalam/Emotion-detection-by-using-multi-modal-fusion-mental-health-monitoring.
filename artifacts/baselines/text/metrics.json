@@ -1,0 +1,123 @@
+{
+  "accuracy": 0.2061,
+  "macro_precision": 0.2133,
+  "macro_recall": 0.2314,
+  "macro_f1": 0.1724,
+  "weighted_precision": 0.3876,
+  "weighted_recall": 0.2061,
+  "weighted_f1": 0.2035,
+  "total_samples": 2610,
+  "per_class": {
+    "angry": {
+      "precision": 0.3279,
+      "recall": 0.199,
+      "f1": 0.2477,
+      "support": 402
+    },
+    "disgust": {
+      "precision": 0.1329,
+      "recall": 0.2019,
+      "f1": 0.1603,
+      "support": 208
+    },
+    "fear": {
+      "precision": 0.2055,
+      "recall": 0.2841,
+      "f1": 0.2384,
+      "support": 345
+    },
+    "happy": {
+      "precision": 0.0293,
+      "recall": 0.16,
+      "f1": 0.0495,
+      "support": 50
+    },
+    "neutral": {
+      "precision": 0.1764,
+      "recall": 0.5907,
+      "f1": 0.2717,
+      "support": 281
+    },
+    "sad": {
+      "precision": 0.042,
+      "recall": 0.0735,
+      "f1": 0.0535,
+      "support": 68
+    },
+    "surprise": {
+      "precision": 0.5792,
+      "recall": 0.1107,
+      "f1": 0.1858,
+      "support": 1256
+    }
+  },
+  "confusion_matrix": [
+    [
+      80,
+      44,
+      46,
+      34,
+      149,
+      22,
+      27
+    ],
+    [
+      18,
+      42,
+      40,
+      35,
+      49,
+      9,
+      15
+    ],
+    [
+      17,
+      44,
+      98,
+      41,
+      105,
+      16,
+      24
+    ],
+    [
+      3,
+      6,
+      15,
+      8,
+      11,
+      1,
+      6
+    ],
+    [
+      19,
+      22,
+      28,
+      12,
+      166,
+      8,
+      26
+    ],
+    [
+      5,
+      11,
+      17,
+      8,
+      19,
+      5,
+      3
+    ],
+    [
+      102,
+      147,
+      233,
+      135,
+      442,
+      58,
+      139
+    ]
+  ],
+  "modality": "text",
+  "checkpoint_epoch": 3,
+  "val_macro_f1_checkpoint": 0.2051,
+  "excluded_test_samples": 0
+}

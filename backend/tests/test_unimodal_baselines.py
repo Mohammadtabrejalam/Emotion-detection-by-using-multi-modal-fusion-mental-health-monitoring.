@@ -11,7 +11,7 @@ from backend.app.ml.data.manifest import SampleRecord, DatasetManifest
 from backend.app.ml.baselines.config import EMOTION_CLASSES, NUM_CLASSES, set_seed
 from backend.app.ml.baselines.metrics import compute_comprehensive_metrics
 from backend.app.ml.baselines.common import (
-    filter_valid_unimodal_records, compute_class_weights_from_train
+    filter_valid_unimodal_records, compute_class_weights_from_train, run_unimodal_training
 )
 from backend.app.ml.text_encoder import TextEncoder
 from backend.app.ml.audio_encoder import AudioEncoder
@@ -108,3 +108,135 @@ def test_reproducibility_seed_setting():
     set_seed(42)
     t2 = torch.randn(3, 3)
     assert torch.equal(t1, t2)
+
+
+def test_unimodal_training_resume_checkpoint():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        manifest_path = tmp_path / "manifest.json"
+
+        # Create minimal synthetic manifest with train and val samples
+        records = [
+            SampleRecord(
+                sample_id=f"train_{i}", dataset="meld", speaker_id="spk1", session_id="s1",
+                utterance_id=f"u{i}", text_content=f"Sample text utterance {i}",
+                has_text=True, has_audio=False, has_vision=False,
+                label="joy", label_id=0, original_label="joy", label_source="test",
+                split="train", quality_status="valid"
+            )
+            for i in range(6)
+        ] + [
+            SampleRecord(
+                sample_id=f"val_{i}", dataset="meld", speaker_id="spk1", session_id="s1",
+                utterance_id=f"uv{i}", text_content=f"Val sample text {i}",
+                has_text=True, has_audio=False, has_vision=False,
+                label="sadness", label_id=1, original_label="sadness", label_source="test",
+                split="val", quality_status="valid"
+            )
+            for i in range(4)
+        ]
+
+        manifest = DatasetManifest(records)
+        manifest.save_json(manifest_path)
+
+        out_dir = tmp_path / "artifacts"
+        model_kwargs = {"vocab_size": 100, "embed_dim": 32, "hidden_dim": 32, "num_classes": 7}
+
+        # Step 1: Initial training for 2 epochs
+        cfg1 = run_unimodal_training(
+            modality="text",
+            model_cls=TextEncoder,
+            model_kwargs=model_kwargs,
+            experiment_id="test_run_initial",
+            manifest_path=manifest_path,
+            epochs=2,
+            batch_size=2,
+            output_dir=out_dir
+        )
+
+        ckpt_path = out_dir / "best_model.pt"
+        assert ckpt_path.exists()
+        ckpt1 = torch.load(ckpt_path, map_location="cpu")
+        assert "epoch" in ckpt1
+        assert "model_state_dict" in ckpt1
+        assert "optimizer_state_dict" in ckpt1
+        saved_epoch = ckpt1["epoch"]
+        saved_f1 = ckpt1["val_macro_f1"]
+
+        # Step 2: Resume training to target 4 epochs
+        cfg2 = run_unimodal_training(
+            modality="text",
+            model_cls=TextEncoder,
+            model_kwargs=model_kwargs,
+            experiment_id="test_run_resumed",
+            manifest_path=manifest_path,
+            epochs=4,
+            batch_size=2,
+            resume_from=ckpt_path,
+            output_dir=out_dir
+        )
+
+        assert cfg2["best_epoch"] >= saved_epoch
+        assert cfg2["best_val_macro_f1"] >= -1.0
+        assert cfg2["resumed_from"] == str(ckpt_path)
+
+
+def test_vision_checkpoint_restoration_integrity():
+    vision_ckpt_path = Path("artifacts/baselines/vision/best_model.pt")
+    assert vision_ckpt_path.exists(), "Vision checkpoint best_model.pt should exist"
+
+    ckpt = torch.load(vision_ckpt_path, map_location="cpu")
+    assert "epoch" in ckpt
+    assert "model_state_dict" in ckpt
+    assert "optimizer_state_dict" in ckpt
+    assert "val_macro_f1" in ckpt
+    assert isinstance(ckpt["epoch"], int) and ckpt["epoch"] >= 1
+    assert isinstance(ckpt["val_macro_f1"], (int, float)) and 0.0 <= ckpt["val_macro_f1"] <= 1.0
+
+    # Verify model instantiation and loading
+    vision_model = VisionEncoder(in_channels=1, hidden_dim=64, num_classes=7)
+    vision_model.load_state_dict(ckpt["model_state_dict"])
+    vision_model.eval()
+
+    dummy_input = torch.randn(2, 1, 48, 48)
+    with torch.no_grad():
+        embed, logits = vision_model(dummy_input)
+    assert embed.shape == (2, 64)
+    assert logits.shape == (2, 7)
+
+
+def test_resume_from_nonexistent_checkpoint_raises():
+    import pytest
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        manifest_path = tmp_path / "manifest.json"
+        records = [
+            SampleRecord(
+                sample_id="dummy_1", dataset="meld", speaker_id="spk1", session_id="s1",
+                utterance_id="u1", text_content="Sample text",
+                has_text=True, has_audio=False, has_vision=False,
+                label="joy", label_id=0, original_label="joy", label_source="test",
+                split="train", quality_status="valid"
+            ),
+            SampleRecord(
+                sample_id="dummy_2", dataset="meld", speaker_id="spk1", session_id="s1",
+                utterance_id="u2", text_content="Sample text val",
+                has_text=True, has_audio=False, has_vision=False,
+                label="joy", label_id=0, original_label="joy", label_source="test",
+                split="val", quality_status="valid"
+            )
+        ]
+        DatasetManifest(records).save_json(manifest_path)
+
+        with pytest.raises(FileNotFoundError):
+            run_unimodal_training(
+                modality="text",
+                model_cls=TextEncoder,
+                model_kwargs={"vocab_size": 10, "embed_dim": 16, "hidden_dim": 16, "num_classes": 7},
+                experiment_id="test_fail",
+                manifest_path=manifest_path,
+                epochs=5,
+                resume_from=tmp_path / "does_not_exist.pt",
+                output_dir=tmp_path
+            )
+

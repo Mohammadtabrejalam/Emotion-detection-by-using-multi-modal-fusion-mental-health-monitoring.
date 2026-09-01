@@ -1,0 +1,30 @@
+{
+  "experiment_id": "E03_Vision",
+  "modality": "vision",
+  "dataset": "MELD",
+  "seed": 42,
+  "epochs_trained": 5,
+  "best_epoch": 3,
+  "resumed_from": "artifacts/baselines/vision/best_model.pt",
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "optimizer": "AdamW",
+  "loss": "CrossEntropyLoss (Train Weighted)",
+  "class_weights": [
+    0.3521880805492401,
+    0.8987757563591003,
+    0.5535291433334351,
+    2.290536642074585,
+    0.5094305872917175,
+    2.2651801109313965,
+    0.1303597092628479
+  ],
+  "device": "cpu",
+  "best_val_macro_f1": 0.1052,
+  "training_duration_sec": 8875.99,
+  "excluded_samples": {
+    "train": 1,
+    "val": 0
+  }
+}

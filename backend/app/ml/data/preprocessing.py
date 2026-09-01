@@ -39,6 +39,7 @@ class DatasetPreprocessor:
         self.audio_mfcc_dim = audio_mfcc_dim
         self.vision_img_size = vision_img_size
         self.strict_paths = strict_paths
+        self._cache = {}
 
     def process_text(self, text_content: Optional[str]) -> Tuple[torch.Tensor, bool]:
         """
@@ -72,7 +73,11 @@ class DatasetPreprocessor:
 
         try:
             if isinstance(audio_source, (str, Path)):
-                path = Path(audio_source)
+                path = Path(audio_source).resolve()
+                cache_key = ("audio", str(path))
+                if cache_key in self._cache:
+                    return self._cache[cache_key], True
+
                 if not path.exists():
                     if self.strict_paths:
                         raise FileNotFoundError(f"Audio file referenced in manifest not found on disk: {path}")
@@ -82,19 +87,28 @@ class DatasetPreprocessor:
                         raise ValueError(f"Audio file is 0 bytes: {path}")
                     return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
 
-                with open(path, "rb") as f:
-                    audio_bytes = f.read()
-                file_ext = path.suffix
+                source_input = path
             elif isinstance(audio_source, bytes):
                 if len(audio_source) == 0:
+                    if self.strict_paths:
+                        raise ValueError("Audio source bytes are empty (0 bytes)")
                     return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
-                audio_bytes = audio_source
-                file_ext = ".wav"
+                source_input = audio_source
             else:
+                if self.strict_paths:
+                    raise TypeError(f"Invalid audio source type: {type(audio_source)}")
                 return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
 
-            mfcc_arr = preprocess_audio(audio_bytes, file_ext=file_ext)
-            if mfcc_arr is None or mfcc_arr.size == 0:
+            mfcc_arr = preprocess_audio(
+                source_input,
+                target_frames=self.audio_target_frames,
+                num_mfcc=self.audio_mfcc_dim,
+                strict=self.strict_paths
+            )
+
+            if mfcc_arr is None or mfcc_arr.size == 0 or (mfcc_arr == 0).all():
+                if self.strict_paths:
+                    raise RuntimeError(f"Audio feature extraction produced empty or all-zero tensor for '{audio_source}'")
                 return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
 
             if mfcc_arr.shape != (self.audio_target_frames, self.audio_mfcc_dim):
@@ -105,14 +119,17 @@ class DatasetPreprocessor:
                     mfcc_arr = mfcc_arr[:self.audio_target_frames, :self.audio_mfcc_dim]
 
             tensor = torch.tensor(mfcc_arr, dtype=torch.float32)
+            if isinstance(audio_source, (str, Path)):
+                self._cache[cache_key] = tensor
+
             return tensor, True
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, ValueError, TypeError):
             if self.strict_paths:
                 raise
             return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
         except Exception as e:
             if self.strict_paths:
-                raise RuntimeError(f"Audio preprocessing failed for '{audio_source}': {e}")
+                raise RuntimeError(f"Audio preprocessing failed for '{audio_source}': {e}") from e
             return torch.zeros((self.audio_target_frames, self.audio_mfcc_dim), dtype=torch.float32), False
 
     def process_vision(self, vision_source: Union[str, Path, bytes, None]) -> Tuple[torch.Tensor, bool]:

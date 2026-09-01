@@ -9,11 +9,12 @@ import torch
 import numpy as np
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import List, Dict, Any, Tuple, Optional, Type
+from typing import List, Dict, Any, Tuple, Optional, Type, Union
 from pathlib import Path
 
 from ..data.manifest import DatasetManifest, SampleRecord
 from ..data.dataset import MultimodalEmotionDataset, multimodal_collate_fn
+from ..data.preprocessing import DatasetPreprocessor
 from .config import (
     DATA_MANIFEST_PATH, ARTIFACTS_DIR, RANDOM_SEED, EPOCHS, BATCH_SIZE,
     LEARNING_RATE, WEIGHT_DECAY, EARLY_STOPPING_PATIENCE, EMOTION_CLASSES,
@@ -41,13 +42,37 @@ def filter_valid_unimodal_records(
             else:
                 excluded_count += 1
         elif modality == "audio":
-            if r.has_audio and r.audio_path and Path(r.audio_path).exists() and Path(r.audio_path).stat().st_size > 0:
-                valid_records.append(r)
+            if r.has_audio and r.audio_path:
+                p = Path(r.audio_path)
+                if p.exists() and p.stat().st_size >= 128:
+                    try:
+                        with open(p, "rb") as f:
+                            hdr = f.read(32)
+                        if not hdr.startswith(b"\x00" * 8):
+                            valid_records.append(r)
+                        else:
+                            excluded_count += 1
+                    except Exception:
+                        excluded_count += 1
+                else:
+                    excluded_count += 1
             else:
                 excluded_count += 1
         elif modality == "vision":
-            if r.has_vision and r.video_path and Path(r.video_path).exists() and Path(r.video_path).stat().st_size > 0:
-                valid_records.append(r)
+            if r.has_vision and r.video_path:
+                p = Path(r.video_path)
+                if p.exists() and p.stat().st_size >= 128:
+                    try:
+                        with open(p, "rb") as f:
+                            hdr = f.read(32)
+                        if not hdr.startswith(b"\x00" * 8):
+                            valid_records.append(r)
+                        else:
+                            excluded_count += 1
+                    except Exception:
+                        excluded_count += 1
+                else:
+                    excluded_count += 1
             else:
                 excluded_count += 1
         else:
@@ -95,7 +120,9 @@ def run_unimodal_training(
     learning_rate: float = LEARNING_RATE,
     weight_decay: float = WEIGHT_DECAY,
     patience: int = EARLY_STOPPING_PATIENCE,
-    seed: int = RANDOM_SEED
+    seed: int = RANDOM_SEED,
+    resume_from: Optional[Union[str, Path]] = None,
+    output_dir: Optional[Path] = None
 ) -> Dict[str, Any]:
     """
     Common training loop for unimodal baselines (Text, Audio, Vision).
@@ -104,8 +131,15 @@ def run_unimodal_training(
     """
     set_seed(seed)
     device = get_device()
-    output_dir = ARTIFACTS_DIR / modality
+    if output_dir is None:
+        output_dir = ARTIFACTS_DIR / modality
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    if resume_from is not None:
+        resume_path = Path(resume_from)
+        if not resume_path.exists():
+            raise FileNotFoundError(f"Checkpoint file not found for resume: {resume_path}")
 
     print("\n" + "=" * 75)
     print(f"RUNNING UNIMODAL BASELINE TRAINING — {modality.upper()} ({experiment_id})")
@@ -125,9 +159,10 @@ def run_unimodal_training(
     print(f"Train samples ({modality}): {len(train_records)} (Excluded missing/invalid: {train_excl})")
     print(f"Val samples ({modality}):   {len(val_records)} (Excluded missing/invalid: {val_excl})")
 
-    # Datasets & DataLoaders
-    train_ds = MultimodalEmotionDataset(train_records)
-    val_ds = MultimodalEmotionDataset(val_records)
+    # Datasets & DataLoaders (only process target modality, strict validation)
+    preprocessor = DatasetPreprocessor(strict_paths=True)
+    train_ds = MultimodalEmotionDataset(train_records, active_modalities=[modality], preprocessor=preprocessor)
+    val_ds = MultimodalEmotionDataset(val_records, active_modalities=[modality], preprocessor=preprocessor)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=multimodal_collate_fn)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=multimodal_collate_fn)
@@ -140,6 +175,7 @@ def run_unimodal_training(
     model = model_cls(**model_kwargs).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
+    start_epoch = 1
     best_val_macro_f1 = -1.0
     best_epoch = 0
     patience_counter = 0
@@ -148,7 +184,36 @@ def run_unimodal_training(
 
     best_model_path = output_dir / "best_model.pt"
 
-    for epoch in range(1, epochs + 1):
+    if resume_from is not None:
+        resume_path = Path(resume_from)
+        if not resume_path.exists():
+            raise FileNotFoundError(f"Checkpoint file not found for resume: {resume_path}")
+
+        print(f"\n[RESUME] Loading checkpoint from: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        if "optimizer_state_dict" in checkpoint and checkpoint["optimizer_state_dict"] is not None:
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        best_epoch = checkpoint.get("epoch", 0)
+        start_epoch = best_epoch + 1
+        best_val_macro_f1 = checkpoint.get("val_macro_f1", -1.0)
+
+        # Restore previous training history if available
+        hist_path = output_dir / "training_history.json"
+        if hist_path.exists():
+            try:
+                with open(hist_path, "r", encoding="utf-8") as f:
+                    prev_hist = json.load(f)
+                    if isinstance(prev_hist, list):
+                        training_history = [h for h in prev_hist if h.get("epoch", 0) < start_epoch]
+            except Exception:
+                training_history = []
+
+        print(f"[RESUME] Restored state from epoch {best_epoch} (Best Val Macro-F1: {best_val_macro_f1:.4f})")
+        print(f"[RESUME] Resuming training from epoch {start_epoch} through target {epochs}...\n")
+
+    for epoch in range(start_epoch, epochs + 1):
         # Training Phase
         model.train()
         train_loss_sum = 0.0
@@ -208,7 +273,7 @@ def run_unimodal_training(
         }
         training_history.append(history_entry)
 
-        print(f"Epoch {epoch:2d}/{epochs} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_acc:.4f} | Val Macro-F1: {val_macro_f1:.4f}")
+        print(f"Epoch {epoch:2d}/{epochs} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_acc:.4f} | Val Macro-F1: {val_macro_f1:.4f}", flush=True)
 
         # Checkpoint Selection on Validation Macro-F1
         if val_macro_f1 > best_val_macro_f1:
@@ -229,11 +294,11 @@ def run_unimodal_training(
                     "seed": seed
                 }
             }, best_model_path)
-            print(f"  --> Saved new best checkpoint at epoch {epoch} (Val Macro-F1: {val_macro_f1:.4f})")
+            print(f"  --> Saved new best checkpoint at epoch {epoch} (Val Macro-F1: {val_macro_f1:.4f})", flush=True)
         else:
             patience_counter += 1
             if patience_counter >= patience:
-                print(f"\n[EARLY STOPPING] Triggered at epoch {epoch} (Patience: {patience}). Best epoch was {best_epoch}.")
+                print(f"\n[EARLY STOPPING] Triggered at epoch {epoch} (Patience: {patience}). Best epoch was {best_epoch}.", flush=True)
                 break
 
     end_time = time.time()
@@ -247,6 +312,7 @@ def run_unimodal_training(
         "seed": seed,
         "epochs_trained": len(training_history),
         "best_epoch": best_epoch,
+        "resumed_from": str(resume_from) if resume_from else None,
         "batch_size": batch_size,
         "learning_rate": learning_rate,
         "weight_decay": weight_decay,

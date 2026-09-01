@@ -24,7 +24,8 @@ class MultimodalEmotionDataset(Dataset):
         manifest_or_path: Union[DatasetManifest, List[SampleRecord], str, Path],
         split: Optional[str] = None,
         preprocessor: Optional[DatasetPreprocessor] = None,
-        masked_modalities: Optional[List[str]] = None
+        masked_modalities: Optional[List[str]] = None,
+        active_modalities: Optional[List[str]] = None
     ):
         """
         Args:
@@ -33,6 +34,8 @@ class MultimodalEmotionDataset(Dataset):
             preprocessor: DatasetPreprocessor instance.
             masked_modalities: Optional list of modality names to artificially mask for ablation experiments
                               (e.g., ['audio'], ['vision'], ['audio', 'vision']).
+            active_modalities: Optional list of active modalities to process (e.g. ['text']). If set,
+                              modalities not listed will be skipped.
         """
         if isinstance(manifest_or_path, DatasetManifest):
             self.manifest = manifest_or_path
@@ -48,6 +51,7 @@ class MultimodalEmotionDataset(Dataset):
 
         self.preprocessor = preprocessor or DatasetPreprocessor()
         self.masked_modalities = [m.lower() for m in (masked_modalities or [])]
+        self.active_modalities = [m.lower() for m in active_modalities] if active_modalities is not None else None
 
     def __len__(self) -> int:
         return len(self.records)
@@ -55,23 +59,29 @@ class MultimodalEmotionDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         record = self.records[idx]
 
-        # 1. Process Text (or experimentally mask)
-        if "text" in self.masked_modalities or not record.has_text:
+        # 1. Process Text
+        if (self.active_modalities is not None and "text" not in self.active_modalities) or "text" in self.masked_modalities or not record.has_text:
             text_tensor, text_avail = self.preprocessor.process_text(None)
         else:
             text_tensor, text_avail = self.preprocessor.process_text(record.text_content)
+            if self.preprocessor.strict_paths and not text_avail:
+                raise RuntimeError(f"Strict mode error: text extraction failed for sample '{record.sample_id}'")
 
-        # 2. Process Audio (or experimentally mask)
-        if "audio" in self.masked_modalities or not record.has_audio:
+        # 2. Process Audio
+        if (self.active_modalities is not None and "audio" not in self.active_modalities) or "audio" in self.masked_modalities or not record.has_audio:
             audio_tensor, audio_avail = self.preprocessor.process_audio(None)
         else:
             audio_tensor, audio_avail = self.preprocessor.process_audio(record.audio_path)
+            if self.preprocessor.strict_paths and (not audio_avail or (audio_tensor == 0).all()):
+                raise RuntimeError(f"Strict mode error: audio extraction failed or yielded zero tensor for sample '{record.sample_id}' ({record.audio_path})")
 
-        # 3. Process Vision (or experimentally mask)
-        if "vision" in self.masked_modalities or not record.has_vision:
+        # 3. Process Vision
+        if (self.active_modalities is not None and "vision" not in self.active_modalities) or "vision" in self.masked_modalities or not record.has_vision:
             vision_tensor, vision_avail = self.preprocessor.process_vision(None)
         else:
             vision_tensor, vision_avail = self.preprocessor.process_vision(record.video_path)
+            if self.preprocessor.strict_paths and not vision_avail:
+                raise RuntimeError(f"Strict mode error: vision extraction failed for sample '{record.sample_id}' ({record.video_path})")
 
         # 4. Modality Presence Mask: [Text, Audio, Vision]
         modality_mask = torch.tensor([

@@ -1,0 +1,26 @@
+{
+  "text": {
+    "accuracy": 0.2061,
+    "macro_f1": 0.1724,
+    "weighted_f1": 0.2035,
+    "macro_precision": 0.2133,
+    "macro_recall": 0.2314,
+    "test_samples": 2610
+  },
+  "audio": {
+    "accuracy": 0.2985,
+    "macro_f1": 0.2191,
+    "weighted_f1": 0.3337,
+    "macro_precision": 0.237,
+    "macro_recall": 0.2491,
+    "test_samples": 2610
+  },
+  "vision": {
+    "accuracy": 0.2395,
+    "macro_f1": 0.1096,
+    "weighted_f1": 0.2432,
+    "macro_precision": 0.1079,
+    "macro_recall": 0.133,
+    "test_samples": 2610
+  }
+}

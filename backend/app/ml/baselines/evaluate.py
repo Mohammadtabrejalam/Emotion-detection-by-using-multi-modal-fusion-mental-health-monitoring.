@@ -63,7 +63,7 @@ def evaluate_unimodal_baseline(modality: str, manifest_path: Path = DATA_MANIFES
 
     print(f"Loaded {len(test_records)} valid test records ({test_excl} excluded missing/invalid).")
 
-    test_ds = MultimodalEmotionDataset(test_records)
+    test_ds = MultimodalEmotionDataset(test_records, active_modalities=[modality])
     test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, collate_fn=multimodal_collate_fn)
 
     test_preds = []

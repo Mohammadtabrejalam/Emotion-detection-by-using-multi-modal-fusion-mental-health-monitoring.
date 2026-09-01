@@ -50,19 +50,30 @@ def parse_timestamp_duration(start_time: str, end_time: str) -> Optional[float]:
 def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
     """
     Inspects an MP4 file to verify video and audio stream availability.
+    Strictly verifies streams using ffprobe.
     Returns (has_video, has_audio, duration_sec).
+    Never infers audio or video availability merely from file size or broken probes.
     """
-    if not mp4_path.exists() or mp4_path.stat().st_size == 0:
+    if not mp4_path.exists() or mp4_path.stat().st_size < 128:
+        return False, False, None
+
+    # Binary sanity check: reject files starting with null bytes or corrupt headers
+    try:
+        with open(mp4_path, "rb") as f:
+            header = f.read(64)
+        if header.startswith(b"\x00" * 8):
+            return False, False, None
+    except Exception:
         return False, False, None
 
     has_video = False
     has_audio = False
     duration_sec = None
 
-    # Try ffprobe first for precise stream inspection
+    # Use ffprobe for precise stream inspection
     try:
         cmd = [
-            "ffprobe", "-v", "quiet", "-print_format", "json",
+            "ffprobe", "-v", "error", "-print_format", "json",
             "-show_format", "-show_streams", str(mp4_path)
         ]
         startupinfo = None
@@ -72,7 +83,7 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
 
         res = subprocess.run(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, startupinfo=startupinfo, timeout=5
+            text=True, startupinfo=startupinfo, timeout=10
         )
         if res.returncode == 0 and res.stdout:
             data = json.loads(res.stdout)
@@ -98,7 +109,7 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
     except Exception:
         pass
 
-    # OpenCV fallback for video stream inspection
+    # OpenCV fallback ONLY for video stream inspection (never assumes audio)
     try:
         import cv2
         cap = cv2.VideoCapture(str(mp4_path))
@@ -110,17 +121,12 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
             cap.release()
             if w > 0 and h > 0 and fc > 0:
                 has_video = True
-                has_audio = True  # Default to True for non-zero MP4 if frame decoding passes
                 if fps > 0:
                     duration_sec = round(fc / fps, 3)
     except Exception:
         pass
 
-    # Basic file presence fallback
-    if mp4_path.exists() and mp4_path.stat().st_size > 0:
-        has_video = True
-        has_audio = True
-
+    # Strictly do NOT infer audio/video merely from file size.
     return has_video, has_audio, duration_sec
 
 
@@ -295,7 +301,7 @@ def ingest_meld_dataset(
 
                     if mp4_path:
                         valid_media_count += 1
-                        if full_validation or len(records) % 500 == 0:
+                        if full_validation:
                             has_vision, has_audio, dur_sec = inspect_media_streams(mp4_path)
                         else:
                             has_vision = True

@@ -33,7 +33,12 @@ for d in [MANIFESTS_DIR, SPLITS_DIR, METADATA_DIR, DEMO_DATA_DIR, RAW_DATA_DIR]:
 def get_meld_root(custom_path: Optional[Union[str, Path]] = None) -> Path:
     """
     Resolves the root directory of the MELD dataset.
-    Never uses machine-specific hardcoded paths.
+    Resolved in priority order:
+    1. Explicit custom_path argument
+    2. Environment variable MINDSENSE_MELD_ROOT
+    3. RAW_DATA_DIR / "meld" if split directories exist
+    4. User Desktop MELD_DOWNLOAD path (~/Desktop/MELD_DOWNLOAD/MELD.Raw) if exists
+    5. Default relative directory: data/raw/meld
     """
     if custom_path:
         return Path(custom_path).resolve()
@@ -41,8 +46,18 @@ def get_meld_root(custom_path: Optional[Union[str, Path]] = None) -> Path:
     env_path = os.environ.get("MINDSENSE_MELD_ROOT")
     if env_path and env_path.strip():
         return Path(env_path.strip()).resolve()
+
+    # Check if data/raw/meld has split directories
+    repo_meld = (RAW_DATA_DIR / "meld").resolve()
+    if (repo_meld / "train_splits").exists():
+        return repo_meld
+
+    # Fallback to local user download folder if present
+    user_meld = Path(os.path.expanduser(r"~\Desktop\MELD_DOWNLOAD\MELD.Raw")).resolve()
+    if user_meld.exists():
+        return user_meld
     
-    return (RAW_DATA_DIR / "meld").resolve()
+    return repo_meld
 
 # Audio Preprocessing Specs
 AUDIO_SAMPLE_RATE = 16000
