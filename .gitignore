@@ -57,3 +57,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.log
+
+# ML experiment artifacts (store large checkpoints/results outside GitHub)
+artifacts/

@@ -23,6 +23,68 @@ from .config import (
 from .metrics import compute_comprehensive_metrics
 
 
+def filter_valid_multimodal_records(
+    records: List[SampleRecord]
+) -> Tuple[List[SampleRecord], int]:
+    """
+    Filters dataset records ensuring multimodal media files (text, audio, vision) are present and valid.
+    Rejects corrupted media (e.g. missing moov atom / null headers) or missing paths with explicit accounting.
+    """
+    valid_records = []
+    excluded_count = 0
+
+    for r in records:
+        is_valid = True
+
+        # 1. Text Check
+        if r.has_text:
+            if not r.text_content or not r.text_content.strip():
+                is_valid = False
+
+        # 2. Audio Check
+        if is_valid and r.has_audio:
+            if not r.audio_path:
+                is_valid = False
+            else:
+                p = Path(r.audio_path)
+                if not p.exists() or p.stat().st_size < 128:
+                    is_valid = False
+                else:
+                    try:
+                        with open(p, "rb") as f:
+                            hdr = f.read(32)
+                        if hdr.startswith(b"\x00" * 8):
+                            is_valid = False
+                    except Exception:
+                        is_valid = False
+
+        # 3. Vision Check
+        if is_valid and r.has_vision:
+            if not r.video_path:
+                is_valid = False
+            else:
+                # If video_path == audio_path, media header was already verified above
+                if r.video_path != r.audio_path:
+                    p = Path(r.video_path)
+                    if not p.exists() or p.stat().st_size < 128:
+                        is_valid = False
+                    else:
+                        try:
+                            with open(p, "rb") as f:
+                                hdr = f.read(32)
+                            if hdr.startswith(b"\x00" * 8):
+                                is_valid = False
+                        except Exception:
+                            is_valid = False
+
+        if is_valid:
+            valid_records.append(r)
+        else:
+            excluded_count += 1
+
+    return valid_records, excluded_count
+
+
 def filter_valid_unimodal_records(
     records: List[SampleRecord],
     modality: str
@@ -32,6 +94,9 @@ def filter_valid_unimodal_records(
     Rejects missing inputs with explicit accounting (no silent zero padding).
     """
     modality = modality.lower()
+    if modality == "multimodal":
+        return filter_valid_multimodal_records(records)
+
     valid_records = []
     excluded_count = 0
 
