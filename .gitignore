@@ -60,3 +60,6 @@ Thumbs.db
 
 # ML experiment artifacts (store large checkpoints/results outside GitHub)
 artifacts/
+
+# Local Python virtual environment
+.venv-gpu/
