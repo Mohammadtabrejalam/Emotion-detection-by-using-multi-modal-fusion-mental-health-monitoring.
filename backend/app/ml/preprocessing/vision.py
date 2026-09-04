@@ -1,6 +1,9 @@
 import io
+import logging
 import numpy as np
 from PIL import Image
+
+logger = logging.getLogger("mindsense.vision")
 
 def preprocess_image(image_bytes: bytes) -> tuple:
     """
@@ -40,9 +43,9 @@ def preprocess_image(image_bytes: bytes) -> tuple:
                     largest_face = max(faces, key=lambda f: f[2] * f[3])
                     x, y, w, h = largest_face
                     face_crop = gray_img.crop((x, y, x + w, y + h))
-        except Exception:
+        except Exception as e:
             # If cv2 fails or cascade is unavailable, continue with fallback
-            pass
+            logger.debug("Haar cascade face detection unavailable, using center crop fallback: %s", e)
             
         # 3. Fallback: Intelligent Center-Crop if Haar cascade wasn't triggered
         if face_crop is None:

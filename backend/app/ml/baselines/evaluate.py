@@ -38,7 +38,7 @@ def evaluate_unimodal_baseline(modality: str, manifest_path: Path = DATA_MANIFES
         sys.exit(1)
 
     device = get_device()
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     config = checkpoint.get("config", {})
     model_kwargs = config.get("model_kwargs", {})
 

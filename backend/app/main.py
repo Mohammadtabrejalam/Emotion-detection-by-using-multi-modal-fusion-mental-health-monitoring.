@@ -1,8 +1,11 @@
 import os
 import uuid
 import json
+import logging
 from datetime import datetime
 from typing import Optional, List
+
+logger = logging.getLogger("mindsense.api")
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -865,8 +868,8 @@ def health_check():
         conn = get_db_connection()
         conn.close()
         db_ok = True
-    except Exception:
-        pass
+    except Exception as err:
+        logger.warning("Database health check probe failed: %s", err)
         
     return {
         "success": True,

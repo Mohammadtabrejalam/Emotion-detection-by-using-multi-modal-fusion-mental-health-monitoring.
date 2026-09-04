@@ -5,13 +5,16 @@ Version: 1.2.0 (Direct Streaming & Resilient PCM Extraction)
 
 import io
 import os
-import subprocess
+import logging
+import subprocess  # nosec: B404 # subprocess required for direct FFmpeg audio extraction
 import tempfile
 from pathlib import Path
 from typing import Union, Optional
 import numpy as np
 import scipy.io.wavfile as wav
 import scipy.fftpack as fftpack
+
+logger = logging.getLogger("mindsense.audio")
 
 
 def extract_audio_waveform(
@@ -43,7 +46,7 @@ def extract_audio_waveform(
             "-f", "s16le", "pipe:1"
         ]
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec: B603 # fixed argument list with validated file path
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -85,8 +88,8 @@ def extract_audio_waveform(
                     num_samples = int(len(sig) * target_sample_rate / rate)
                     sig = np.interp(np.linspace(0, len(sig) - 1, num_samples), np.arange(len(sig)), sig)
                 return sig.astype(np.float32)
-            except Exception:
-                pass
+            except Exception as err:
+                logger.debug("In-memory WAV parsing fallback to FFmpeg: %s", err)
 
         # Fallback for complex container formats in memory (e.g., MP4/AAC/OGG):
         # Write to temporary file and CLOSE handle immediately so FFmpeg can seek on Windows
@@ -105,7 +108,7 @@ def extract_audio_waveform(
                 "-f", "s16le", "pipe:1"
             ]
 
-            result = subprocess.run(
+            result = subprocess.run(  # nosec: B603 # fixed argument list with system temporary file path
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -125,8 +128,8 @@ def extract_audio_waveform(
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except Exception:
-                    pass
+                except OSError as err:
+                    logger.debug("Failed to remove temporary file %s: %s", temp_path, err)
 
     else:
         raise TypeError(f"Unsupported audio source type: {type(source)}")
@@ -155,7 +158,7 @@ def convert_to_wav_ffmpeg(input_bytes: bytes, file_ext: str = ".wav") -> bytes:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec: B603 # fixed argument list with system temporary file path
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -171,13 +174,13 @@ def convert_to_wav_ffmpeg(input_bytes: bytes, file_ext: str = ".wav") -> bytes:
         if os.path.exists(temp_in_path):
             try:
                 os.remove(temp_in_path)
-            except Exception:
-                pass
+            except OSError as err:
+                logger.debug("Failed to remove temporary file %s: %s", temp_in_path, err)
         if os.path.exists(temp_out_path):
             try:
                 os.remove(temp_out_path)
-            except Exception:
-                pass
+            except OSError as err:
+                logger.debug("Failed to remove temporary file %s: %s", temp_out_path, err)
 
 
 def extract_mfcc(

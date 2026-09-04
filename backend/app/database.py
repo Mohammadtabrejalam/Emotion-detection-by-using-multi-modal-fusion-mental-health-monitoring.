@@ -2,8 +2,11 @@ import sqlite3
 import json
 import os
 import hashlib
+import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
+
+logger = logging.getLogger("mindsense.database")
 
 DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mindsense.db")
 
@@ -756,17 +759,25 @@ def get_dashboard_data(user_id: int = None):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        user_clause = "WHERE user_id = ?" if user_id is not None else ""
-        params = (user_id,) if user_id is not None else ()
-        
-        cursor.execute(f"SELECT COUNT(*) FROM analyses {user_clause}", params)
-        total_analyses = cursor.fetchone()[0]
-        
-        cursor.execute(f"SELECT final_emotion, COUNT(*) as count FROM analyses {user_clause} GROUP BY final_emotion", params)
-        emotion_counts = {row["final_emotion"]: row["count"] for row in cursor.fetchall()}
-        
-        cursor.execute(f"SELECT * FROM analyses {user_clause} ORDER BY timestamp DESC LIMIT 1", params)
-        latest_row = cursor.fetchone()
+        if user_id is not None:
+            cursor.execute("SELECT COUNT(*) FROM analyses WHERE user_id = ?", (user_id,))
+            total_analyses = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT final_emotion, COUNT(*) as count FROM analyses WHERE user_id = ? GROUP BY final_emotion", (user_id,))
+            emotion_counts = {row["final_emotion"]: row["count"] for row in cursor.fetchall()}
+            
+            cursor.execute("SELECT * FROM analyses WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1", (user_id,))
+            latest_row = cursor.fetchone()
+        else:
+            cursor.execute("SELECT COUNT(*) FROM analyses")
+            total_analyses = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT final_emotion, COUNT(*) as count FROM analyses GROUP BY final_emotion")
+            emotion_counts = {row["final_emotion"]: row["count"] for row in cursor.fetchall()}
+            
+            cursor.execute("SELECT * FROM analyses ORDER BY timestamp DESC LIMIT 1")
+            latest_row = cursor.fetchone()
+
         latest_analysis = dict(latest_row) if latest_row else None
         if latest_analysis:
             latest_analysis["modalities_used"] = json.loads(latest_analysis["modalities_used"])
@@ -776,7 +787,10 @@ def get_dashboard_data(user_id: int = None):
             mod_rows = cursor.fetchall()
             latest_analysis["modality_predictions"] = {row["modality"]: {"emotion": row["emotion"], "confidence": row["confidence"]} for row in mod_rows}
 
-        cursor.execute(f"SELECT modalities_used FROM analyses {user_clause}", params)
+        if user_id is not None:
+            cursor.execute("SELECT modalities_used FROM analyses WHERE user_id = ?", (user_id,))
+        else:
+            cursor.execute("SELECT modalities_used FROM analyses")
         modality_freqs = {"text": 0, "audio": 0, "image": 0}
         for row in cursor.fetchall():
             mods = json.loads(row["modalities_used"])
@@ -784,11 +798,18 @@ def get_dashboard_data(user_id: int = None):
                 if m in modality_freqs:
                     modality_freqs[m] += 1
                     
-        cursor.execute(f"SELECT timestamp, feeling_score, energy_score, sleep_score, stress_score FROM daily_checkins {user_clause} ORDER BY timestamp ASC LIMIT 10", params)
-        checkin_trends = [dict(row) for row in cursor.fetchall()]
-        
-        cursor.execute(f"SELECT timestamp, final_emotion, confidence_score FROM analyses {user_clause} ORDER BY timestamp DESC LIMIT 10", params)
-        historic_trends = [dict(row) for row in cursor.fetchall()]
+        if user_id is not None:
+            cursor.execute("SELECT timestamp, feeling_score, energy_score, sleep_score, stress_score FROM daily_checkins WHERE user_id = ? ORDER BY timestamp ASC LIMIT 10", (user_id,))
+            checkin_trends = [dict(row) for row in cursor.fetchall()]
+            
+            cursor.execute("SELECT timestamp, final_emotion, confidence_score FROM analyses WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10", (user_id,))
+            historic_trends = [dict(row) for row in cursor.fetchall()]
+        else:
+            cursor.execute("SELECT timestamp, feeling_score, energy_score, sleep_score, stress_score FROM daily_checkins ORDER BY timestamp ASC LIMIT 10")
+            checkin_trends = [dict(row) for row in cursor.fetchall()]
+            
+            cursor.execute("SELECT timestamp, final_emotion, confidence_score FROM analyses ORDER BY timestamp DESC LIMIT 10")
+            historic_trends = [dict(row) for row in cursor.fetchall()]
 
         notes_count = 0
         if user_id is not None:
@@ -1123,8 +1144,8 @@ def get_developer_dashboard_metrics():
                 for m in mods:
                     if m in modality_counts:
                         modality_counts[m] += 1
-            except:
-                pass
+            except (json.JSONDecodeError, TypeError, ValueError) as err:
+                logger.debug("Skipping unparseable modalities record: %s", err)
 
         # Real success rate calculation
         success_rate = 100.0 if total_analyses > 0 else 100.0

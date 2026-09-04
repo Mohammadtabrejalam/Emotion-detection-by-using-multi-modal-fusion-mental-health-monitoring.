@@ -1,6 +1,9 @@
 import os
 import uuid
+import logging
 from typing import Dict, Any, Tuple, Optional
+
+logger = logging.getLogger("mindsense.cloudinary")
 
 # Max upload size: 10MB
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
@@ -83,7 +86,7 @@ def upload_media_asset(file_bytes: bytes, filename: str, content_type: str, medi
             }
         except Exception as e:
             # Fallback if Cloudinary fails during connection
-            pass
+            logger.warning("Cloudinary upload failed, falling back to local reference: %s", e)
 
     # Local reference fallback (stores metadata without exposing secrets)
     return {

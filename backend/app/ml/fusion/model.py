@@ -114,7 +114,7 @@ class MultimodalFusionTransformer(nn.Module):
         if "text" in paths and paths["text"] is not None:
             t_path = Path(paths["text"])
             if t_path.exists():
-                ckpt = torch.load(t_path, map_location=map_location, weights_only=False)
+                ckpt = torch.load(t_path, map_location=map_location, weights_only=True)
                 state = ckpt.get("model_state_dict", ckpt)
                 self.text_encoder.load_state_dict(state)
                 status["text"] = True
@@ -123,7 +123,7 @@ class MultimodalFusionTransformer(nn.Module):
         if "audio" in paths and paths["audio"] is not None:
             a_path = Path(paths["audio"])
             if a_path.exists():
-                ckpt = torch.load(a_path, map_location=map_location, weights_only=False)
+                ckpt = torch.load(a_path, map_location=map_location, weights_only=True)
                 state = ckpt.get("model_state_dict", ckpt)
                 self.audio_encoder.load_state_dict(state)
                 status["audio"] = True
@@ -132,7 +132,7 @@ class MultimodalFusionTransformer(nn.Module):
         if "vision" in paths and paths["vision"] is not None:
             v_path = Path(paths["vision"])
             if v_path.exists():
-                ckpt = torch.load(v_path, map_location=map_location, weights_only=False)
+                ckpt = torch.load(v_path, map_location=map_location, weights_only=True)
                 state = ckpt.get("model_state_dict", ckpt)
                 self.vision_encoder.load_state_dict(state)
                 status["vision"] = True

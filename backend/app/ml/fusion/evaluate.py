@@ -65,7 +65,7 @@ def evaluate_fusion_model(
     print(f"Output Dir:      {output_dir}")
 
     device = get_device()
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     config = checkpoint.get("config", {})
 
     # Instantiate and load model

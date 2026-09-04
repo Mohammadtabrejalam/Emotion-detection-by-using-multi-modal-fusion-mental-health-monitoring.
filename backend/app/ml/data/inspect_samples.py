@@ -32,7 +32,7 @@ def inspect_samples(manifest_path: Path, count: int = 5, split: str = None):
         print(f"No records found matching split '{split}'.")
         return
 
-    sample_pool = random.sample(records, min(count, len(records)))
+    sample_pool = random.sample(records, min(count, len(records)))  # nosec: B311 # non-cryptographic sampling for terminal inspection
 
     print("=" * 80)
     print(f"MINDSENSE REAL MULTIMODAL SAMPLE INSPECTOR ({len(sample_pool)} of {len(manifest)} samples)")

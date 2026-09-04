@@ -124,7 +124,7 @@ def run_fusion_training(
     if resume_from is not None:
         resume_path = Path(resume_from)
         print(f"\n[RESUME] Loading checkpoint from: {resume_path}")
-        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=True)
         model.load_state_dict(checkpoint["model_state_dict"])
         if "optimizer_state_dict" in checkpoint and checkpoint["optimizer_state_dict"] is not None:
             try:

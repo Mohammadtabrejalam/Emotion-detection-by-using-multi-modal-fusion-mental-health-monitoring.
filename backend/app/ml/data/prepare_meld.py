@@ -10,9 +10,12 @@ import csv
 import json
 import re
 import argparse
-import subprocess
+import logging
+import subprocess  # nosec: B404 # subprocess required for invoking ffprobe media inspection
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
+
+logger = logging.getLogger("mindsense.meld")
 
 from .manifest import SampleRecord, DatasetManifest
 from .label_mapping import normalize_label
@@ -81,7 +84,7 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        res = subprocess.run(
+        res = subprocess.run(  # nosec: B603 # fixed argument list with shell=False and local dataset file path
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, startupinfo=startupinfo, timeout=10
         )
@@ -106,8 +109,8 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
                 duration_sec = round(float(dur), 3)
 
             return has_video, has_audio, duration_sec
-    except Exception:
-        pass
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError, ValueError) as err:
+        logger.debug("ffprobe stream inspection failed for %s: %s", mp4_path, err)
 
     # OpenCV fallback ONLY for video stream inspection (never assumes audio)
     try:
@@ -123,8 +126,8 @@ def inspect_media_streams(mp4_path: Path) -> Tuple[bool, bool, Optional[float]]:
                 has_video = True
                 if fps > 0:
                     duration_sec = round(fc / fps, 3)
-    except Exception:
-        pass
+    except Exception as err:
+        logger.debug("OpenCV fallback stream inspection failed for %s: %s", mp4_path, err)
 
     # Strictly do NOT infer audio/video merely from file size.
     return has_video, has_audio, duration_sec

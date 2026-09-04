@@ -261,7 +261,7 @@ def load_fusion_model(
     checkpoint = torch.load(
         checkpoint_path,
         map_location=device,
-        weights_only=False,
+        weights_only=True,
     )
 
     config = checkpoint.get(

@@ -49,7 +49,7 @@ def partition_dataset_by_speaker(
         test_spks = fixed_speaker_splits.get("test", set())
     else:
         # Deterministic speaker shuffling
-        rng = random.Random(seed)
+        rng = random.Random(seed)  # nosec: B311 # deterministic pseudorandom generator for reproducible ML dataset splits
         shuffled_speakers = list(all_speakers)
         rng.shuffle(shuffled_speakers)
 

@@ -59,7 +59,7 @@ def run_ablation_study(
     print(f"Manifest Path:   {manifest_path}")
 
     device = get_device()
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     config = checkpoint.get("config", {})
 
     model = MultimodalFusionTransformer(
