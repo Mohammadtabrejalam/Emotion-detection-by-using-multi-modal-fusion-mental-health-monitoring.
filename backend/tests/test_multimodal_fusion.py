@@ -397,21 +397,34 @@ def test_corrupted_sample_dia125_utt3_is_rejected():
         assert excl == 1
 
     # 2. Real MELD dataset manifest validation
-    if DATA_MANIFEST_PATH.exists():
-        manifest = DatasetManifest.load_json(DATA_MANIFEST_PATH)
-        train_raw = manifest.filter_by_split("train")
-        val_raw = manifest.filter_by_split("val")
+    from backend.app.ml.data.config import get_meld_root
 
-        train_valid, train_excl = filter_valid_multimodal_records(train_raw)
-        val_valid, val_excl = filter_valid_multimodal_records(val_raw)
+    if not DATA_MANIFEST_PATH.exists():
+        pytest.skip(f"MELD manifest not found at {DATA_MANIFEST_PATH}")
 
-        # dia125_utt3 is excluded from train
-        train_ids = {r.sample_id for r in train_valid}
-        assert "meld_train_dia125_utt3" not in train_ids
-        assert len(train_valid) == 9988
-        assert train_excl == 1
-        assert len(val_valid) == 1109
-        assert val_excl == 0
+    meld_root = get_meld_root()
+    manifest = DatasetManifest.load_json(DATA_MANIFEST_PATH)
+    train_raw = manifest.filter_by_split("train")
+    val_raw = manifest.filter_by_split("val")
+
+    # Verify that the real media required for validation are available on disk
+    media_available = any(
+        Path(r.audio_path).exists() for r in train_raw[:10] if r.audio_path
+    ) and (meld_root / "train_splits").exists()
+
+    if not media_available:
+        pytest.skip(f"Real MELD media files required for validation are not available in {meld_root}")
+
+    train_valid, train_excl = filter_valid_multimodal_records(train_raw)
+    val_valid, val_excl = filter_valid_multimodal_records(val_raw)
+
+    # dia125_utt3 is excluded from train
+    train_ids = {r.sample_id for r in train_valid}
+    assert "meld_train_dia125_utt3" not in train_ids
+    assert len(train_valid) == 9988
+    assert train_excl == 1
+    assert len(val_valid) == 1109
+    assert val_excl == 0
 
 
 # 15. Unimodal and Multimodal Validation Consistency
