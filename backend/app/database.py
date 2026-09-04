@@ -868,7 +868,7 @@ def get_site_stats():
     finally:
         conn.close()
 
-def save_user_feedback(rating: int, category: str, comment: str, user_id: int = None):
+def save_user_feedback(rating: int, category: str, comment: str, user_id: Optional[int] = None) -> int:
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -1011,14 +1011,22 @@ def get_developer_feedback(status_filter: str = None, priority_filter: str = Non
         query = "SELECT * FROM user_feedback WHERE 1=1"
         params = []
         if status_filter and status_filter != 'All':
-            query += " AND status = ?"
+            query += " AND LOWER(status) = LOWER(?)"
             params.append(status_filter)
         if priority_filter and priority_filter != 'All':
-            query += " AND priority = ?"
+            query += " AND LOWER(priority) = LOWER(?)"
             params.append(priority_filter)
         query += " ORDER BY id DESC"
         cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+        results = []
+        for row in cursor.fetchall():
+            d = dict(row)
+            if "content" not in d or d["content"] is None:
+                d["content"] = d.get("comment", "")
+            if "created_at" not in d or d["created_at"] is None:
+                d["created_at"] = d.get("timestamp", "")
+            results.append(d)
+        return results
     finally:
         conn.close()
 
@@ -1541,63 +1549,13 @@ def delete_user_complete_account(user_id: int):
     finally:
         conn.close()
 
-# ----------------- FEEDBACK MANAGEMENT HELPERS ----------------- #
-
-def save_user_feedback(user_id: Optional[int], category: str, content: str) -> int:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        now_str = datetime.utcnow().isoformat()
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS feedbacks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            category TEXT NOT NULL,
-            content TEXT NOT NULL,
-            status TEXT DEFAULT 'NEW',
-            created_at TEXT NOT NULL
-        )
-        """)
-        cursor.execute(
-            "INSERT INTO feedbacks (user_id, category, content, status, created_at) VALUES (?, ?, ?, 'NEW', ?)",
-            (user_id, category, content, now_str)
-        )
-        conn.commit()
-        return cursor.lastrowid
-    finally:
-        conn.close()
+# ----------------- FEEDBACK MANAGEMENT HELPERS (LEGACY COMPATIBILITY) ----------------- #
 
 def get_feedbacks_list(status_filter: Optional[str] = None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS feedbacks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            category TEXT NOT NULL,
-            content TEXT NOT NULL,
-            status TEXT DEFAULT 'NEW',
-            created_at TEXT NOT NULL
-        )
-        """)
-        if status_filter:
-            cursor.execute("SELECT id, user_id, category, content, status, created_at FROM feedbacks WHERE status = ? ORDER BY created_at DESC", (status_filter,))
-        else:
-            cursor.execute("SELECT id, user_id, category, content, status, created_at FROM feedbacks ORDER BY created_at DESC")
-        return [dict(r) for r in cursor.fetchall()]
-    finally:
-        conn.close()
+    return get_developer_feedback(status_filter=status_filter)
 
 def update_feedback_status(feedback_id: int, new_status: str) -> bool:
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("UPDATE feedbacks SET status = ? WHERE id = ?", (new_status, feedback_id))
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    return update_developer_feedback(feedback_id=feedback_id, status=new_status)
 
 # ----------------- EMOTION CHALLENGE GAME HELPERS ----------------- #
 

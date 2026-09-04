@@ -33,8 +33,7 @@ from .database import (
     save_research_consent, record_research_contribution,
     withdraw_research_participant, record_challenge_attempt,
     get_user_challenge_history, export_user_complete_data,
-    delete_user_complete_account, get_feedbacks_list,
-    update_feedback_status, record_game_session
+    delete_user_complete_account, record_game_session
 )
 from .rate_limiter import rate_limiter
 from .ml.preprocessing.text import tokenize, check_crisis_keywords
@@ -284,10 +283,13 @@ class ChallengeSubmitRequest(BaseModel):
     streak: Optional[int] = 0
 
 class FeedbackRequest(BaseModel):
-    category: Optional[str] = "general"
+    category: Optional[str] = "General"
     content: Optional[str] = None
     comment: Optional[str] = None
     rating: Optional[int] = 5
+    user_id: Optional[int] = None
+
+FeedbackPayload = FeedbackRequest
 
 class FeedbackStatusUpdateRequest(BaseModel):
     status: str
@@ -636,39 +638,38 @@ def create_game_session(req: ChallengeSubmitRequest, request: Request):
         "error": None
     }
 
-# ----------------- PUBLIC & DEVELOPER FEEDBACK ENDPOINTS ----------------- #
+# ----------------- PUBLIC FEEDBACK ENDPOINT ----------------- #
 
 @app.post("/api/feedback", response_model=StandardResponse)
 def submit_feedback(req: FeedbackRequest, request: Request):
     rate_limiter.check_rate_limit(request, "feedback", limit=10)
-    opt_user = get_optional_user_from_req(request)
-    user_id = opt_user["id"] if opt_user else None
-    
-    feedback_text = req.content or req.comment or "User Feedback"
-    category_text = req.category or "general"
-    feedback_id = save_user_feedback(user_id, category_text, feedback_text)
-    return {
-        "success": True,
-        "data": {
-            "feedback_id": feedback_id,
-            "message": "Thank you for your feedback! It has been submitted for review."
-        },
-        "error": None
-    }
+    try:
+        opt_user = get_optional_user_from_req(request)
+        user_id = req.user_id or (opt_user["id"] if opt_user else None)
+        comment_text = req.comment or req.content or ""
+        category_text = req.category or "General"
+        rating_val = req.rating if req.rating is not None else 5
 
-@app.get("/api/developer/feedback", response_model=StandardResponse)
-def developer_list_feedback(request: Request, status: Optional[str] = Query(None)):
-    dev = get_current_developer_from_req(request)
-    feedbacks = get_feedbacks_list(status)
-    return {"success": True, "data": {"feedbacks": feedbacks, "feedback": feedbacks}, "error": None}
-
-@app.post("/api/developer/feedback/{feedback_id}/status", response_model=StandardResponse)
-def developer_update_feedback_status(feedback_id: int, req: FeedbackStatusUpdateRequest, request: Request):
-    dev = get_current_developer_from_req(request)
-    ok = update_feedback_status(feedback_id, req.status)
-    if ok:
-        return {"success": True, "data": {"message": f"Feedback #{feedback_id} status updated to {req.status}."}, "error": None}
-    return {"success": False, "error": {"code": "NOT_FOUND", "message": "Feedback record not found."}}
+        feedback_id = save_user_feedback(
+            rating=rating_val,
+            category=category_text,
+            comment=comment_text,
+            user_id=user_id
+        )
+        return {
+            "success": True,
+            "data": {
+                "id": feedback_id,
+                "feedback_id": feedback_id,
+                "message": "Thank you for your feedback! It has been submitted for review."
+            },
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {"code": "FEEDBACK_ERROR", "message": str(e)}
+        }
 
 # ----------------- USER DATA RIGHTS (EXPORT & ACCOUNT DELETION) ----------------- #
 
@@ -1269,11 +1270,6 @@ class VisitPayload(BaseModel):
     page: str = "/"
     user_agent: Optional[str] = ""
 
-class FeedbackPayload(BaseModel):
-    rating: int
-    category: str = "General"
-    comment: Optional[str] = ""
-    user_id: Optional[int] = None
 
 class AssistantQueryPayload(BaseModel):
     message: str
@@ -1310,25 +1306,6 @@ def track_visitor_pageview(request: VisitPayload, req: Request):
             "error": {"code": "VISIT_ERROR", "message": str(e)}
         }
 
-@app.post("/api/feedback", response_model=StandardResponse)
-def submit_platform_feedback(request: FeedbackPayload):
-    try:
-        fb_id = save_user_feedback(
-            rating=request.rating,
-            category=request.category,
-            comment=request.comment or "",
-            user_id=request.user_id
-        )
-        return {
-            "success": True,
-            "data": {"id": fb_id, "message": "Thank you for your feedback!"},
-            "error": None
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": {"code": "FEEDBACK_ERROR", "message": str(e)}
-        }
 
 # ----------------- RESEARCH ASSISTANT / CHATBOT ----------------- #
 
@@ -1651,7 +1628,7 @@ async def get_developer_feedback_list(
 ):
     get_current_developer_from_req(request, required_permission="feedback_manage")
     feedback_items = get_developer_feedback(status_filter=status, priority_filter=priority)
-    return {"success": True, "data": {"feedback": feedback_items}, "error": None}
+    return {"success": True, "data": {"feedback": feedback_items, "feedbacks": feedback_items}, "error": None}
 
 @app.put("/api/developer/feedback/{feedback_id}", response_model=StandardResponse)
 async def update_feedback_item(feedback_id: int, payload: DeveloperFeedbackUpdateRequest, request: Request):
@@ -1666,6 +1643,18 @@ async def update_feedback_item(feedback_id: int, payload: DeveloperFeedbackUpdat
     if ok:
         return {"success": True, "data": {"message": "Feedback status updated."}, "error": None}
     return {"success": False, "data": None, "error": {"code": "UPDATE_FAILED", "message": "Feedback record not found."}}
+
+@app.post("/api/developer/feedback/{feedback_id}/status", response_model=StandardResponse)
+async def developer_update_feedback_status(feedback_id: int, req: FeedbackStatusUpdateRequest, request: Request):
+    dev = get_current_developer_from_req(request, required_permission="feedback_manage")
+    ok = update_developer_feedback(
+        feedback_id=feedback_id,
+        status=req.status,
+        actor_id=dev.get("username", "ADMIN")
+    )
+    if ok:
+        return {"success": True, "data": {"message": f"Feedback #{feedback_id} status updated to {req.status}."}, "error": None}
+    return {"success": False, "error": {"code": "NOT_FOUND", "message": "Feedback record not found."}}
 
 @app.get("/api/developer/health", response_model=StandardResponse)
 async def get_developer_health(request: Request):
