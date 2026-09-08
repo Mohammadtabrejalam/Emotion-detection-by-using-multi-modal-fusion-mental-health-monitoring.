@@ -67,6 +67,37 @@ IEMOCAP_LABEL_MAP = {
     "disgust": "disgust"
 }
 
+# RAVDESS Categorical Mapping (RAVDESS Emotion Code -> Standard MindSense 7-Class)
+# 01 -> neutral -> label_id 6
+# 03 -> happy   -> label_id 0
+# 04 -> sad     -> label_id 1
+# 05 -> angry   -> label_id 2
+# 06 -> fear    -> label_id 3
+# 07 -> disgust -> label_id 5
+# 08 -> surprise-> label_id 4
+RAVDESS_LABEL_MAP = {
+    "01": "neutral",
+    "03": "happy",
+    "04": "sad",
+    "05": "angry",
+    "06": "fear",
+    "07": "disgust",
+    "08": "surprise",
+    # Direct name mapping fallback
+    "neutral": "neutral",
+    "happy": "happy",
+    "sad": "sad",
+    "sadness": "sad",
+    "angry": "angry",
+    "anger": "angry",
+    "fear": "fear",
+    "fearful": "fear",
+    "disgust": "disgust",
+    "disgusted": "disgust",
+    "surprise": "surprise",
+    "surprised": "surprise"
+}
+
 # Explicitly unmappable or ambiguous classes requiring separate experimental treatment
 UNMAPPABLE_CLASSES = {
     "iemocap": {
@@ -77,6 +108,10 @@ UNMAPPABLE_CLASSES = {
         "xxx": "No annotator consensus reached."
     },
     "meld": {},
+    "ravdess": {
+        "02": "Calm (02) is an affective state not present in standard 7-class Ekman/MELD taxonomy; excluded from 7-class benchmark.",
+        "calm": "Calm (02) is an affective state not present in standard 7-class Ekman/MELD taxonomy; excluded from 7-class benchmark."
+    },
     "cmu_mosei": {
         "continuous_sentiment": "CMU-MOSEI uses continuous multidimensional intensities in [0, 3]. Cannot be silently coerced to discrete single-label classes without thresholding."
     }
@@ -111,8 +146,8 @@ def normalize_label(original_label: str, dataset: str = "meld") -> LabelMappingR
     Rejects ambiguous, unknown, or unmappable labels explicitly.
 
     Args:
-        original_label: Raw label string from source corpus (e.g., 'joy', 'neu', 'anger').
-        dataset: Source corpus identifier ('meld', 'iemocap', 'cmu_mosei').
+        original_label: Raw label string from source corpus (e.g., 'joy', 'neu', '01', '03').
+        dataset: Source corpus identifier ('meld', 'iemocap', 'ravdess', 'cmu_mosei').
 
     Returns:
         LabelMappingResult dataclass with normalized label, ID, and provenance metadata.
@@ -149,6 +184,8 @@ def normalize_label(original_label: str, dataset: str = "meld") -> LabelMappingR
         norm_label = MELD_LABEL_MAP.get(clean_raw)
     elif dataset_key == "iemocap":
         norm_label = IEMOCAP_LABEL_MAP.get(clean_raw)
+    elif dataset_key == "ravdess":
+        norm_label = RAVDESS_LABEL_MAP.get(clean_raw)
     elif dataset_key == "cmu_mosei":
         return LabelMappingResult(
             original_label=original_label,

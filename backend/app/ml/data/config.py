@@ -59,6 +59,34 @@ def get_meld_root(custom_path: Optional[Union[str, Path]] = None) -> Path:
     
     return repo_meld
 
+
+def get_ravdess_root(custom_path: Optional[Union[str, Path]] = None) -> Path:
+    """
+    Resolves the root directory of the RAVDESS dataset.
+    Resolved in priority order:
+    1. Explicit custom_path argument
+    2. Environment variable MINDSENSE_RAVDESS_ROOT
+    3. RAW_DATA_DIR / "ravdess" if directory has content
+    4. Fallback to local user Downloads folder (~/Downloads/ravdess) if exists
+    5. Default relative directory: data/raw/ravdess
+    """
+    if custom_path:
+        return Path(custom_path).resolve()
+
+    env_path = os.environ.get("MINDSENSE_RAVDESS_ROOT")
+    if env_path and env_path.strip():
+        return Path(env_path.strip()).resolve()
+
+    repo_ravdess = (RAW_DATA_DIR / "ravdess").resolve()
+    if repo_ravdess.exists() and any(repo_ravdess.iterdir()):
+        return repo_ravdess
+
+    user_ravdess = Path(os.path.expanduser(r"~\Downloads\ravdess")).resolve()
+    if user_ravdess.exists() and any(user_ravdess.iterdir()):
+        return user_ravdess
+
+    return repo_ravdess
+
 # Audio Preprocessing Specs
 AUDIO_SAMPLE_RATE = 16000
 AUDIO_TARGET_FRAMES = 200
@@ -78,6 +106,8 @@ TEXT_VOCAB_SIZE = 1000
 MELD_MANIFEST_PATH = MANIFESTS_DIR / "meld_manifest.json"
 DATASET_STATS_PATH = MANIFESTS_DIR / "dataset_statistics.json"
 DEMO_MANIFEST_PATH = DEMO_DATA_DIR / "demo_manifest.json"
+RAVDESS_MANIFEST_PATH = MANIFESTS_DIR / "ravdess_manifest.json"
+RAVDESS_STATS_PATH = MANIFESTS_DIR / "ravdess_statistics.json"
 
 # Official MELD Benchmark Targets (ACL 2019)
 MELD_OFFICIAL_COUNTS = {
@@ -86,5 +116,14 @@ MELD_OFFICIAL_COUNTS = {
     "dev_utterances": 1109,
     "test_utterances": 2610,
     "total_dialogues": 1433,
+    "classes": 7
+}
+
+# Official RAVDESS Speech Benchmark Targets (7-Class Ekman/MELD Zero-Shot)
+RAVDESS_OFFICIAL_COUNTS = {
+    "total_speech_audio": 1440,
+    "excluded_calm": 192,
+    "eligible_trials": 1248,
+    "actors": 24,
     "classes": 7
 }

@@ -1,0 +1,34 @@
+{
+  "total_samples": 1248,
+  "speaker_count": 24,
+  "split_distribution": {
+    "test": 1248
+  },
+  "class_distribution": {
+    "neutral": 96,
+    "happy": 192,
+    "sad": 192,
+    "angry": 192,
+    "fear": 192,
+    "disgust": 192,
+    "surprise": 192
+  },
+  "modality_availability": {
+    "text_available": 0,
+    "audio_available": 1248,
+    "vision_available": 1248,
+    "complete_triples": 0
+  },
+  "duration_statistics": {
+    "min_sec": 2.97,
+    "max_sec": 5.27,
+    "mean_sec": 3.69
+  },
+  "dataset": "ravdess",
+  "evaluation_role": "external_zero_shot",
+  "speech_audio_discovered": 1440,
+  "calm_trials_excluded": 192,
+  "song_trials_excluded": 0,
+  "eligible_trials": 1248,
+  "actors_count": 24
+}
