@@ -24,6 +24,9 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
       cwd: '..',
+      env: {
+        PYTHONPATH: '.',
+      },
     },
     {
       command: 'npm run dev',

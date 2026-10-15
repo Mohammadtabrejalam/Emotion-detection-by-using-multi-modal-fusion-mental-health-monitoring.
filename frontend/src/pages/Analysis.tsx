@@ -99,7 +99,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       audioTimerRef.current = setInterval(() => {
         setRecordingSeconds(s => s + 1);
       }, 1000);
-    } catch (err: any) {
+    } catch {
       setErrorMsg("Microphone access permission was denied or microphone is unavailable.");
     }
   };
@@ -236,7 +236,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       } else {
         setErrorMsg(response.error?.message || "Inference failed. Please verify your backend server connection.");
       }
-    } catch (err: any) {
+    } catch {
       clearInterval(stepInterval);
       setErrorMsg("An unexpected connection failure occurred during analysis.");
     } finally {

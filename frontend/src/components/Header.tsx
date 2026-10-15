@@ -87,11 +87,14 @@ export const Header: React.FC<HeaderProps> = ({
       }
     };
 
-    mobileMenuRef.current.addEventListener('keydown', handleTabTrap);
+    const menuNode = mobileMenuRef.current;
+    if (!menuNode) return;
+
+    menuNode.addEventListener('keydown', handleTabTrap);
     firstElement.focus();
 
     return () => {
-      mobileMenuRef.current?.removeEventListener('keydown', handleTabTrap);
+      menuNode.removeEventListener('keydown', handleTabTrap);
     };
   }, [isMobileMenuOpen]);
 

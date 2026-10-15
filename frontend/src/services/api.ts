@@ -10,7 +10,7 @@ import type {
   Article
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = (import.meta as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('mindsense_token');
