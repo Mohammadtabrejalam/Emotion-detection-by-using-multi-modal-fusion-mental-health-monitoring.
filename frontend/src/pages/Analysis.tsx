@@ -76,7 +76,22 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      // MediaRecorder emits browser/container-specific audio; never label compressed
+      // WebM/OGG/MP4 bytes as WAV. The backend decodes these formats through FFmpeg.
+      const supportedTypes = [
+        { mimeType: 'audio/webm;codecs=opus', extension: 'webm' },
+        { mimeType: 'audio/ogg;codecs=opus', extension: 'ogg' },
+        { mimeType: 'audio/mp4', extension: 'm4a' },
+      ];
+      const selectedType = supportedTypes.find(({ mimeType }) =>
+        typeof MediaRecorder.isTypeSupported !== 'function' || MediaRecorder.isTypeSupported(mimeType)
+      );
+      const options = selectedType ? { mimeType: selectedType.mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      const recordedMimeType = mediaRecorder.mimeType || selectedType?.mimeType || 'audio/webm';
+      const extension = recordedMimeType.includes('ogg') ? 'ogg'
+        : recordedMimeType.includes('mp4') ? 'm4a'
+        : 'webm';
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -87,9 +102,9 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const file = new File([audioBlob], `recorded_audio_${Date.now()}.wav`, { type: 'audio/wav' });
-        setAudioFile(file);
+        const audioBlob = new Blob(audioChunksRef.current, { type: recordedMimeType });
+        const recordedFile = new File([audioBlob], `recorded_audio_${Date.now()}.${extension}`, { type: recordedMimeType });
+        setAudioFile(recordedFile);
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -256,20 +271,20 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       {/* 1. SECTION HEADER */}
       <div className="space-y-1">
         <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block">
-          Affective Laboratory
+          MindSense Studio
         </span>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Start Analysis
+          Analyse input
         </h1>
         <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
-          Select your input modality method, provide input data, and execute the Intermediate Cross-Attention Transformer.
+          Explore an emotion estimate from text, speech, or a facial image. You can use one input or combine available signals.
         </p>
       </div>
 
       {/* 2. MODALITY SELECTION TABS */}
       <div className="space-y-3">
         <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-          Step 1: Choose Your Input Method
+          STEP 1 · Choose an input
         </label>
         
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-semibold">
@@ -338,7 +353,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       {/* 3. INPUT AREA (PROGRESSIVE DISCLOSURE) */}
       <div className="space-y-3">
         <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-          Step 2: Provide Input Data
+          STEP 2 · Add your input
         </label>
 
         {/* MODE A: TEXT ONLY */}
@@ -347,7 +362,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2 text-xs font-bold text-white">
                 <FileText className="h-4 w-4 text-brand-400" />
-                <span>Qualitative Text Statement</span>
+                <span>Text input</span>
               </div>
               <span className="text-[10px] text-slate-400 font-mono">{text.length} characters</span>
             </div>
@@ -355,7 +370,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Type or paste a text statement to evaluate lexical emotion signals..."
+              placeholder="Write a sentence or paste a short passage you want to analyse…"
               rows={5}
               className="w-full bg-slate-900/80 border border-slate-700/80 focus:border-brand-500 rounded-xl p-3 text-xs text-white outline-none resize-none leading-relaxed"
             />
@@ -375,7 +390,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2 text-xs font-bold text-white">
                 <Mic className="h-4 w-4 text-emerald-400" />
-                <span>Speech Acoustic Ingestion (16kHz Mono)</span>
+                <span>Speech input</span>
               </div>
               {audioFile && (
                 <span className="text-[11px] text-emerald-400 font-semibold font-mono flex items-center gap-1">
@@ -438,7 +453,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div className="flex items-center gap-2 text-xs font-bold text-white">
                 <Camera className="h-4 w-4 text-blue-400" />
-                <span>Facial Vision Expression Crop (48x48 Matrix)</span>
+                <span>Facial image</span>
               </div>
               {imageFile && (
                 <span className="text-[11px] text-emerald-400 font-semibold font-mono flex items-center gap-1">
@@ -593,8 +608,8 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
                 className="rounded border-slate-700 text-brand-600 focus:ring-brand-500 h-4 w-4 bg-slate-950"
               />
               <div>
-                <span className="font-semibold block">Rule-Based Simulation Mode</span>
-                <span className="text-[11px] text-slate-400">Run heuristic classification without active PyTorch model weights.</span>
+                <span className="font-semibold block">Demo simulation mode</span>
+                <span className="text-[11px] text-slate-400">Uses simulated rules instead of the trained model. Results from this mode are not model predictions.</span>
               </div>
             </label>
           </div>
@@ -623,7 +638,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
           ) : (
             <>
               <Zap className="h-4 w-4 text-amber-300" />
-              <span>Start Analysis</span>
+              <span>Analyse input</span>
             </>
           )}
         </button>
@@ -663,7 +678,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
         <div className="space-y-6 animate-fadeIn pt-4 border-t border-slate-800">
           
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white tracking-tight">Analysis Output & Classification</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Your analysis result</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsShareModalOpen(true)}
@@ -683,7 +698,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             <div className="grid md:grid-cols-12 gap-6 items-center">
               <div className="md:col-span-7 space-y-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                  Detected Dominant Emotion
+                  Estimated emotion
                 </span>
                 <div className="text-3xl sm:text-4xl font-extrabold text-white capitalize tracking-tight flex items-center gap-3">
                   <span>{result.emotion}</span>
@@ -692,7 +707,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 leading-relaxed font-normal pt-1">
-                  Intermediate cross-attention fused {result.modalities_used.length} active modality stream(s): {result.modalities_used.join(' + ')}.
+                  The model combined {result.modalities_used.length} active modality stream(s): {result.modalities_used.join(' + ')}.
                 </p>
               </div>
 
@@ -713,7 +728,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
             {/* Probability Curves */}
             <div className="space-y-2.5 pt-2 border-t border-slate-800">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                Softmax Probability Distribution Across 7 Affect Categories
+                Estimated probability across emotion categories
               </span>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {Object.entries(result.probabilities || {}).map(([emo, prob]) => {
@@ -748,7 +763,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
               </div>
               <ul className="space-y-1.5 text-slate-300 leading-relaxed">
                 <li>• <strong>Pattern Estimate:</strong> The neural model identified feature alignments corresponding to {result.emotion} across your input stream(s).</li>
-                <li>• <strong>Softmax Confidence:</strong> {(result.confidence * 100).toFixed(1)}% confidence represents mathematical model certainty relative to the 7 classified affect categories.</li>
+                <li>• <strong>Model confidence:</strong> {(result.confidence * 100).toFixed(1)}% confidence represents mathematical model certainty relative to the 7 classified affect categories.</li>
               </ul>
             </div>
 
@@ -771,7 +786,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
               className="text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition"
             >
               <Layers className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Inspect Collapsed Technical Model Details</span>
+              <span>View technical model details</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showModelDetails ? 'rotate-180 text-brand-400' : ''}`} />
             </button>
 

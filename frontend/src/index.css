@@ -201,3 +201,146 @@ h1, h2, h3, h4, h5, h6 {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* MindSense product UI refresh: calmer surfaces, clearer hierarchy, accessible controls. */
+:root {
+  --bg-page: #0b1220;
+  --bg-surface: #111b2d;
+  --bg-surface-elevated: #172338;
+  --bg-card: rgba(17, 27, 45, 0.94);
+  --border-subtle: #26354b;
+  --border-strong: #3b506b;
+  --accent-primary: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-soft: rgba(20, 184, 166, 0.12);
+}
+
+.light-theme {
+  --bg-page: #f4f7fb;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #eef4f8;
+  --bg-card: rgba(255, 255, 255, 0.98);
+  --border-subtle: #dce5ee;
+  --border-strong: #c3d1df;
+  --accent-primary: #0f766e;
+  --accent-hover: #115e59;
+  --accent-soft: rgba(13, 148, 136, 0.09);
+}
+
+html { scroll-behavior: smooth; }
+body { line-height: 1.6; letter-spacing: -0.005em; }
+::selection { background: rgba(20, 184, 166, 0.25); }
+
+.academic-card,
+.glass-panel {
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(2, 8, 23, 0.12);
+  backdrop-filter: blur(12px);
+}
+.academic-card:hover,
+.glass-panel-hover:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 30px rgba(2, 8, 23, 0.16);
+  transform: translateY(-1px);
+}
+.academic-card,
+.glass-panel,
+.glass-panel-hover { transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+
+/* Consistent form controls across the application. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  font: inherit;
+}
+textarea {
+  min-height: 132px;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+}
+textarea::placeholder,
+input::placeholder { color: #8292a8; opacity: 1; }
+button { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline-color: #2dd4bf; }
+
+/* Live Analysis workspace */
+.max-w-5xl.mx-auto {
+  max-width: 1120px;
+  padding-bottom: 28px;
+}
+.max-w-5xl.mx-auto > .space-y-1:first-child {
+  padding: 8px 0 14px;
+}
+.max-w-5xl.mx-auto > .space-y-1:first-child h1 {
+  font-size: clamp(30px, 3vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin-top: 8px;
+}
+.max-w-5xl.mx-auto > .space-y-1:first-child p {
+  font-size: 14px !important;
+  max-width: 680px;
+}
+.max-w-5xl.mx-auto label {
+  font-size: 12px;
+  letter-spacing: .055em;
+}
+.max-w-5xl.mx-auto .grid.grid-cols-2.sm\:grid-cols-4 > button {
+  min-height: 58px;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.max-w-5xl.mx-auto .academic-card {
+  padding: clamp(18px, 2.5vw, 28px);
+}
+.max-w-5xl.mx-auto .academic-card button,
+.max-w-5xl.mx-auto > .space-y-4 button {
+  border-radius: 12px;
+}
+.max-w-5xl.mx-auto .text-\[10px\],
+.max-w-5xl.mx-auto .text-\[11px\] { letter-spacing: 0; }
+.max-w-5xl.mx-auto .text-xs { font-size: 13px; line-height: 1.6; }
+.max-w-5xl.mx-auto .text-\[11px\] { font-size: 12px; }
+.max-w-5xl.mx-auto .text-\[10px\] { font-size: 11px; }
+.max-w-5xl.mx-auto button:focus-visible,
+.max-w-5xl.mx-auto textarea:focus-visible,
+.max-w-5xl.mx-auto input:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 3px;
+}
+.max-w-5xl.mx-auto .bg-brand-600 {
+  box-shadow: 0 5px 16px rgba(13, 148, 136, 0.16);
+}
+.max-w-5xl.mx-auto .border-t.border-slate-800 {
+  border-color: var(--border-subtle);
+}
+.light-theme .max-w-5xl.mx-auto .bg-slate-900\/80,
+.light-theme .max-w-5xl.mx-auto .bg-slate-900\/60,
+.light-theme .max-w-5xl.mx-auto .bg-slate-950\/60,
+.light-theme .max-w-5xl.mx-auto .bg-slate-950 {
+  background-color: #f7fafc !important;
+}
+.light-theme .max-w-5xl.mx-auto textarea,
+.light-theme .max-w-5xl.mx-auto input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  color: #172338 !important;
+  border-color: #d6e1eb !important;
+}
+.light-theme .max-w-5xl.mx-auto .bg-brand-600 { color: #fff !important; }
+
+@media (max-width: 640px) {
+  .max-w-5xl.mx-auto { gap: 24px; }
+  .max-w-5xl.mx-auto .academic-card { border-radius: 15px; }
+  .max-w-5xl.mx-auto .grid.grid-cols-2.sm\:grid-cols-4 > button {
+    padding: 12px;
+    min-height: 54px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .academic-card, .glass-panel, .glass-panel-hover { transform: none !important; }
+}

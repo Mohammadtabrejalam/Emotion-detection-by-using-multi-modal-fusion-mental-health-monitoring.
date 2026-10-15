@@ -64,7 +64,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ALLOWED_AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".m4a"}
+ALLOWED_AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".m4a", ".webm"}
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 DANGEROUS_EXTS = {".exe", ".sh", ".py", ".php", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".html"}
 
@@ -77,7 +77,7 @@ def validate_uploaded_file(file: UploadFile, file_type: str, max_bytes: int = 10
         raise HTTPException(status_code=400, detail=f"Security Alert: File extension {ext} is prohibited.")
         
     if file_type == "audio" and ext not in ALLOWED_AUDIO_EXTS:
-        raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a")
+        raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a, .webm")
     elif file_type == "image" and ext not in ALLOWED_IMAGE_EXTS:
         raise HTTPException(status_code=400, detail=f"Invalid image format '{ext}'. Allowed: .png, .jpg, .jpeg, .webp")
 
