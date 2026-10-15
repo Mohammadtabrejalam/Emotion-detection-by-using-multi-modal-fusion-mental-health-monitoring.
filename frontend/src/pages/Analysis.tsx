@@ -76,7 +76,22 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      // MediaRecorder emits browser/container-specific audio; never label compressed
+      // WebM/OGG/MP4 bytes as WAV. The backend decodes these formats through FFmpeg.
+      const supportedTypes = [
+        { mimeType: 'audio/webm;codecs=opus', extension: 'webm' },
+        { mimeType: 'audio/ogg;codecs=opus', extension: 'ogg' },
+        { mimeType: 'audio/mp4', extension: 'm4a' },
+      ];
+      const selectedType = supportedTypes.find(({ mimeType }) =>
+        typeof MediaRecorder.isTypeSupported !== 'function' || MediaRecorder.isTypeSupported(mimeType)
+      );
+      const options = selectedType ? { mimeType: selectedType.mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      const recordedMimeType = mediaRecorder.mimeType || selectedType?.mimeType || 'audio/webm';
+      const extension = recordedMimeType.includes('ogg') ? 'ogg'
+        : recordedMimeType.includes('mp4') ? 'm4a'
+        : 'webm';
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -87,9 +102,9 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const file = new File([audioBlob], `recorded_audio_${Date.now()}.wav`, { type: 'audio/wav' });
-        setAudioFile(file);
+        const audioBlob = new Blob(audioChunksRef.current, { type: recordedMimeType });
+        const recordedFile = new File([audioBlob], `recorded_audio_${Date.now()}.${extension}`, { type: recordedMimeType });
+        setAudioFile(recordedFile);
         stream.getTracks().forEach(track => track.stop());
       };
 
