@@ -24,12 +24,13 @@ jobs:
           pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
           pip install -r backend/requirements-inference.txt
           pip install pytest httpx bandit pip-audit
+          pip install -r research/fusion_v2/requirements.txt
 
       - name: Run Backend Pytest Suite & IDOR Security Tests
         env:
           PYTHONPATH: .
         run: |
-          python -m pytest backend/tests -v
+          python -m pytest backend/tests research/fusion_v2/test_experiment.py -v
 
       - name: Run Bandit Static Code Security Scan
         run: |

@@ -52,7 +52,7 @@ def fetch_actor(root, actor):
     return files
 
 
-def main():
+def main(cache_only=False, selected_actors=None):
     import cv2
     from PIL import Image
     from backend.app.inference.service import engine, InputError
@@ -73,6 +73,14 @@ def main():
         + protocol["test_actors"]
     )
     needed = [a for a in actors if sum(r["actor"] == a for r in records) != 52]
+    if selected_actors is not None:
+        needed = [a for a in needed if a in selected_actors]
+    if cache_only:
+        needed = [
+            a
+            for a in needed
+            if len(list((root / f"Actor_{a:02}").glob("01-01-*.mp4"))) == 60
+        ]
     with ThreadPoolExecutor(max_workers=5) as pool:
         fetched = dict(zip(needed, pool.map(lambda a: fetch_actor(root, a), needed)))
     for actor in needed:
@@ -111,4 +119,14 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--cache-only",
+        action="store_true",
+        help="Score only fully downloaded actors; final evaluation still requires all actors",
+    )
+    parser.add_argument("--actors", type=int, nargs="+", choices=range(2, 7))
+    args = parser.parse_args()
+    main(args.cache_only, args.actors)

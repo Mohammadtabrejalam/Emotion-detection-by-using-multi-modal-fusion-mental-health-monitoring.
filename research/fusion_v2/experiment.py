@@ -178,6 +178,15 @@ def main():
             for actor in protocol["test_actors"]
         },
     }
+    # Audit-only trace: all values use fitting/validation data, not test labels.
+    result["selection_trace"] = {
+        "temperature_training_nll": {
+            "audio": {str(t): float(-np.log(temperature(a[train & supported], t)[np.arange((train & supported).sum()), ay[train & supported]]).mean()) for t in ts},
+            "face": {str(t): float(-np.log(temperature(v[train], t)[np.arange(train.sum()), y[train]]).mean()) for t in ts},
+        },
+        "static_validation": [{"weight": w, "macro_f1": metrics(y[val], hierarchical(ac[val], vc[val], w))["macro_f1"]} for w in protocol["weight_grid"]],
+        "adaptive_validation": [{"prior": w, "entropy_power": g, "macro_f1": metrics(y[val], adaptive(ac[val], vc[val], w, g))["macro_f1"]} for w, g in itertools.product(protocol["weight_grid"], protocol["entropy_power_grid"])],
+    }
     contam = norm(0.5 * ac + 0.5 / 4)
     result["stress"] = {
         "missing_audio": metrics(y[test], vc[test]),

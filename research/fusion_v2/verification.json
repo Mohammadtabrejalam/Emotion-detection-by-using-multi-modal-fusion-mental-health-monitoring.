@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-16",
+  "local_command": "python -m pytest backend/tests research/fusion_v2/test_experiment.py -q",
+  "passed": 149,
+  "skipped": 5,
+  "duration_seconds": 23.49,
+  "warnings": 122,
+  "research_tests": 6,
+  "browser_evidence_run": 43871924375,
+  "browser_tests": 6,
+  "browser_artifact": 14227524645,
+  "recovery_code_commit": "ceb03a1f534ad8b8080ab4a75705e40e79415082"
+}
