@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-11-16T11:44:16.605981+00:00",
+  "measured_at": "2026-11-16T12:29:57.425482+00:00",
   "source": {
     "dataset": "RAVDESS acted speech audiovisual subset",
     "url": "https://zenodo.org/records/1188976",
@@ -32,6 +32,11 @@
     }
   },
   "python": "3.12.14",
+  "runtime": {
+    "torch": "2.15.0+cpu",
+    "transformers": "5.23.0",
+    "opencv-python-headless": "4.11.0.86"
+  },
   "results": {
     "audio": {
       "samples": 28,

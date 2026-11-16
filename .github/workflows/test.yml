@@ -21,7 +21,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
+          pip install -r backend/requirements-inference.txt
           pip install pytest httpx bandit pip-audit
 
       - name: Run Backend Pytest Suite & IDOR Security Tests
@@ -36,7 +37,9 @@ jobs:
 
       - name: Audit Python Dependency CVEs
         run: |
-          pip-audit || true
+          pip-audit
+          python -c "from importlib.metadata import version; from pathlib import Path; Path('/tmp/torch-upstream.txt').write_text('torch=='+version('torch').split('+')[0])"
+          pip-audit --no-deps --disable-pip -r /tmp/torch-upstream.txt
 
   frontend-test-and-build:
     name: Frontend Vitest Unit Tests & Production Build
@@ -63,7 +66,7 @@ jobs:
 
       - name: Run NPM Security Vulnerability Audit
         working-directory: ./frontend
-        run: npm audit || true
+        run: npm audit
 
   playwright-e2e-browser-test:
     name: Playwright End-to-End Browser Tests

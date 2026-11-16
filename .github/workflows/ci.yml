@@ -60,7 +60,7 @@ jobs:
       - name: Start container and verify frontend, API and missing-model behavior
         run: |
           docker run -d --name mindsense-ci -p 8000:8000 -e JWT_SECRET_KEY="$(openssl rand -hex 32)" mindsense:ci
-          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://127.0.0.1:8000/api/health
+          curl --retry 20 --retry-delay 2 --retry-connrefused --retry-all-errors -fsS http://127.0.0.1:8000/api/health
           python - <<'PY'
           import json, urllib.request, urllib.parse
           root = 'http://127.0.0.1:8000'

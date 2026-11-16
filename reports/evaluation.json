@@ -2,7 +2,7 @@
   "evaluations": [
     {
       "name": "MELD text transfer",
-      "scope": "Official test split; 2,610 utterances; independent text predictions, no dialogue context.",
+      "scope": "Official test split; independent utterances without dialogue context.",
       "source": {
         "dataset": "MELD official test CSV",
         "sha256": "8d37103938f7067600839fe29d5a114a6cd1bcdafb75bec101e06464c5006888",
@@ -153,11 +153,16 @@
         "label": "neutral",
         "accuracy": 0.4812260536398467
       },
+      "runtime": {
+        "torch": "2.15.0+cpu",
+        "transformers": "5.23.0",
+        "opencv-python-headless": "4.11.0.86"
+      },
       "report": "meld_text.json"
     },
     {
       "name": "RAVDESS actor-01 diagnostic",
-      "scope": "One actor only; 52 non-calm clips, fixed midpoint face. Audio evaluated on 28 clips with its four supported labels. Not representative of broader populations.",
+      "scope": "One actor; non-calm clips. Audio metrics include only its four supported labels. Not population evidence.",
       "source": {
         "dataset": "RAVDESS acted speech audiovisual subset",
         "url": "https://zenodo.org/records/1188976",
@@ -525,6 +530,11 @@
       "majority_class_baseline": {
         "label": "happy",
         "accuracy": 0.15384615384615385
+      },
+      "runtime": {
+        "torch": "2.15.0+cpu",
+        "transformers": "5.23.0",
+        "opencv-python-headless": "4.11.0.86"
       },
       "report": "ravdess_actor01.json"
     }

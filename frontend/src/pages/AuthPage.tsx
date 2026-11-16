@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { User } from '../types';
+import { AccountRecovery } from '../components/AccountRecovery';
 import { MindSenseLogo } from '../components/MindSenseLogo';
 
 interface AuthPageProps {
@@ -23,6 +24,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   onLoginSuccess,
   onNavigateHome
 }) => {
+  const [recovery,setRecovery] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
@@ -78,6 +80,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setErrorMsg(res.error?.message || "Registration failed.");
     }
   };
+
+  if (recovery) return <AccountRecovery onBack={() => setRecovery(false)}/>;
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 relative overflow-hidden transition-colors">
@@ -144,6 +148,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         )}
 
+        {mode === 'login' && <button className="text-xs text-indigo-300 underline" onClick={() => setRecovery(true)}>Forgot your password?</button>}
         {/* LOGIN FORM */}
         {mode === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-4">

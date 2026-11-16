@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import platform
+from importlib.metadata import version
 from pathlib import Path
 from datetime import datetime, timezone
 import numpy as np
@@ -79,7 +80,7 @@ def main():
             labels = ('happy','sad','angry','neutral') if mode == 'audio' else LABELS
             results[mode] = metrics([r['true'] for r in eligible], [r[mode] for r in eligible], labels)
     report = {'measured_at': datetime.now(timezone.utc).isoformat(), 'source': source, 'models': MODELS,
-              'python': platform.python_version(), 'results': results, 'failures': failures, 'predictions': rows,
+              'python': platform.python_version(), 'runtime': {name: version(name) for name in ('torch', 'transformers', 'opencv-python-headless')}, 'results': results, 'failures': failures, 'predictions': rows,
               'limitations': ['No calibration or clinical validation.', 'No thresholds or model weights tuned on this evaluation.',
                              'Audio metrics exclude labels outside its four-class label space; fusion/image use seven classes.']}
     args.output.parent.mkdir(parents=True, exist_ok=True)

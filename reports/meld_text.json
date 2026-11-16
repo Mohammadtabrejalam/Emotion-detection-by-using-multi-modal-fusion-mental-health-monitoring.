@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-11-16T11:32:33.123826+00:00",
+  "measured_at": "2026-11-16T12:27:51.298741+00:00",
   "source": {
     "dataset": "MELD official test CSV",
     "sha256": "8d37103938f7067600839fe29d5a114a6cd1bcdafb75bec101e06464c5006888",
@@ -13225,6 +13225,11 @@
     "No thresholds or model weights tuned on this evaluation.",
     "Audio metrics exclude labels outside its four-class label space; fusion/image use seven classes."
   ],
+  "runtime": {
+    "torch": "2.15.0+cpu",
+    "transformers": "5.23.0",
+    "opencv-python-headless": "4.11.0.86"
+  },
   "majority_class_baseline": {
     "label": "neutral",
     "accuracy": 0.4812260536398467

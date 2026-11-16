@@ -33,4 +33,6 @@ Audio: 46.43% accuracy / 0.366 macro F1. Image: 40.38% / 0.392. Fusion: 38.46% /
 
 No data leakage from app training is introduced because no app training occurred; original upstream training-data overlap cannot be comprehensively audited from published weights. Actor 01 is external to the documented IEMOCAP/FER2013 training sources. Three-way fusion is smoke-tested with authored text plus a clip, but **not benchmarked on aligned ground truth**. No fairness, calibration, clinical outcomes, or full-corpus speaker-independent evaluation has been completed. Broader evaluation and any fusion tuning require separate development and held-out test data.
 
-Reference environment: Python 3.12, CPU PyTorch 2.15.0, Transformers 4.57.1, OpenCV 4.11.0.86, two OMP/MKL threads. Exact floating-point scores can vary with dependency/runtime versions. Report JSON is the evidence for this run; model-card metrics and unit-test doubles are not evidence of serving accuracy.
+Reference environment: Python 3.12, CPU PyTorch 2.15.0, Transformers 5.23.0, OpenCV 4.11.0.86, two OMP/MKL threads. Exact floating-point scores can vary with dependency/runtime versions. Report JSON is the evidence for this run; model-card metrics and unit-test doubles are not evidence of serving accuracy.
+
+After both evaluator runs, rebuild the frontend-facing summary with `python -m scripts.summarize_evaluations`.

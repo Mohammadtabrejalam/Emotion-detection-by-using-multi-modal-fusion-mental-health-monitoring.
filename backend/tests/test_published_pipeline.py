@@ -100,3 +100,10 @@ def test_oversized_audio_rejected_before_inference():
     wavfile.write(buffer,16000,np.full(31*16000,1000,dtype=np.int16))
     with pytest.raises(InputError,match='30 seconds'):
         EmotionEngine().analyze(audio=buffer.getvalue())
+
+def test_legacy_short_password_can_login_but_cannot_be_registered():
+    from backend.app.database import register_user
+    name = 'legacy_' + uuid.uuid4().hex[:10]
+    register_user(name,name+'@example.test','old123','Legacy Test')
+    assert client.post('/api/auth/login',json={'username_or_email':name,'password':'old123'}).json()['success']
+    assert client.post('/api/auth/register',json={'username':name+'new','email':name+'new@example.test','name':'New','password':'old123'}).status_code == 422

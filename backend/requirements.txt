@@ -15,3 +15,6 @@ requests>=2.28.0
 httpx>=0.28.0
 
 python-dotenv>=1.0
+
+# Patched build metadata tooling; included in CI dependency auditing.
+setuptools>=84.1.0

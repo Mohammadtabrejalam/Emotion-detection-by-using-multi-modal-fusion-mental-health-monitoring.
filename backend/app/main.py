@@ -228,7 +228,7 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     username_or_email: str
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
 
 class UpdateProfileRequest(BaseModel):
     user_id: int
@@ -1084,7 +1084,7 @@ async def api_revoke_shared_link(token: str, request: Request):
 
 class DeveloperLoginRequest(BaseModel):
     username_or_email: str
-    password: str = Field(min_length=8, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
 
 class DeveloperFeedbackUpdateRequest(BaseModel):
     status: str

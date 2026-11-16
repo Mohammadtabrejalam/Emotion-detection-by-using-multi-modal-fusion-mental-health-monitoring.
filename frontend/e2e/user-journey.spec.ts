@@ -50,3 +50,12 @@ test('Authenticated journal persists after refresh and can be deleted', async ({
   await expect(page.getByText('Browser journal verification',{exact:true})).toHaveCount(0);
   await page.request.delete('/api/user/account',{headers:{Authorization:`Bearer ${account.token}`}});
 });
+
+test('Account recovery reports unavailable email delivery without exposing a token', async ({ page }) => {
+  await page.goto('/#/auth');
+  await page.getByRole('button',{name:'Forgot your password?'}).click();
+  await page.getByLabel('Username or email',{exact:true}).fill('unknown@example.test');
+  await page.getByRole('button',{name:'Send recovery email'}).click();
+  await expect(page.getByRole('alert')).toContainText('unavailable');
+  await expect(page.getByLabel('Recovery token',{exact:true})).toHaveValue('');
+});

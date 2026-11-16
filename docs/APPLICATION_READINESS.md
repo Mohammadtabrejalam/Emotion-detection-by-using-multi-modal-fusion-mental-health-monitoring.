@@ -9,18 +9,18 @@
 - Responsive analysis/home/model-evidence/media pages, model status, input consent, camera/microphone cleanup, file-size/error states, restored sessions/routes, and same-origin API integration.
 - Dockerfile/compose and environment/admin setup instructions prepared. Nothing deployed or merged.
 
-The real-model API smoke walkthrough passed registration, three-way inference, journal, check-in, dashboard, sharing/revocation, export, deletion, and invalidation of the deleted account's token. Its cold three-model inference took 13.73 seconds in this workspace; that single observation is not a latency benchmark.
+The real-model API smoke walkthrough passed registration, three-way inference, journal, check-in, dashboard, sharing/revocation, export, deletion, and invalidation of the deleted account's token. Its cold three-model inference took 6.16 seconds in this workspace; that single observation is not a latency benchmark.
 
 ## Evidence
 
-Local validation: **142 backend tests passed, 5 skipped; 10 frontend tests passed; TypeScript/production build passed; Bandit scan passed with documented local-file/allowlisted-query exceptions.**
+Local validation: **143 backend tests passed, 5 skipped; 10 frontend tests passed; TypeScript/production build passed; Bandit scan passed with documented local-file/allowlisted-query exceptions.**
 
 See `reports/evaluation.json` and `docs/EVALUATION_PUBLISHED.md`. Text on 2,610 MELD test utterances: 43.72% accuracy / 0.270 macro F1, below majority-neutral accuracy 48.12%. RAVDESS actor 01: audio 46.43% on 28 supported-label clips; face 40.38% and fusion 38.46% on 52 non-calm clips. Fusion did not improve image-only accuracy. No fabricated metrics or model-card scores are used as application measurements.
 
 ## Remaining limitations and blocked verification
 
-- Local Chromium is blocked by the workspace, but **4 Playwright browser tests passed in GitHub Actions** on commit `40d2b97`, including installed text-model inference, mobile width, private routes, and developer isolation. [Verified run](https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring./actions/runs/43862153907). A further authenticated-journal browser test is included for the next run.
-- Docker is unavailable locally; a container build/startup CI job is now configured, pending its first result. No production load, backup/restore, TLS, live SMTP, or actual camera/microphone device testing has been completed.
+- Local Chromium is blocked by the workspace, but **5 Playwright browser tests passed in GitHub Actions** on commit `1c3b994`, including installed text-model inference, mobile width, private routes, developer isolation, and authenticated journal persistence/deletion. [Verified run](https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring./actions/runs/43865195119).
+- Docker is unavailable locally; the CI job builds the image and verifies container startup, frontend/API availability and explicit missing-model errors. Check the PR run for its latest outcome. No production load, backup/restore, TLS, live SMTP, or actual camera/microphone device testing has been completed.
 - Five legacy research tests skip because original data/checkpoints are absent. Published serving models do not complete the original jointly trained cross-attention research protocol.
 - One-actor evaluation is not population evidence. Three-way fusion is integration-tested, not benchmarked against aligned labels. Calibration, demographic fairness, multilingual performance, clinical outcomes, and generalization remain unvalidated.
 - SQLite and localStorage sessions are suitable for a bounded demo, not a claim of hardened clinical-data hosting. SQLite lacks application-level encryption; rate limits are per process; one worker is the documented deployment baseline. Server operators must manage encrypted storage, TLS, backup retention, and abuse limits.

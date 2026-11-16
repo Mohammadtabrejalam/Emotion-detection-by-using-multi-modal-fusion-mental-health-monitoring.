@@ -13,7 +13,7 @@ Start with README.md. Copy `.env.example` at the repo root and run commands ther
 - `SMTP_HOST`, `SMTP_PORT=587`, `SMTP_FROM`, `SMTP_USERNAME`, `SMTP_PASSWORD`: optional STARTTLS email for recovery/verification. Without email, recovery is explicitly unavailable. Delivery has not been tested against a live provider.
 - Never enable `MINDSENSE_TEST_MODE` outside automated tests. Never commit `.env`, database files, tokens, or downloaded models.
 
-## Docker (prepared, not executed in this workspace)
+## Docker
 
 Download models on the host first. Set `JWT_SECRET_KEY` in root `.env`, then:
 
@@ -23,7 +23,7 @@ docker compose up -d
 docker compose logs -f
 ```
 
-Open http://localhost:8000. Compose binds localhost by default; the image serves frontend and API together, runs as UID 10001, and uses one Uvicorn worker. SQLite uses the named `mindsense-data` volume; model files are mounted read-only. Configure SMTP explicitly in compose if needed. Do not bake secrets or model weights into images. The workspace lacks Docker, so this configuration still needs a real build/startup test before deployment.
+Open http://localhost:8000. Compose binds localhost by default; the image serves frontend and API together, runs as UID 10001, and uses one Uvicorn worker. SQLite uses the named `mindsense-data` volume; model files are mounted read-only. Configure SMTP explicitly in compose if needed. Do not bake secrets or model weights into images. The workspace lacks Docker; GitHub Actions builds the image and exercises container startup, frontend, API health and explicit missing-model errors. Check the PR run for its latest outcome. Test model-volume permissions on your target host before deployment.
 
 For public hosting, put a TLS reverse proxy in front, restrict request sizes and rate limits, set exact origins, and use encrypted storage with an explicit backup/deletion policy. Run one instance with SQLite and the in-memory limiter. Multiple workers/replicas require a coordinated database, rate limiter, and inference service. Provision resources based on measured latency and memory on your target machine; no load/SLA claim is made.
 

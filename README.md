@@ -6,7 +6,7 @@ A demonstrable expression-analysis application: published text, speech, and faci
 
 ## Run locally (Windows PowerShell)
 
-Use Python 3.11 or 3.12, Node.js 22, Git, and FFmpeg on PATH. Run from the repository root. Allow several GB for dependencies and models; a CPU machine with 8 GB RAM is a practical starting point, not a measured minimum.
+Use Python 3.11 or 3.12, Node.js 22.12+, Git, and FFmpeg on PATH. Run from the repository root. Allow several GB for dependencies and models; a CPU machine with 8 GB RAM is a practical starting point, not a measured minimum.
 
 ```powershell
 git clone https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring..git mindsense
@@ -57,7 +57,7 @@ Committed reports contain individual prediction IDs, source hashes, per-class me
 
 MELD's majority-neutral baseline is **48.12%**, higher than the text model's accuracy. The text model was trained for GoEmotions, then projected to seven categories; this is a cross-dataset transfer evaluation. RAVDESS uses **one actor only**, excludes calm, and cannot establish population performance. Audio supports four labels; its sample set differs from face/fusion. Fusion underperformed face alone on this subset. Three-way fusion and clinical outcomes have not been benchmarked.
 
-See [model card](MODEL_CARD.md), [evaluation reproduction](docs/EVALUATION_PUBLISHED.md), [deployment](docs/DEPLOYMENT.md), and [readiness report](docs/APPLICATION_READINESS.md).
+See [model card](MODEL_CARD.md), [evaluation reproduction](docs/EVALUATION_PUBLISHED.md), [deployment](docs/DEPLOYMENT.md), and [readiness report](docs/APPLICATION_READINESS.md), and [interview guide](docs/INTERVIEW_GUIDE.md).
 
 ## Tests
 
