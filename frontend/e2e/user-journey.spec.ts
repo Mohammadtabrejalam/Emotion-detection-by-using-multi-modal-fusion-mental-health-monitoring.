@@ -4,6 +4,7 @@ test('Guest analysis uses installed text model or clearly reports missing checkp
   test.setTimeout(150000);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'MindSense', exact: true })).toBeVisible();
+  await page.screenshot({path:'test-results/report-evidence/home.png',fullPage:true});
   await page.getByRole('button', { name: /start an analysis/i }).first().click();
   await expect(page.getByRole('heading', { name: 'Understand expressions. Keep context.' })).toBeVisible();
   await page.getByPlaceholder(/Type or paste a text statement/).fill('Thank you for helping me finish this project.');
@@ -15,6 +16,7 @@ test('Guest analysis uses installed text model or clearly reports missing checkp
   if (modelStatus.data.models.text.installed) {
     await expect(page.getByRole('heading', { name: 'Analysis Output & Classification' })).toBeVisible({ timeout: 120000 });
     await expect(page.getByText('Guest result: not saved to the server.')).toBeVisible();
+    await page.screenshot({path:'test-results/report-evidence/real-text-result.png',fullPage:true});
     await expect(page.getByRole('button', { name: 'Share Result' })).toHaveCount(0);
   } else {
     await expect(page.getByRole('alert')).toContainText('not installed');
@@ -29,6 +31,7 @@ test('Private routes require authentication and mobile analysis fits the viewpor
   await page.goto('/#/analyze');
   await expect(page.getByRole('heading', {name:'Understand expressions. Keep context.'})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/report-evidence/mobile-analysis.png',fullPage:true});
 });
 
 test('Authenticated journal persists after refresh and can be deleted', async ({ page }) => {

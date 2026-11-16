@@ -107,3 +107,11 @@ jobs:
           PYTHONPATH: ..
         run: npx playwright test
 
+
+      - name: Preserve actual browser screenshots for the report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindsense-browser-evidence
+          path: frontend/test-results/report-evidence/*.png
+          retention-days: 30
