@@ -84,3 +84,19 @@ def test_production_recovery_never_exposes_token(monkeypatch):
     assert len(sent) == 1  # Stubbed transport only: no real email sent.
     unknown = client.post('/api/auth/forgot-password',json={'username_or_email':'not-an-account'}).json()
     assert unknown == response
+
+def test_user_deletion_does_not_remove_developer_token_revocation():
+    from backend.app.database import revoke_session_token, is_token_revoked, delete_user_complete_account
+    headers = account()
+    user_id = client.get('/api/auth/me',headers=headers).json()['data']['user']['id']
+    token = 'isolated-developer-revocation-'+uuid.uuid4().hex
+    revoke_session_token(token, user_id, 'developer')
+    assert delete_user_complete_account(user_id)
+    assert is_token_revoked(token)
+
+def test_oversized_audio_rejected_before_inference():
+    from scipy.io import wavfile
+    buffer = io.BytesIO()
+    wavfile.write(buffer,16000,np.full(31*16000,1000,dtype=np.int16))
+    with pytest.raises(InputError,match='30 seconds'):
+        EmotionEngine().analyze(audio=buffer.getvalue())

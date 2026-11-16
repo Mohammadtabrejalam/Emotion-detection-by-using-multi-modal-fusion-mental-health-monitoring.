@@ -48,3 +48,31 @@ jobs:
           PYTHONPATH: .
         run: |
           python -m pytest backend/tests
+
+  container-smoke:
+    name: Container Build & Startup Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build CPU application image
+        run: docker build -t mindsense:ci .
+      - name: Start container and verify frontend, API and missing-model behavior
+        run: |
+          docker run -d --name mindsense-ci -p 8000:8000 -e JWT_SECRET_KEY="$(openssl rand -hex 32)" mindsense:ci
+          curl --retry 20 --retry-delay 2 --retry-connrefused -fsS http://127.0.0.1:8000/api/health
+          python - <<'PY'
+          import json, urllib.request, urllib.parse
+          root = 'http://127.0.0.1:8000'
+          assert 'MindSense' in urllib.request.urlopen(root).read().decode()
+          assert not json.load(urllib.request.urlopen(root+'/api/models'))['data']['models']['text']['installed']
+          request = urllib.request.Request(root+'/api/analyze', data=urllib.parse.urlencode({'text':'Container smoke test'}).encode())
+          response = json.load(urllib.request.urlopen(request))
+          assert response['error']['code'] == 'MODEL_UNAVAILABLE', response
+          print('Container frontend, API, and fail-closed inference passed.')
+          PY
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          docker logs mindsense-ci || true
+          docker rm -f mindsense-ci || true

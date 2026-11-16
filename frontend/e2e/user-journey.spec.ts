@@ -30,3 +30,23 @@ test('Private routes require authentication and mobile analysis fits the viewpor
   await expect(page.getByRole('heading', {name:'Understand expressions. Keep context.'})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test('Authenticated journal persists after refresh and can be deleted', async ({ page }) => {
+  const username = `browser_${Date.now()}`;
+  const response = await page.request.post('/api/auth/register', {data:{username,email:`${username}@example.test`,password:'BrowserTest123!',name:'Browser Test'}});
+  const account = (await response.json()).data;
+  await page.goto('/');
+  await page.evaluate(token => localStorage.setItem('mindsense_token',token),account.token);
+  await page.goto('/#/insights/journal');
+  await page.reload();
+  await page.getByPlaceholder(/Cognitive fatigue/).fill('Browser journal verification');
+  await page.getByPlaceholder(/Record triggers/).fill('Disposable authored reflection for integration testing.');
+  await page.getByRole('button',{name:'Save Reflection Entry'}).click();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toBeVisible();
+  page.once('dialog',dialog => dialog.accept());
+  await page.getByTitle('Delete reflection').click();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toHaveCount(0);
+  await page.request.delete('/api/user/account',{headers:{Authorization:`Bearer ${account.token}`}});
+});

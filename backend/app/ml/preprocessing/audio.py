@@ -19,13 +19,15 @@ logger = logging.getLogger("mindsense.audio")
 
 def extract_audio_waveform(
     source: Union[str, Path, bytes],
-    target_sample_rate: int = 16000
+    target_sample_rate: int = 16000,
+    max_duration_seconds: Optional[float] = None
 ) -> np.ndarray:
     """
     Extracts 1D normalized float32 audio waveform [-1.0, 1.0] at target_sample_rate (mono)
     directly from an MP4/WAV/MP3/M4A/etc file path or in-memory audio bytes.
     Directly streams raw PCM from FFmpeg stdout to avoid temporary WAV headers or disk degradation.
     """
+    duration_args = ["-t", str(max_duration_seconds)] if max_duration_seconds is not None else []
     startupinfo = None
     if os.name == 'nt':
         startupinfo = subprocess.STARTUPINFO()
@@ -42,7 +44,7 @@ def extract_audio_waveform(
         cmd = [
             "ffmpeg", "-y", "-v", "error",
             "-i", str(file_path),
-            "-vn", "-ar", str(target_sample_rate), "-ac", "1",
+            *duration_args, "-vn", "-ar", str(target_sample_rate), "-ac", "1",
             "-f", "s16le", "pipe:1"
         ]
 
@@ -73,6 +75,8 @@ def extract_audio_waveform(
         if source[:4] == b"RIFF":
             try:
                 rate, raw_sig = wav.read(io.BytesIO(source))
+                if rate <= 0 or (max_duration_seconds is not None and len(raw_sig) / rate > max_duration_seconds):
+                    raise ValueError("Audio duration exceeds decoding limit.")
                 if raw_sig.dtype == np.int16:
                     sig = raw_sig.astype(np.float32) / 32768.0
                 elif raw_sig.dtype == np.int32:
@@ -105,7 +109,7 @@ def extract_audio_waveform(
             cmd = [
                 "ffmpeg", "-y", "-v", "error",
                 "-i", temp_path,
-                "-vn", "-ar", str(target_sample_rate), "-ac", "1",
+                *duration_args, "-vn", "-ar", str(target_sample_rate), "-ac", "1",
                 "-f", "s16le", "pipe:1"
             ]
 

@@ -13,14 +13,14 @@ The real-model API smoke walkthrough passed registration, three-way inference, j
 
 ## Evidence
 
-Local validation: **140 backend tests passed, 5 skipped; 10 frontend tests passed; TypeScript/production build passed; Bandit scan passed with documented local-file/allowlisted-query exceptions.**
+Local validation: **142 backend tests passed, 5 skipped; 10 frontend tests passed; TypeScript/production build passed; Bandit scan passed with documented local-file/allowlisted-query exceptions.**
 
 See `reports/evaluation.json` and `docs/EVALUATION_PUBLISHED.md`. Text on 2,610 MELD test utterances: 43.72% accuracy / 0.270 macro F1, below majority-neutral accuracy 48.12%. RAVDESS actor 01: audio 46.43% on 28 supported-label clips; face 40.38% and fusion 38.46% on 52 non-calm clips. Fusion did not improve image-only accuracy. No fabricated metrics or model-card scores are used as application measurements.
 
 ## Remaining limitations and blocked verification
 
-- Browser E2E is prepared but cannot execute locally: Chromium aborts with `socket() failed: Operation not permitted`. This is an environment block, not a passing browser test. GitHub Actions is configured to install Chromium and a real text checkpoint; its outcome must be checked separately.
-- Docker is unavailable here, so image build/container startup is unverified. No production load, backup/restore, TLS, live SMTP, or actual camera/microphone device testing has been completed.
+- Local Chromium is blocked by the workspace, but **4 Playwright browser tests passed in GitHub Actions** on commit `40d2b97`, including installed text-model inference, mobile width, private routes, and developer isolation. [Verified run](https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring./actions/runs/43862153907). A further authenticated-journal browser test is included for the next run.
+- Docker is unavailable locally; a container build/startup CI job is now configured, pending its first result. No production load, backup/restore, TLS, live SMTP, or actual camera/microphone device testing has been completed.
 - Five legacy research tests skip because original data/checkpoints are absent. Published serving models do not complete the original jointly trained cross-attention research protocol.
 - One-actor evaluation is not population evidence. Three-way fusion is integration-tested, not benchmarked against aligned labels. Calibration, demographic fairness, multilingual performance, clinical outcomes, and generalization remain unvalidated.
 - SQLite and localStorage sessions are suitable for a bounded demo, not a claim of hardened clinical-data hosting. SQLite lacks application-level encryption; rate limits are per process; one worker is the documented deployment baseline. Server operators must manage encrypted storage, TLS, backup retention, and abuse limits.

@@ -1574,7 +1574,7 @@ def delete_user_complete_account(user_id: int):
         cursor.execute("DELETE FROM daily_notes WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM daily_checkins WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM login_sessions WHERE user_id = ?", (user_id,))
-        cursor.execute("DELETE FROM active_sessions WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM active_sessions WHERE user_id = ? AND user_type = 'user'", (user_id,))
         cursor.execute("DELETE FROM research_consents WHERE user_id = ?", (user_id,))
         
         cursor.execute("SELECT id FROM research_participants WHERE user_id = ?", (user_id,))

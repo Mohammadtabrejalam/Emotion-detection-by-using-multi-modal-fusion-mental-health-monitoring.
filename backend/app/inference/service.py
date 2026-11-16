@@ -130,7 +130,7 @@ class EmotionEngine:
             values['text'] = text.strip()
         if audio is not None:
             try:
-                waveform = extract_audio_waveform(audio)
+                waveform = extract_audio_waveform(audio, max_duration_seconds=31)
             except Exception as exc:
                 raise InputError('Audio could not be decoded. Use WAV or install FFmpeg for compressed audio.') from exc
             if not 1600 <= len(waveform) <= 480000:
