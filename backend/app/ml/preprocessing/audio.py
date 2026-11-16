@@ -50,7 +50,8 @@ def extract_audio_waveform(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            startupinfo=startupinfo
+            startupinfo=startupinfo,
+            timeout=30
         )
 
         if result.returncode != 0:
@@ -72,9 +73,6 @@ def extract_audio_waveform(
         if source[:4] == b"RIFF":
             try:
                 rate, raw_sig = wav.read(io.BytesIO(source))
-                if len(raw_sig.shape) > 1:
-                    raw_sig = np.mean(raw_sig, axis=1)
-
                 if raw_sig.dtype == np.int16:
                     sig = raw_sig.astype(np.float32) / 32768.0
                 elif raw_sig.dtype == np.int32:
@@ -83,6 +81,9 @@ def extract_audio_waveform(
                     sig = (raw_sig.astype(np.float32) - 128.0) / 128.0
                 else:
                     sig = raw_sig.astype(np.float32)
+
+                if sig.ndim > 1:
+                    sig = np.mean(sig, axis=1)
 
                 if rate != target_sample_rate and len(sig) > 0:
                     num_samples = int(len(sig) * target_sample_rate / rate)
@@ -112,7 +113,8 @@ def extract_audio_waveform(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                startupinfo=startupinfo
+                startupinfo=startupinfo,
+                timeout=30
             )
 
             if result.returncode != 0:
@@ -162,7 +164,8 @@ def convert_to_wav_ffmpeg(input_bytes: bytes, file_ext: str = ".wav") -> bytes:
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            startupinfo=startupinfo
+            startupinfo=startupinfo,
+            timeout=30
         )
         if result.returncode != 0:
             raise RuntimeError(f"FFmpeg failed: {result.stderr.decode('utf-8', errors='ignore')}")

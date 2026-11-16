@@ -87,8 +87,10 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const file = new File([audioBlob], `recorded_audio_${Date.now()}.wav`, { type: 'audio/wav' });
+        const mimeType = mediaRecorder.mimeType || audioChunksRef.current[0]?.type || 'audio/webm';
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([audioBlob], `recorded_audio_${Date.now()}.${extension}`, { type: mimeType });
         setAudioFile(file);
         stream.getTracks().forEach(track => track.stop());
       };
@@ -662,6 +664,11 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
       {result && (
         <div className="space-y-6 animate-fadeIn pt-4 border-t border-slate-800">
           
+          {result.is_demo && (
+            <p role="status" className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
+              Rule-based demonstration. These scores are illustrative, not validated emotion predictions. A compatible trained checkpoint is required for model inference.
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-white tracking-tight">Analysis Output & Classification</h2>
             <div className="flex items-center gap-2">
@@ -672,7 +679,7 @@ export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) 
                 <span>Share Result</span>
               </button>
               <span className="text-[10px] uppercase font-bold text-brand-400 bg-brand-500/10 px-2.5 py-1 rounded border border-brand-500/20 font-mono">
-                Research Estimate
+                {result.is_demo ? 'Rule-Based Demo' : 'Research Estimate'}
               </span>
             </div>
           </div>

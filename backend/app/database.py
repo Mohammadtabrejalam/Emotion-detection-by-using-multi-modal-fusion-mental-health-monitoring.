@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any, Tuple
 
 logger = logging.getLogger("mindsense.database")
 
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mindsense.db")
+DATABASE_PATH = os.environ.get("MINDSENSE_DATABASE_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "mindsense.db")
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE_PATH)
@@ -911,6 +911,10 @@ def create_share_link(result_id: str, owner_id: int = None, expiration_hours: in
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        cursor.execute("SELECT user_id FROM analyses WHERE id = ?", (result_id,))
+        analysis = cursor.fetchone()
+        if analysis is None or analysis["user_id"] != owner_id:
+            raise ValueError("Analysis not found or unauthorized.")
         token = str(uuid.uuid4())
         created_at = datetime.utcnow()
         expires_at = (created_at + timedelta(hours=expiration_hours)).isoformat() if expiration_hours and expiration_hours > 0 else None
@@ -966,12 +970,12 @@ def get_share_link_data(token: str):
     finally:
         conn.close()
 
-def revoke_share_link(token: str, actor_id: str = "SYSTEM") -> bool:
+def revoke_share_link(token: str, actor_id: str = "SYSTEM", owner_id: int = None) -> bool:
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         now = datetime.utcnow().isoformat()
-        cursor.execute("UPDATE share_links SET revoked_at = ? WHERE share_id = ?", (now, token))
+        cursor.execute("UPDATE share_links SET revoked_at = ? WHERE share_id = ? AND owner_id IS ? AND revoked_at IS NULL", (now, token, owner_id))
         conn.commit()
         log_audit_event(actor_id, "DEVELOPER", "REVOKE_SHARE_LINK", token, "Revoked public share link")
         return cursor.rowcount > 0

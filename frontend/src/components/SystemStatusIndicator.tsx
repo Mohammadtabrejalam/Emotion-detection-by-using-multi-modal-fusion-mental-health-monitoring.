@@ -66,8 +66,8 @@ export const SystemStatusIndicator: React.FC = () => {
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             {status === 'operational'
-              ? 'Backend API and PyTorch inference pipeline connected successfully.'
-              : 'Backend API service is unavailable. Client running in local demo mode.'}
+              ? 'Backend API is reachable. Each analysis result indicates whether it uses a model or a rule-based demo.'
+              : 'Backend API is unavailable. Start the backend service to run an analysis.'}
           </p>
         </div>
       )}

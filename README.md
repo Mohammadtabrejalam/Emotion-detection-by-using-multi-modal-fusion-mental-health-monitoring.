@@ -4,6 +4,8 @@ MindSense is a full-stack web application designed for research and longitudinal
 
 The platform uses a custom **PyTorch Multimodal Fusion Transformer** featuring dynamic modality masking to support arbitrary combinations of inputs (e.g. Text-only, Text + Audio, Audio + Image, or all three) without introduction of zero-biasing artifacts.
 
+> **Current application status:** See [Application readiness and Windows setup](docs/APPLICATION_READINESS.md) for repaired workflows, verification, and the datasets/checkpoints still required. Without a compatible serving checkpoint, results are explicitly labeled rule-based demonstrations.
+
 ---
 
 ## 1. Safety & Diagnostic Advisory
@@ -64,7 +66,7 @@ Follow these steps to run both the FastAPI API and the React + Vite development 
 
 ### Prerequisites
 * **Python 3.10+** (with `pip`)
-* **Node.js 18+** (with `npm`)
+* **Node.js 22.12+** (with `npm`)
 * **FFmpeg** (optional: required for converting browser recorded audio formats like `.webm` to `.wav`. If unavailable, standard WAV file uploads are handled natively).
 
 ---
@@ -112,7 +114,7 @@ Follow these steps to run both the FastAPI API and the React + Vite development 
 
 ## 4. Running Automated Tests
 
-A comprehensive suite of 13 unit and integration tests is located in the `backend/tests/` folder. It tests text tokenization, face cropping bounding calculations, MFCC spectrogram inputs, and API endpoint responses.
+The backend unit and integration suite is located in the `backend/tests/` folder. It tests text tokenization, face cropping bounding calculations, MFCC spectrogram inputs, and API endpoint responses.
 
 To execute tests:
 1. Ensure you are in the `backend` environment.

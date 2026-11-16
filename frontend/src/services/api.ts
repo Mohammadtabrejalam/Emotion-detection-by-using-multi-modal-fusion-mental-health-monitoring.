@@ -34,7 +34,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/health`);
       if (!response.ok) return false;
       const data = await response.json();
-      return data.success;
+      return data.success && data.data?.database_connected === true;
     } catch {
       return false;
     }
@@ -128,7 +128,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ user_id: userId, date, title, content, mood_tag: moodTag }),
       });
       return await response.json();
@@ -139,7 +139,7 @@ export const apiService = {
 
   async getDailyNotes(userId: number): Promise<ApiResponse<{ notes: DailyNote[] }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/notes?user_id=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/notes?user_id=${userId}`, { headers: getAuthHeaders() });
       return await response.json();
     } catch (error: any) {
       return { success: false, data: null, error: { code: 'NETWORK_ERROR', message: error.message } };
@@ -150,6 +150,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/notes/${noteId}?user_id=${userId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       return await response.json();
     } catch (error: any) {

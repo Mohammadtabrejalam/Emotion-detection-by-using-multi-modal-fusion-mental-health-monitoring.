@@ -11,3 +11,6 @@ python-multipart>=0.0.6
 sqlite3-api>=0.0.1; python_version<'3.0' # Note: sqlite3 is built-in for python 3+
 pytest>=7.0.0
 requests>=2.28.0
+
+# FastAPI TestClient used by the backend suite
+httpx>=0.28.0

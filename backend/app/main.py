@@ -8,7 +8,7 @@ from typing import Optional, List
 logger = logging.getLogger("mindsense.api")
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import hmac
 import hashlib
@@ -64,7 +64,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ALLOWED_AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".m4a"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+ALLOWED_AUDIO_EXTS = {".wav", ".mp3", ".ogg", ".m4a", ".webm", ".mp4"}
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 DANGEROUS_EXTS = {".exe", ".sh", ".py", ".php", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".html"}
 
@@ -77,7 +78,7 @@ def validate_uploaded_file(file: UploadFile, file_type: str, max_bytes: int = 10
         raise HTTPException(status_code=400, detail=f"Security Alert: File extension {ext} is prohibited.")
         
     if file_type == "audio" and ext not in ALLOWED_AUDIO_EXTS:
-        raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a")
+        raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a, .webm, .mp4")
     elif file_type == "image" and ext not in ALLOWED_IMAGE_EXTS:
         raise HTTPException(status_code=400, detail=f"Invalid image format '{ext}'. Allowed: .png, .jpg, .jpeg, .webp")
 
@@ -192,14 +193,14 @@ model = None
 if PYTORCH_AVAILABLE:
     try:
         model = MultimodalFusionModel(num_classes=7, d_model=64)
-        model_path = os.path.join(os.path.dirname(__file__), "ml", "mindsense_fusion.pt")
+        model_path = os.environ.get("MINDSENSE_MODEL_PATH") or os.path.join(os.path.dirname(__file__), "ml", "mindsense_fusion.pt")
         if os.path.exists(model_path):
             model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
             model.eval()
             print("Loaded PyTorch Multimodal Fusion weights successfully.")
         else:
-            print("Warning: PyTorch model weights mindsense_fusion.pt not found. Running with uninitialized weights.")
-            model.eval()
+            logger.warning("Model checkpoint missing; only rule-based demonstration is available.")
+            model = None
     except Exception as e:
         print(f"Error loading PyTorch model: {e}. Falling back to rule-based inference.")
         model = None
@@ -239,10 +240,10 @@ class ChangePasswordRequest(BaseModel):
 
 class CheckinRequest(BaseModel):
     user_id: Optional[int] = None
-    feeling_score: int
-    energy_score: int
-    sleep_score: int
-    stress_score: int
+    feeling_score: int = Field(ge=1, le=5)
+    energy_score: int = Field(ge=1, le=5)
+    sleep_score: int = Field(ge=1, le=5)
+    stress_score: int = Field(ge=1, le=5)
     talk_to_someone: bool
     notes: Optional[str] = ""
 
@@ -874,7 +875,8 @@ def health_check():
     return {
         "success": True,
         "data": {
-            "status": "healthy",
+            "status": "healthy" if db_ok else "degraded",
+            "inference_mode": "model" if model is not None else "demo",
             "database_connected": db_ok,
             "pytorch_loaded": PYTORCH_AVAILABLE and model is not None,
             "model_version": "multimodal_v1.3"
@@ -898,7 +900,8 @@ async def analyze_emotion(
         validate_uploaded_file(image, "image")
 
     opt_user = get_optional_user_from_req(request)
-    target_user_id = opt_user["id"] if opt_user else user_id
+    target_user_id = opt_user["id"] if opt_user else None
+    text = text.strip() if text else None
     stages = []
     
     stages.append({"stage": "Input Validation", "status": "processing"})
@@ -925,10 +928,14 @@ async def analyze_emotion(
     audio_mfcc = None
     if audio:
         try:
-            audio_bytes = await audio.read()
+            audio_bytes = await audio.read(MAX_UPLOAD_BYTES + 1)
+            if len(audio_bytes) > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail="Audio upload exceeds 10 MB.")
             ext = os.path.splitext(audio.filename)[1] if audio.filename else ".wav"
             if not ext: ext = ".wav"
-            audio_mfcc = preprocess_audio(audio_bytes, ext).tolist()
+            audio_mfcc = preprocess_audio(audio_bytes, ext, strict=True).tolist()
+        except HTTPException:
+            raise
         except Exception as e:
             stages[-1]["status"] = "failed"
             return {
@@ -943,7 +950,9 @@ async def analyze_emotion(
     face_status = "no_face"
     if image:
         try:
-            image_bytes = await image.read()
+            image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+            if len(image_bytes) > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail="Image upload exceeds 10 MB.")
             image_face, face_status = preprocess_image(image_bytes)
             if image_face is None and face_status == "no_face":
                 stages[-1]["status"] = "failed"
@@ -954,6 +963,8 @@ async def analyze_emotion(
                         "message": "No face was detected in this image. Please upload a clear image containing one face."
                     }
                 }
+        except HTTPException:
+            raise
         except Exception as e:
             stages[-1]["status"] = "failed"
             return {
@@ -1048,6 +1059,9 @@ async def analyze_emotion(
     else:
         insight_text = "The model detected stable, neutral emotional patterns."
         
+    if is_demo_prediction:
+        insight_text = "Rule-based demonstration: these illustrative scores are not measured emotions or calibrated model confidence."
+
     if crisis_alert:
         insight_text = (
             "MindSense detected signals of high distress or potential self-harm. Please know you are not alone. "
@@ -1083,7 +1097,7 @@ async def analyze_emotion(
         "timestamp": datetime.utcnow().isoformat(),
         "emotion": final_emo,
         "confidence": conf,
-        "confidence_label": get_confidence_label(conf),
+        "confidence_label": "Illustrative demo score" if is_demo_prediction else get_confidence_label(conf),
         "probabilities": result["probabilities"],
         "modalities_used": result["modalities_used"],
         "modality_predictions": result["modality_predictions"],
@@ -1211,7 +1225,7 @@ def get_dashboard_summary(request: Request):
 def submit_checkin(request: CheckinRequest, req: Request):
     try:
         user = get_optional_user_from_req(req)
-        target_user_id = user["id"] if user else request.user_id
+        target_user_id = user["id"] if user else None
         checkin_id = save_checkin(
             feeling_score=request.feeling_score,
             energy_score=request.energy_score,
@@ -1429,7 +1443,7 @@ class ShareCreateRequest(BaseModel):
 async def api_create_share_link(payload: ShareCreateRequest, request: Request):
     try:
         user = get_optional_user_from_req(request)
-        target_owner_id = user["id"] if user else payload.user_id
+        target_owner_id = user["id"] if user else None
         token = create_share_link(
             result_id=payload.result_id,
             owner_id=target_owner_id,
@@ -1480,7 +1494,7 @@ async def api_get_shared_result(token: str):
 async def api_revoke_shared_link(token: str, request: Request):
     user = get_optional_user_from_req(request)
     actor_id = user["username"] if user else "PUBLIC_USER"
-    ok = revoke_share_link(token, actor_id=actor_id)
+    ok = revoke_share_link(token, actor_id=actor_id, owner_id=user["id"] if user else None)
     if ok:
         return {"success": True, "data": {"message": "Share link revoked successfully."}, "error": None}
     return {"success": False, "data": None, "error": {"code": "REVOKE_FAILED", "message": "Link not found or already revoked."}}
