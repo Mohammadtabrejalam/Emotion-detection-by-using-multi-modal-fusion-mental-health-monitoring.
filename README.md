@@ -77,3 +77,10 @@ API tests use explicitly test-only classifier doubles to verify contracts, owner
 React/Vite → FastAPI → local Transformers models → label mapping/late fusion → SQLite for signed-in results. The server performs inference, not the browser. One CPU worker is the supported baseline; inference is serialized to bound model memory. See [architecture](ARCHITECTURE.md).
 
 The older `backend/app/ml` cross-attention training and dataset pipelines remain research scaffolding. Historical `PHASE_*` documents and synthetic experiment artifacts do **not** describe the serving models or provide evidence of real model performance. The application no longer reads their claimed metrics. No jointly trained multimodal checkpoint was fabricated.
+
+## Academic report and fusion investigation
+
+The [academic report](docs/ACADEMIC_REPORT.md) documents the implemented models, fusion mathematics, recomputed MELD/Actor 01 metrics, genuine browser evidence and study limitations. Run `python -m scripts.verify_report_evidence` to verify the saved prediction metrics without downloading models.
+
+The actor 02–06 follow-up protocol is committed, but its supplied results remain provisional until the original scores, fitted parameters and implementation are recovered. See [fusion study evidence status](research/fusion_v2/README.md). No claim of algorithmic novelty, broad superiority or clinical validity is made.
+
