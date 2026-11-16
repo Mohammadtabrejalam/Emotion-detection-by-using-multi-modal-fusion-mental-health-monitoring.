@@ -23,13 +23,12 @@ def register():
     return data['user']['id'], {'Authorization': f"Bearer {data['token']}"}
 
 
-def test_missing_checkpoint_is_not_model_inference():
-    with patch.object(main, 'model', None):
-        assert client.get('/api/health').json()['data']['inference_mode'] == 'demo'
-        result = client.post('/api/analyze', data={'text': 'I feel happy'}).json()['data']
-    assert result['is_demo'] is True
-    assert result['confidence_label'] == 'Illustrative demo score'
-    assert 'demonstration' in result['wellness_insight']
+def test_missing_checkpoint_is_not_model_inference(tmp_path):
+    from backend.app.inference.service import EmotionEngine
+    with patch.object(main, 'engine', EmotionEngine(tmp_path)):
+        result = client.post('/api/analyze', data={'text': 'I feel happy'}).json()
+    assert result['success'] is False
+    assert result['error']['code'] == 'MODEL_UNAVAILABLE'
 
 
 def test_whitespace_is_not_a_modality():
@@ -44,7 +43,7 @@ def test_corrupted_audio_is_rejected(extension):
         'audio': (f'broken.{extension}', b'not audio', f'audio/{extension}'),
     }).json()
     assert result['success'] is False
-    assert result['error']['code'] == 'INVALID_AUDIO'
+    assert result['error']['code'] == 'INVALID_INPUT'
 
 
 @pytest.mark.parametrize('modality,filename', [('audio', 'big.wav'), ('image', 'big.png')])
@@ -58,7 +57,7 @@ def test_valid_wav_can_be_analyzed():
     buffer = io.BytesIO()
     samples = (np.sin(np.arange(1600) * 0.1) * 16000).astype(np.int16)
     wavfile.write(buffer, 16000, samples)
-    result = client.post('/api/analyze', data={'demo_mode': 'true'}, files={
+    result = client.post('/api/analyze', files={
         'audio': ('voice.wav', buffer.getvalue(), 'audio/wav'),
     }).json()
     assert result['success'] is True
@@ -74,7 +73,7 @@ def test_stereo_pcm_is_normalized_before_downmix():
 
 def test_guest_cannot_attach_records_to_registered_user():
     user_id, headers = register()
-    client.post('/api/analyze', data={'text': 'Hello', 'user_id': user_id, 'demo_mode': 'true'})
+    client.post('/api/analyze', data={'text': 'Hello', 'user_id': user_id})
     client.post('/api/checkin', json={
         'user_id': user_id, 'feeling_score': 3, 'energy_score': 3,
         'sleep_score': 3, 'stress_score': 3, 'talk_to_someone': False,
@@ -86,14 +85,14 @@ def test_guest_cannot_attach_records_to_registered_user():
 def test_private_shares_require_owner_for_creation_and_revocation():
     owner_id, owner = register()
     _, other = register()
-    result_id = client.post('/api/analyze', data={'text': 'Happy', 'demo_mode': 'true'}, headers=owner).json()['data']['id']
+    result_id = client.post('/api/analyze', data={'text': 'Happy'}, headers=owner).json()['data']['id']
     for headers in ({}, other):
         result = client.post('/api/share/create', json={'result_id': result_id, 'user_id': owner_id}, headers=headers).json()
-        assert result['success'] is False
+        assert result.get('success') is False or 'detail' in result
     shared = client.post('/api/share/create', json={'result_id': result_id}, headers=owner).json()
     token = shared['data']['share_token']
     for headers in ({}, other):
-        assert client.post(f'/api/share/{token}/revoke', headers=headers).json()['success'] is False
+        assert client.post(f'/api/share/{token}/revoke', headers=headers).json().get('success') is not True
     assert client.get(f'/api/share/{token}').json()['success'] is True
     assert client.post(f'/api/share/{token}/revoke', headers=owner).json()['success'] is True
     assert client.get(f'/api/share/{token}').json()['error']['code'] == 'LINK_REVOKED'

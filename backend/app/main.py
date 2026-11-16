@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import uuid
 import json
 import logging
@@ -39,6 +41,11 @@ from .database import (
     delete_user_complete_account, record_game_session
 )
 from .rate_limiter import rate_limiter
+from .security import signing_key
+from .database import DATABASE_PATH, get_db_connection
+from .inference.service import engine, InputError, ModelUnavailable
+from .mail import send_token
+from starlette.concurrency import run_in_threadpool
 from .ml.preprocessing.text import tokenize, check_crisis_keywords
 from .ml.preprocessing.audio import preprocess_audio
 from .ml.preprocessing.vision import preprocess_image
@@ -46,14 +53,13 @@ from .ml.preprocessing.vision import preprocess_image
 PYTORCH_AVAILABLE = False
 try:
     import torch
-    from .ml.fusion_model import MultimodalFusionModel
     PYTORCH_AVAILABLE = True
 except ImportError:
     pass
 
 app = FastAPI(title="MindSense API", version="1.4")
 
-JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "mindsense-research-secret-key-2026-v1")
+JWT_SECRET_KEY = signing_key(DATABASE_PATH)
 ALLOWED_ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000").split(",") if o.strip()]
 
 app.add_middleware(
@@ -92,6 +98,13 @@ def base64url_decode(data_str: str) -> bytes:
 def create_jwt_token(payload: dict, expires_in_seconds: int = 86400) -> str:
     header = {"alg": "HS256", "typ": "JWT"}
     payload_copy = payload.copy()
+    if payload_copy.get("type") in ("user", "developer") and "sub" in payload_copy:
+        table = "users" if payload_copy["type"] == "user" else "developer_users"
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT auth_version FROM users WHERE id = ?" if table == "users" else "SELECT auth_version FROM developer_users WHERE id = ?", (payload_copy["sub"],)).fetchone()
+        payload_copy["version"] = row[0] if row else -1
+    payload_copy["iat"] = int(time.time())
+    payload_copy["jti"] = uuid.uuid4().hex
     payload_copy["exp"] = int(time.time()) + expires_in_seconds
     
     header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
@@ -118,20 +131,30 @@ def verify_jwt_token(token: str) -> Optional[dict]:
         if not hmac.compare_digest(sig_b64, expected_sig):
             return None
             
+        header = json.loads(base64url_decode(header_b64).decode('utf-8'))
+        if header != {"alg": "HS256", "typ": "JWT"}:
+            return None
         payload = json.loads(base64url_decode(payload_b64).decode('utf-8'))
-        if payload.get("exp") and payload["exp"] < int(time.time()):
+        if not isinstance(payload.get("exp"), (int, float)) or payload["exp"] <= int(time.time()):
             return None
             
+        table = {"user": "users", "developer": "developer_users"}.get(payload.get("type"))
+        if not table:
+            return None
+        with get_db_connection() as conn:
+            row = conn.execute("SELECT auth_version FROM users WHERE id = ?" if table == "users" else "SELECT auth_version FROM developer_users WHERE id = ?", (payload.get("sub"),)).fetchone()
+        if row is None or payload.get("version") != row[0]:
+            return None
         return payload
     except Exception:
         return None
 
 def get_current_user_from_req(request: Request) -> dict:
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if not auth_header or not auth_header.startswith("Bearer ") or not auth_header[7:].strip():
         raise HTTPException(status_code=401, detail="Authentication token required.")
     
-    token = auth_header.split(" ")[1]
+    token = auth_header[7:].strip()
     payload = verify_jwt_token(token)
     if not payload or "sub" not in payload or payload.get("type") != "user":
         raise HTTPException(status_code=401, detail="Invalid or expired user authentication token.")
@@ -143,21 +166,16 @@ def get_current_user_from_req(request: Request) -> dict:
     return user
 
 def get_optional_user_from_req(request: Request) -> Optional[dict]:
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if not request.headers.get("Authorization"):
         return None
-    token = auth_header.split(" ")[1]
-    payload = verify_jwt_token(token)
-    if not payload or "sub" not in payload or payload.get("type") != "user":
-        return None
-    return get_user_by_id(int(payload["sub"]))
+    return get_current_user_from_req(request)
 
 def get_current_developer_from_req(request: Request, required_permission: Optional[str] = None) -> dict:
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if not auth_header or not auth_header.startswith("Bearer ") or not auth_header[7:].strip():
         raise HTTPException(status_code=401, detail="Developer authentication required. Missing Bearer token.")
         
-    token = auth_header.split(" ")[1]
+    token = auth_header[7:].strip()
     payload = verify_jwt_token(token)
     if not payload or "sub" not in payload or payload.get("type") != "developer":
         raise HTTPException(status_code=401, detail="Invalid or expired developer authentication token.")
@@ -189,22 +207,6 @@ def get_current_developer_from_req(request: Request, required_permission: Option
 
 init_db()
 
-model = None
-if PYTORCH_AVAILABLE:
-    try:
-        model = MultimodalFusionModel(num_classes=7, d_model=64)
-        model_path = os.environ.get("MINDSENSE_MODEL_PATH") or os.path.join(os.path.dirname(__file__), "ml", "mindsense_fusion.pt")
-        if os.path.exists(model_path):
-            model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'), weights_only=True))
-            model.eval()
-            print("Loaded PyTorch Multimodal Fusion weights successfully.")
-        else:
-            logger.warning("Model checkpoint missing; only rule-based demonstration is available.")
-            model = None
-    except Exception as e:
-        print(f"Error loading PyTorch model: {e}. Falling back to rule-based inference.")
-        model = None
-
 EMOTIONS = ["happy", "sad", "angry", "fear", "surprise", "disgust", "neutral"]
 
 # ----------------- PYDANTIC SCHEMAS ----------------- #
@@ -221,12 +223,12 @@ class StandardResponse(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     email: str
-    password: str
+    password: str = Field(min_length=8, max_length=128)
     name: str
 
 class LoginRequest(BaseModel):
     username_or_email: str
-    password: str
+    password: str = Field(min_length=8, max_length=128)
 
 class UpdateProfileRequest(BaseModel):
     user_id: int
@@ -236,7 +238,7 @@ class UpdateProfileRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     user_id: int
     old_password: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 class CheckinRequest(BaseModel):
     user_id: Optional[int] = None
@@ -252,13 +254,13 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 class DeveloperRegisterRequest(BaseModel):
     full_name: str
     username: str
     email: str
-    password: str
+    password: str = Field(min_length=8, max_length=128)
     organization: Optional[str] = "Independent Research"
     requested_role: Optional[str] = "DEVELOPER"
 
@@ -322,117 +324,17 @@ def get_confidence_label(prob: float) -> str:
     else:
         return "Higher model confidence"
 
-def simulate_prediction(text: Optional[str], audio_mfcc: Optional[list], face_status: str) -> dict:
-    text_probs = np_softmax([0.0] * 7)
-    audio_probs = np_softmax([0.0] * 7)
-    vision_probs = np_softmax([0.0] * 7)
-    
-    if text:
-        text_scores = [0.0] * 7
-        text_lower = text.lower()
-        
-        sad_words = ["sad", "depressed", "lonely", "hurt", "empty", "tired", "exhausted", "hopeless", "unhappy", "cry", "crying", "grief", "burnout"]
-        happy_words = ["happy", "joy", "glad", "excited", "cheerful", "smile", "smiling", "love", "great", "good", "wonderful", "celebrate"]
-        angry_words = ["angry", "mad", "rage", "furious", "annoyed", "frustrated", "hate", "irritated", "dislike", "furious"]
-        fear_words = ["fear", "scared", "afraid", "anxious", "nervous", "panic", "worry", "worried", "stress", "stressed", "dread"]
-        surprise_words = ["surprise", "surprised", "shocked", "amazing", "sudden", "unexpected", "wow"]
-        disgust_words = ["disgust", "disgusted", "gross", "nasty", "revolting", "sick", "yuck", "repulsed"]
-        neutral_words = ["fine", "okay", "normal", "average", "usual", "regular", "neutral"]
-        
-        for w in sad_words:
-            if w in text_lower: text_scores[1] += 2.5
-        for w in happy_words:
-            if w in text_lower: text_scores[0] += 2.5
-        for w in angry_words:
-            if w in text_lower: text_scores[2] += 2.5
-        for w in fear_words:
-            if w in text_lower: text_scores[3] += 2.5
-        for w in surprise_words:
-            if w in text_lower: text_scores[4] += 2.5
-        for w in disgust_words:
-            if w in text_lower: text_scores[5] += 2.5
-        for w in neutral_words:
-            if w in text_lower: text_scores[6] += 1.5
-            
-        if sum(text_scores) == 0:
-            text_scores[6] = 1.0
-            
-        text_probs = np_softmax(text_scores)
-        
-    if audio_mfcc is not None:
-        audio_scores = [0.0] * 7
-        mfcc_arr = np_array(audio_mfcc)
-        std_dev = float(mfcc_arr.std())
-        
-        if std_dev > 1.2:
-            audio_scores[2] = 2.0  # Angry
-            audio_scores[4] = 1.5  # Surprise
-            audio_scores[0] = 1.0  # Happy
-        elif std_dev < 0.6:
-            audio_scores[1] = 2.0  # Sad
-            audio_scores[6] = 1.5  # Neutral
-        else:
-            audio_scores[6] = 1.5  # Neutral
-            audio_scores[3] = 1.0  # Fear
-            
-        audio_probs = np_softmax(audio_scores)
-        
-    if face_status != "no_face":
-        vision_scores = [0.0] * 7
-        if face_status == "multiple_faces":
-            vision_scores[4] = 2.0
-            vision_scores[6] = 1.0
-        else:
-            vision_scores[6] = 1.5
-            vision_scores[0] = 0.5
-            
-        vision_probs = np_softmax(vision_scores)
-        
-    modalities_used = []
-    fused_scores = [0.0] * 7
-    
-    if text:
-        modalities_used.append("text")
-        for i in range(7): fused_scores[i] += text_probs[i] * 0.40
-    if audio_mfcc is not None:
-        modalities_used.append("audio")
-        for i in range(7): fused_scores[i] += audio_probs[i] * 0.35
-    if face_status != "no_face":
-        modalities_used.append("image")
-        for i in range(7): fused_scores[i] += vision_probs[i] * 0.25
-        
-    total_fused = sum(fused_scores)
-    fused_probs = [s / total_fused for s in fused_scores] if total_fused > 0 else np_softmax([0.0] * 7)
-    
-    max_idx = fused_probs.index(max(fused_probs))
-    final_emotion = EMOTIONS[max_idx]
-    final_confidence = fused_probs[max_idx]
-    
-    return {
-        "final_emotion": final_emotion,
-        "confidence": final_confidence,
-        "probabilities": {EMOTIONS[i]: float(fused_probs[i]) for i in range(7)},
-        "modalities_used": modalities_used,
-        "modality_predictions": {
-            "text": {"emotion": EMOTIONS[text_probs.index(max(text_probs))], "confidence": float(max(text_probs))} if text else None,
-            "audio": {"emotion": EMOTIONS[audio_probs.index(max(audio_probs))], "confidence": float(max(audio_probs))} if audio_mfcc is not None else None,
-            "image": {"emotion": EMOTIONS[vision_probs.index(max(vision_probs))], "confidence": float(max(vision_probs))} if face_status != "no_face" else None
-        }
-    }
-
-def np_softmax(x):
-    import numpy as np
-    exp_x = np.exp(x - np.max(x))
-    return (exp_x / exp_x.sum()).tolist()
-
-def np_array(x):
-    import numpy as np
-    return np.array(x)
-
 # ----------------- AUTHENTICATION & ACCOUNT SETTINGS ----------------- #
 
+@app.get("/api/auth/me", response_model=StandardResponse)
+def current_account(request: Request):
+    return {"success": True, "data": {"user": get_current_user_from_req(request)}}
+
 @app.post("/api/auth/register", response_model=StandardResponse)
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "register", limit=10)
+    if not req.username.strip() or "@" not in req.email or not req.name.strip():
+        raise HTTPException(422, "Provide a username, valid email, and name.")
     try:
         user = register_user(req.username, req.email, req.password, req.name)
         token = create_jwt_token({"sub": user["id"], "username": user["username"], "type": "user"})
@@ -452,6 +354,7 @@ def register(req: RegisterRequest):
 
 @app.post("/api/auth/login", response_model=StandardResponse)
 def login(req: LoginRequest, request: Request):
+    rate_limiter.check_rate_limit(request, "login", limit=10)
     client_ip = request.client.host if request.client else "127.0.0.1"
     user_agent = request.headers.get("user-agent", "Unknown Browser")
     user = authenticate_user(req.username_or_email, req.password, client_ip, user_agent)
@@ -477,6 +380,8 @@ def update_profile(req: UpdateProfileRequest, request: Request):
             "data": {"user": updated_user, "message": "Profile updated successfully."},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -523,17 +428,22 @@ def login_history(request: Request):
 @app.post("/api/auth/forgot-password", response_model=StandardResponse)
 def user_forgot_password(req: ForgotPasswordRequest, request: Request):
     rate_limiter.check_rate_limit(request, "forgot_pw", limit=5)
-    ok, res = create_user_password_reset(req.username_or_email)
+    return recovery_response(req.username_or_email, create_user_password_reset)
+
+
+def recovery_response(identity, create_token):
+    test_mode = os.environ.get("MINDSENSE_TEST_MODE") == "1" and os.environ.get("ENVIRONMENT") != "production"
+    if not test_mode and not os.environ.get("SMTP_HOST"):
+        raise HTTPException(503, "Password recovery requires configured email delivery. Contact the administrator.")
+    ok, res = create_token(identity)
     if ok:
-        return {
-            "success": True,
-            "data": {"message": "Password reset token generated.", "reset_token": res["token"]},
-            "error": None
-        }
-    return {
-        "success": False,
-        "error": {"code": "USER_NOT_FOUND", "message": res}
-    }
+        if test_mode:
+            return {"success": True, "data": {"reset_token": res["token"], "message": "Test-only recovery token."}}
+        try:
+            send_token(res["email"], res["token"], "password reset")
+        except Exception:
+            logger.exception("Password recovery email delivery failed")
+    return {"success": True, "data": {"message": "If the account exists, a recovery email will arrive shortly."}}
 
 @app.post("/api/auth/reset-password", response_model=StandardResponse)
 def user_reset_password(req: ResetPasswordRequest, request: Request):
@@ -547,7 +457,7 @@ def user_reset_password(req: ResetPasswordRequest, request: Request):
 def user_logout(request: Request):
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
+        token = auth_header[7:].strip()
         user = get_optional_user_from_req(request)
         if user:
             revoke_session_token(token, user["id"], "user")
@@ -571,6 +481,14 @@ def submit_research_consent(req: ResearchConsentRequest, request: Request):
 @app.post("/api/research/participate", response_model=StandardResponse)
 def submit_research_participation(req: ResearchParticipateRequest, request: Request):
     user = get_current_user_from_req(request)
+    from .database import get_db_connection
+    with get_db_connection() as conn:
+        consent = conn.execute("SELECT 1 FROM research_consents WHERE user_id=? AND study_id=? AND consent_given=1 AND withdrawn_at IS NULL", (user["id"], req.study_id)).fetchone()
+        study = conn.execute("SELECT 1 FROM research_studies WHERE id=? AND status='active'", (req.study_id,)).fetchone()
+        if not consent or not study:
+            raise HTTPException(status_code=403, detail="An active study and explicit current consent are required.")
+        if req.analysis_id and not conn.execute("SELECT 1 FROM analyses WHERE id=? AND user_id=?", (req.analysis_id, user["id"])).fetchone():
+            raise HTTPException(status_code=404, detail="Analysis not found.")
     p_info = register_research_participant(user["id"], req.age_group, req.gender_identity)
     
     contrib_id = record_research_contribution(
@@ -649,7 +567,7 @@ def submit_feedback(req: FeedbackRequest, request: Request):
     rate_limiter.check_rate_limit(request, "feedback", limit=10)
     try:
         opt_user = get_optional_user_from_req(request)
-        user_id = req.user_id or (opt_user["id"] if opt_user else None)
+        user_id = opt_user["id"] if opt_user else None
         comment_text = req.comment or req.content or ""
         category_text = req.category or "General"
         rating_val = req.rating if req.rating is not None else 5
@@ -715,16 +633,17 @@ def list_articles(
         }
 
 @app.post("/api/articles", response_model=StandardResponse)
-def publish_article(req: ArticleCreateRequest):
+def publish_article(req: ArticleCreateRequest, request: Request):
+    user = get_current_user_from_req(request)
     try:
         article_id = create_article(
             title=req.title,
-            author=req.author,
+            author=user["name"],
             category=req.category,
             summary=req.summary,
             content=req.content,
             tags=req.tags,
-            user_id=req.user_id
+            user_id=user["id"]
         )
         return {
             "success": True,
@@ -753,9 +672,10 @@ def like_post(article_id: int):
         }
 
 @app.delete("/api/articles/{article_id}", response_model=StandardResponse)
-def remove_article(article_id: int, user_id: Optional[int] = Query(None)):
+def remove_article(article_id: int, request: Request):
+    user = get_current_user_from_req(request)
     try:
-        deleted = delete_article(article_id, user_id)
+        deleted = delete_article(article_id, user["id"])
         if deleted:
             return {"success": True, "data": {"message": "Article deleted."}, "error": None}
         return {"success": False, "error": {"code": "NOT_FOUND", "message": "Article not found."}}
@@ -769,57 +689,8 @@ def remove_article(article_id: int, user_id: Optional[int] = Query(None)):
 
 @app.get("/api/datasets/samples", response_model=StandardResponse)
 def get_dataset_samples():
-    samples = [
-        {
-            "id": "crema-d-01",
-            "dataset": "CREMA-D",
-            "title": "Crowd-Sourced Multimodal Speech & Facial Clip",
-            "speaker": "Actor #1024 (Female, 28)",
-            "ground_truth": "sad",
-            "text": "I can't believe this is happening again. Everything feels completely overwhelming.",
-            "audio_label": "High pitch variability, depressed resonance, 16kHz mono",
-            "vision_label": "Lowered lip corners, drooped eyelids, 48x48 grayscale crop",
-            "description": "CREMA-D contains 7,442 clips from 91 diverse actors labeled by 2,445 crowd reviewers."
-        },
-        {
-            "id": "ravdess-02",
-            "dataset": "RAVDESS",
-            "title": "Ryerson Speech & Song Emotional Dataset",
-            "speaker": "Actor #03 (Male, 34)",
-            "ground_truth": "fear",
-            "text": "The papers are waiting on the desk... did you hear that sudden noise in the hallway?",
-            "audio_label": "Fast cadence, tremors in vocal tract MFCC distribution",
-            "vision_label": "Widened eye aperture, raised inner brows",
-            "description": "RAVDESS provides validated North American recordings scored across 8 discrete emotions."
-        },
-        {
-            "id": "fer2013-03",
-            "dataset": "FER-2013",
-            "title": "In-the-Wild Facial Emotion Benchmark",
-            "speaker": "Unconstrained Subject #18920",
-            "ground_truth": "angry",
-            "text": "This is completely unacceptable after we waited for three hours.",
-            "audio_label": "High energy bursts, sharp fundamental frequency shift",
-            "vision_label": "Furrowed brow, pressed lips, normalized 48x48 face",
-            "description": "FER-2013 contains 35,887 in-the-wild facial expressions harvested from search queries."
-        },
-        {
-            "id": "goemotions-04",
-            "dataset": "GoEmotions",
-            "title": "Reddit Social Commentary Corpus",
-            "speaker": "User r/AskReddit",
-            "ground_truth": "happy",
-            "text": "I finally defended my thesis and got offered the research role! Thank you all for the support!",
-            "audio_label": "Upbeat vocal tone, balanced harmonics",
-            "vision_label": "Duchenne smile with cheek elevation",
-            "description": "Google's GoEmotions corpus provides 58,000 fine-grained human annotated comments."
-        }
-    ]
-    return {
-        "success": True,
-        "data": {"samples": samples},
-        "error": None
-    }
+    return {"success": True, "data": {"samples": [],
+        "message": "No benchmark media is bundled. Download licensed datasets from their publishers; authored prompts are not evaluation data."}, "error": None}
 
 # ----------------- DAILY NOTES / MOOD JOURNAL ENDPOINTS ----------------- #
 
@@ -876,249 +747,67 @@ def health_check():
         "success": True,
         "data": {
             "status": "healthy" if db_ok else "degraded",
-            "inference_mode": "model" if model is not None else "demo",
+            "inference_mode": "published_models",
+            "models": engine.status(),
             "database_connected": db_ok,
-            "pytorch_loaded": PYTORCH_AVAILABLE and model is not None,
-            "model_version": "multimodal_v1.3"
+            "pytorch_loaded": PYTORCH_AVAILABLE,
+            "model_version": "published-late-fusion-v1"
         }
     }
+
+@app.get("/api/models", response_model=StandardResponse)
+def model_status():
+    return {"success": True, "data": {"models": engine.status(), "fusion_method": "support-aware late fusion", "demo_available": False}}
 
 @app.post("/api/analyze", response_model=StandardResponse)
-async def analyze_emotion(
-    request: Request,
-    text: Optional[str] = Form(None),
-    audio: Optional[UploadFile] = File(None),
-    image: Optional[UploadFile] = File(None),
-    demo_mode: bool = Form(False),
-    user_id: Optional[int] = Form(None)
-):
+async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
+                          audio: Optional[UploadFile] = File(None), image: Optional[UploadFile] = File(None),
+                          demo_mode: bool = Form(False), user_id: Optional[int] = Form(None)):
     rate_limiter.check_rate_limit(request, "analyze", limit=30)
-    
-    if audio:
-        validate_uploaded_file(audio, "audio")
-    if image:
-        validate_uploaded_file(image, "image")
-
-    opt_user = get_optional_user_from_req(request)
-    target_user_id = opt_user["id"] if opt_user else None
-    text = text.strip() if text else None
-    stages = []
-    
-    stages.append({"stage": "Input Validation", "status": "processing"})
-    if not text and not audio and not image:
-        stages[-1]["status"] = "failed"
-        return {
-            "success": False,
-            "error": {
-                "code": "INSUFFICIENT_INPUT",
-                "message": "No input modalities provided. Please provide text, audio, or image."
-            }
-        }
-    stages[-1]["status"] = "completed"
-    
-    stages.append({"stage": "Preprocessing", "status": "processing"})
-    stages.append({"stage": "Feature Extraction", "status": "pending"})
-    
-    crisis_alert = False
-    text_tokens = None
-    if text and text.strip():
-        text_tokens = tokenize(text)
-        crisis_alert, _ = check_crisis_keywords(text)
-        
-    audio_mfcc = None
-    if audio:
-        try:
-            audio_bytes = await audio.read(MAX_UPLOAD_BYTES + 1)
-            if len(audio_bytes) > MAX_UPLOAD_BYTES:
-                raise HTTPException(status_code=413, detail="Audio upload exceeds 10 MB.")
-            ext = os.path.splitext(audio.filename)[1] if audio.filename else ".wav"
-            if not ext: ext = ".wav"
-            audio_mfcc = preprocess_audio(audio_bytes, ext, strict=True).tolist()
-        except HTTPException:
-            raise
-        except Exception as e:
-            stages[-1]["status"] = "failed"
-            return {
-                "success": False,
-                "error": {
-                    "code": "INVALID_AUDIO",
-                    "message": f"The uploaded audio file could not be preprocessed. Details: {str(e)}"
-                }
-            }
-            
-    image_face = None
-    face_status = "no_face"
-    if image:
-        try:
-            image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
-            if len(image_bytes) > MAX_UPLOAD_BYTES:
-                raise HTTPException(status_code=413, detail="Image upload exceeds 10 MB.")
-            image_face, face_status = preprocess_image(image_bytes)
-            if image_face is None and face_status == "no_face":
-                stages[-1]["status"] = "failed"
-                return {
-                    "success": False,
-                    "error": {
-                        "code": "NO_FACE_DETECTED",
-                        "message": "No face was detected in this image. Please upload a clear image containing one face."
-                    }
-                }
-        except HTTPException:
-            raise
-        except Exception as e:
-            stages[-1]["status"] = "failed"
-            return {
-                "success": False,
-                "error": {
-                    "code": "INVALID_IMAGE",
-                    "message": f"The uploaded image could not be processed. Details: {str(e)}"
-                }
-            }
-            
-    stages[-2]["status"] = "completed"
-    stages[-1]["status"] = "completed"
-    
-    stages.append({"stage": "Modality Encoding", "status": "processing"})
-    stages.append({"stage": "Multimodal Fusion", "status": "pending"})
-    
-    is_demo_prediction = demo_mode or (not PYTORCH_AVAILABLE) or (model is None)
-    result = None
-    
-    if not is_demo_prediction:
-        try:
-            stages[-2]["status"] = "processing"
-            t_tensor = torch.tensor([text_tokens], dtype=torch.long) if text_tokens else None
-            a_tensor = torch.tensor([audio_mfcc], dtype=torch.float) if audio_mfcc else None
-            v_tensor = torch.tensor([image_face.tolist()], dtype=torch.float) if image_face is not None else None
-            
-            with torch.no_grad():
-                out = model(text_input=t_tensor, audio_input=a_tensor, vision_input=v_tensor)
-                probs = torch.softmax(out["multimodal_logits"], dim=1).squeeze(0).tolist()
-                max_idx = probs.index(max(probs))
-                final_emotion = EMOTIONS[max_idx]
-                final_confidence = probs[max_idx]
-                
-                t_pred = None
-                if out["text_logits"] is not None:
-                    t_probs = torch.softmax(out["text_logits"], dim=1).squeeze(0).tolist()
-                    t_pred = {"emotion": EMOTIONS[t_probs.index(max(t_probs))], "confidence": max(t_probs)}
-                    
-                a_pred = None
-                if out["audio_logits"] is not None:
-                    a_probs = torch.softmax(out["audio_logits"], dim=1).squeeze(0).tolist()
-                    a_pred = {"emotion": EMOTIONS[a_probs.index(max(a_probs))], "confidence": max(a_probs)}
-                    
-                v_pred = None
-                if out["vision_logits"] is not None:
-                    v_probs = torch.softmax(out["vision_logits"], dim=1).squeeze(0).tolist()
-                    v_pred = {"emotion": EMOTIONS[v_probs.index(max(v_probs))], "confidence": max(v_probs)}
-                    
-            modalities_used = []
-            if text_tokens: modalities_used.append("text")
-            if audio_mfcc: modalities_used.append("audio")
-            if image_face is not None: modalities_used.append("image")
-            
-            result = {
-                "final_emotion": final_emotion,
-                "confidence": final_confidence,
-                "probabilities": {EMOTIONS[i]: probs[i] for i in range(7)},
-                "modalities_used": modalities_used,
-                "modality_predictions": {
-                    "text": t_pred,
-                    "audio": a_pred,
-                    "image": v_pred
-                }
-            }
-            stages[-2]["status"] = "completed"
-            stages[-1]["status"] = "completed"
-        except Exception as e:
-            print(f"PyTorch inference exception: {e}. Falling back to demo mode.")
-            is_demo_prediction = True
-            
-    if is_demo_prediction:
-        stages[-2]["status"] = "completed"
-        stages[-1]["status"] = "completed"
-        result = simulate_prediction(text, audio_mfcc, face_status)
-        
-    stages.append({"stage": "Emotion Classification", "status": "completed"})
-    stages.append({"stage": "Generating Insights", "status": "processing"})
-    
-    final_emo = result["final_emotion"]
-    conf = result["confidence"]
-    insight_text = ""
-    
-    if final_emo in ["sad", "fear", "angry", "disgust"]:
-        insight_text = f"The model detected emotional patterns associated with {final_emo}."
-        if final_emo == "fear":
-            insight_text = "The model detected emotional patterns associated with worry or stress."
-        insight_text += " Your recent inputs show elevated negative emotional signals. "
-        if conf > 0.60:
-            insight_text += "Consider checking in with yourself or speaking with someone you trust or a qualified professional if these feelings persist."
-    elif final_emo in ["happy", "surprise"]:
-        insight_text = f"The model detected emotional patterns associated with positive states like {final_emo}."
-    else:
-        insight_text = "The model detected stable, neutral emotional patterns."
-        
-    if is_demo_prediction:
-        insight_text = "Rule-based demonstration: these illustrative scores are not measured emotions or calibrated model confidence."
-
-    if crisis_alert:
-        insight_text = (
-            "MindSense detected signals of high distress or potential self-harm. Please know you are not alone. "
-            "Consider reaching out to a professional or contacting a crisis line immediately: "
-            "National Suicide Prevention Lifeline: Call or text 988 (USA) | "
-            "Crisis Text Line: Text HOME to 741741 (USA) | "
-            "International Resources: https://findahelpline.com/"
-        )
-    else:
-        insight_text += " This result is an AI-generated estimate and is not a medical diagnosis."
-
-    disclaimer = (
-        "This system is for research and wellness monitoring only and does not provide medical "
-        "diagnosis or professional mental-health assessment."
-    )
-    
-    stages[-1]["status"] = "completed"
-    analysis_id = str(uuid.uuid4())
-    
-    save_analysis(
-        analysis_id=analysis_id,
-        modalities_used=result["modalities_used"],
-        final_emotion=final_emo,
-        confidence_score=conf,
-        model_version="multimodal_v1.3",
-        is_demo=is_demo_prediction,
-        modality_results=result["modality_predictions"],
-        user_id=target_user_id
-    )
-    
-    response_data = {
-        "id": analysis_id,
-        "timestamp": datetime.utcnow().isoformat(),
-        "emotion": final_emo,
-        "confidence": conf,
-        "confidence_label": "Illustrative demo score" if is_demo_prediction else get_confidence_label(conf),
-        "probabilities": result["probabilities"],
-        "modalities_used": result["modalities_used"],
-        "modality_predictions": result["modality_predictions"],
-        "is_demo": is_demo_prediction,
-        "model_version": "multimodal_v1.3",
-        "disclaimer": disclaimer,
-        "crisis_alert": crisis_alert,
-        "wellness_insight": insight_text,
-        "stages": stages
+    user = get_optional_user_from_req(request)
+    if demo_mode:
+        return {"success": False, "error": {"code": "DEMO_DISABLED", "message": "Simulated predictions are disabled. Install the published models to analyze real inputs."}}
+    blobs = {}
+    for kind, upload in (("audio", audio), ("image", image)):
+        if upload:
+            validate_uploaded_file(upload, kind)
+            blobs[kind] = await upload.read(MAX_UPLOAD_BYTES + 1)
+            if len(blobs[kind]) > MAX_UPLOAD_BYTES:
+                raise HTTPException(413, "Each upload must be at most 10 MB.")
+    if not (text and text.strip()) and not blobs:
+        return {"success": False, "error": {"code": "INSUFFICIENT_INPUT", "message": "Provide text, speech, or one facial image."}}
+    try:
+        prediction = await run_in_threadpool(engine.analyze, text=text, **blobs)
+    except InputError as exc:
+        return {"success": False, "error": {"code": "INVALID_INPUT", "message": str(exc)}}
+    except ModelUnavailable as exc:
+        return {"success": False, "error": {"code": "MODEL_UNAVAILABLE", "message": str(exc)}}
+    except Exception:
+        logger.exception("Inference failed")
+        return {"success": False, "error": {"code": "INFERENCE_FAILED", "message": "Inference failed. No substitute prediction was generated."}}
+    result = {
+        "id": str(uuid.uuid4()), "timestamp": datetime.utcnow().isoformat(),
+        "emotion": prediction["final_emotion"], "confidence": prediction["confidence"],
+        "confidence_label": "Uncalibrated model score", "probabilities": prediction["probabilities"],
+        "modalities_used": prediction["modalities_used"], "modality_predictions": prediction["modality_predictions"],
+        "is_demo": False, "model_version": prediction["model_version"],
+        "warnings": prediction["warnings"], "fusion_method": prediction["fusion_method"],
+        "saved": user is not None, "crisis_alert": False,
+        "disclaimer": "Research and self-reflection only. Expressions do not establish internal emotions or mental-health diagnoses.",
+        "wellness_insight": "Consider whether these expression labels match your own experience. Model scores are uncertain and are not a mental-health assessment.",
+        "stages": [{"stage": name, "status": "completed"} for name in ("Input validation", "Published model inference", "Late fusion")],
     }
-    
-    return {
-        "success": True,
-        "data": response_data,
-        "error": None
-    }
+    if user:
+        save_analysis(result["id"], result["modalities_used"], result["emotion"], result["confidence"],
+                      result["model_version"], False, result["modality_predictions"], user["id"])
+        with get_db_connection() as conn:
+            conn.execute("UPDATE analyses SET result_json = ? WHERE id = ?", (json.dumps(result), result["id"]))
+    return {"success": True, "data": result}
 
 @app.get("/api/history", response_model=StandardResponse)
 def get_analysis_history(request: Request, limit: int = Query(50, ge=1, le=100)):
     try:
-        user = get_optional_user_from_req(request)
+        user = get_current_user_from_req(request)
         target_user_id = user["id"] if user else None
         history = get_history(limit, target_user_id)
         return {
@@ -1126,6 +815,8 @@ def get_analysis_history(request: Request, limit: int = Query(50, ge=1, le=100))
             "data": {"history": history},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1135,7 +826,7 @@ def get_analysis_history(request: Request, limit: int = Query(50, ge=1, le=100))
 @app.delete("/api/history", response_model=StandardResponse)
 def clear_all_history(request: Request):
     try:
-        user = get_optional_user_from_req(request)
+        user = get_current_user_from_req(request)
         target_user_id = user["id"] if user else None
         delete_history(target_user_id)
         return {
@@ -1143,6 +834,8 @@ def clear_all_history(request: Request):
             "data": {"message": "Historical records have been deleted successfully."},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1152,61 +845,15 @@ def clear_all_history(request: Request):
 @app.get("/api/dashboard", response_model=StandardResponse)
 def get_dashboard_summary(request: Request):
     try:
-        user = get_optional_user_from_req(request)
+        user = get_current_user_from_req(request)
         target_user_id = user["id"] if user else None
         raw_data = get_dashboard_data(target_user_id)
         
-        trends = {
-            "dominant_emotion": "Neutral",
-            "emotional_variability": "Low",
-            "recent_trend": "No recent trend available. Complete more analyses to calculate.",
-            "wellness_score": 78,
-            "alert": False
-        }
-        
-        historic = raw_data["historic_trends"]
-        checkins = raw_data["checkin_trends"]
-        
-        if len(historic) > 0 or len(checkins) > 0:
-            positive_count = 0
-            total_items = 0
-            
-            for h in historic:
-                total_items += 1
-                if h["final_emotion"] in ["happy", "surprise", "neutral"]:
-                    positive_count += 1
-                    
-            for c in checkins:
-                total_items += 1
-                if c["feeling_score"] >= 3:
-                    positive_count += 1
-                if c["stress_score"] <= 2:
-                    positive_count += 0.5
-                    
-            if total_items > 0:
-                score = int((positive_count / total_items) * 100)
-                trends["wellness_score"] = max(10, min(98, score))
-
-        if len(historic) >= 3:
-            emotions = [h["final_emotion"] for h in historic]
-            from collections import Counter
-            counts = Counter(emotions)
-            
-            trends["dominant_emotion"] = counts.most_common(1)[0][0]
-            trends["emotional_variability"] = "High" if len(counts) > 3 else "Moderate" if len(counts) > 1 else "Low"
-            
-            negative_emotions = ["sad", "fear", "angry"]
-            neg_count = sum(1 for e in emotions[:5] if e in negative_emotions)
-            
-            if neg_count >= 3:
-                trends["recent_trend"] = (
-                    "Your recent analyses show a concentration of stress or sadness-related emotional signals. "
-                    "Consider checking in with yourself, logging daily reflections, or speaking with someone you trust."
-                )
-                trends["alert"] = True
-            else:
-                trends["recent_trend"] = "Your emotional signals show a balanced, positive distribution over recent days."
-                
+        from collections import Counter
+        counts = Counter(h["final_emotion"] for h in raw_data["historic_trends"])
+        trends = {"dominant_emotion": counts.most_common(1)[0][0] if counts else "No data",
+                  "emotional_variability": "Not assessed", "recent_trend": "Expression-label history only; not a mental-health trend or diagnosis.",
+                  "wellness_score": None, "alert": False}
         return {
             "success": True,
             "data": {
@@ -1215,6 +862,8 @@ def get_dashboard_summary(request: Request):
             },
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1224,7 +873,7 @@ def get_dashboard_summary(request: Request):
 @app.post("/api/checkin", response_model=StandardResponse)
 def submit_checkin(request: CheckinRequest, req: Request):
     try:
-        user = get_optional_user_from_req(req)
+        user = get_current_user_from_req(req)
         target_user_id = user["id"] if user else None
         checkin_id = save_checkin(
             feeling_score=request.feeling_score,
@@ -1240,6 +889,8 @@ def submit_checkin(request: CheckinRequest, req: Request):
             "data": {"id": checkin_id, "message": "Daily check-in recorded successfully."},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1249,7 +900,7 @@ def submit_checkin(request: CheckinRequest, req: Request):
 @app.get("/api/checkins", response_model=StandardResponse)
 def get_all_checkins(req: Request, limit: int = Query(50, ge=1, le=100)):
     try:
-        user = get_optional_user_from_req(req)
+        user = get_current_user_from_req(req)
         target_user_id = user["id"] if user else None
         checkins = get_checkins(limit, target_user_id)
         return {
@@ -1257,6 +908,8 @@ def get_all_checkins(req: Request, limit: int = Query(50, ge=1, le=100)):
             "data": {"checkins": checkins},
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1266,7 +919,7 @@ def get_all_checkins(req: Request, limit: int = Query(50, ge=1, le=100)):
 @app.get("/api/research", response_model=StandardResponse)
 def get_research_metrics():
     try:
-        metrics_path = os.path.join(os.path.dirname(__file__), "ml", "evaluation_results.json")
+        metrics_path = os.environ.get("MINDSENSE_EVALUATION_REPORT", os.path.join(os.path.dirname(__file__), "..", "..", "reports", "evaluation.json"))
         if os.path.exists(metrics_path):
             with open(metrics_path, "r") as f:
                 metrics_data = json.load(f)
@@ -1327,107 +980,30 @@ def track_visitor_pageview(request: VisitPayload, req: Request):
 # ----------------- RESEARCH ASSISTANT / CHATBOT ----------------- #
 
 KNOWLEDGE_FAQ = [
-    {
-        "keywords": ["start", "analyze", "how to analyze", "how to use", "begin", "upload"],
-        "topic": "Starting an Analysis",
-        "answer": "To run an analysis in MindSense:\n1. Navigate to **Analyze** in the top navigation.\n2. Choose any combination of **Text** (statement), **Audio** (microphone record or .wav upload), and **Vision** (webcam photo snap or file upload).\n3. Click **Execute Intermediate Cross-Attention Analysis**.\n4. Review the detected dominant emotional state, confidence score, and probability distribution across 7 affect categories."
-    },
-    {
-        "keywords": ["multimodal", "cross-attention", "fusion", "how it works", "architecture", "intermediate"],
-        "topic": "Multimodal Fusion Architecture",
-        "answer": "MindSense uses an **Intermediate Cross-Attention Transformer**. Rather than concatenating raw features (Early Fusion) or averaging independent classifier scores (Late Fusion), our model projects 64-dimensional unimodal representations into a unified attention sequence. It applies dynamic availability masking ($M_{mask} = -\\infty$) so missing inputs never inject false zero-bias artifacts."
-    },
-    {
-        "keywords": ["confidence", "probability", "what does confidence mean", "score", "meaning"],
-        "topic": "Understanding Confidence Scores",
-        "answer": "The confidence score is the Softmax output probability computed by the neural network, representing the model's mathematical certainty among the 7 classified emotion categories. **Important:** Confidence is an AI estimation metric, NOT a clinical diagnostic probability or psychological assessment."
-    },
-    {
-        "keywords": ["medical", "diagnosis", "doctor", "clinical", "disease", "disorder", "depression", "anxiety"],
-        "topic": "Clinical Scope & Disclaimers",
-        "answer": "**Important Medical Advisory:** MindSense is an academic affective computing research and wellness self-reflection platform. It is NOT a medical device and does NOT diagnose psychiatric disorders. If you are experiencing distress, please contact the 24/7 Suicide & Crisis Lifeline at **988** (US/Canada) or visit findahelpline.com."
-    },
-    {
-        "keywords": ["dataset", "datasets", "crema", "ravdess", "fer", "goemotions", "training"],
-        "topic": "Benchmark Corpora",
-        "answer": "MindSense is evaluated against four gold-standard academic benchmarks:\n- **CREMA-D**: 7,442 audio-visual clips across 91 diverse actors.\n- **RAVDESS**: 7,356 validated North American speech and song recordings.\n- **FER-2013**: 35,887 unconstrained 48x48 facial crops.\n- **GoEmotions**: 58,000 fine-grained Reddit conversational comments.\nAll splits enforce strict speaker-independent and actor-independent isolation to prevent data leakage."
-    },
-    {
-        "keywords": ["privacy", "data", "storage", "camera", "microphone", "save", "stored"],
-        "topic": "Privacy & Data Architecture",
-        "answer": "MindSense follows local zero-persistence inference. Raw webcam captures and microphone audio buffers are processed exclusively in temporary volatile memory and flushed immediately after inference. Only numerical classification logits and private journal notes are stored in your local SQLite database."
-    },
-    {
-        "keywords": ["history", "trends", "past", "journal", "checkin", "check-in"],
-        "topic": "Insights & Longitudinal Tracking",
-        "answer": "Under **Insights**, you can explore:\n- **Longitudinal Trends**: Timeline charts tracking emotion transitions and daily feeling/stress curves.\n- **Assessment History**: Searchable logs of past multimodal inferences.\n- **Daily Journal**: Private qualitative reflections with affect tags and JSON export.\n- **Daily Check-in**: 1–5 somatic scale self-reporting."
-    }
+    {"keywords": ["start", "analyze", "upload"], "topic": "Starting an Analysis", "answer": "Open Analyze, add English text, speech, or a photo containing one consenting adult's face. Check the consent box and click Start Analysis. Missing models produce an error, not a substitute prediction."},
+    {"keywords": ["fusion", "multimodal", "architecture", "cross-attention"], "topic": "Fusion", "answer": "The serving pipeline uses published text, speech, and facial classifiers with equal-weight, support-aware late fusion. Historical cross-attention experiments are separate and are not used for application predictions."},
+    {"keywords": ["score", "confidence", "probability"], "topic": "Scores", "answer": "Normalized scores are uncalibrated model outputs, not certainty about a person's feelings. They cannot diagnose mental-health conditions."},
+    {"keywords": ["dataset", "training", "benchmark"], "topic": "Evaluation", "answer": "Open Models and evidence for measured MELD and RAVDESS diagnostic results and their limitations. No clinical validation or population-wide performance claim is available."},
+    {"keywords": ["privacy", "stored", "camera", "microphone", "storage"], "topic": "Privacy", "answer": "Inference runs on the server. Raw inputs are not saved to the application database; media decoding may use temporary files that are deleted. Guest results are not saved. Signed-in results and journal entries persist in SQLite until deleted. SQLite is not encrypted by this application."},
+    {"keywords": ["history", "journal", "checkin"], "topic": "Private records", "answer": "Sign in to use Insights, journal entries, and self-reported check-ins. Export or delete account data in Settings. Sharing creates a public bearer link that you can revoke."},
 ]
 
 @app.post("/api/assistant/chat", response_model=StandardResponse)
 def ask_research_assistant(request: AssistantQueryPayload):
+    started = time.perf_counter()
     query = request.message.strip().lower()
-    
-    # 1. Crisis Check
-    is_crisis, detected = check_crisis_keywords(query)
+    is_crisis, _ = check_crisis_keywords(query)
     if is_crisis:
-        log_assistant_interaction(is_crisis=True, topic="Crisis Support", latency_ms=45)
-        return {
-            "success": True,
-            "data": {
-                "response": "⚠️ **Immediate Crisis Support Notice:** It sounds like you or someone you know may be going through a difficult time. MindSense is an AI research tool and cannot provide clinical care or emergency assistance. **Please reach out to confidential 24/7 support right away:**\n- **Call or text 988** (USA & Canada Suicide & Crisis Lifeline)\n- **Text HOME to 741741** (Crisis Text Line)\n- **International:** Visit [findahelpline.com](https://findahelpline.com)\nFree, confidential help is available 24/7.",
-                "is_crisis": True,
-                "suggested_actions": ["Call 988", "Open Crisis Resources"]
-            },
-            "error": None
-        }
-
-    # 2. Match Knowledge Base
-    best_match = None
-    max_score = 0
-
-    for item in KNOWLEDGE_FAQ:
-        score = sum(1 for kw in item["keywords"] if kw in query)
-        if score > max_score:
-            max_score = score
-            best_match = item
-
-    if best_match and max_score > 0:
-        log_assistant_interaction(is_crisis=False, topic=best_match["topic"], latency_ms=65)
-        return {
-            "success": True,
-            "data": {
-                "response": best_match["answer"],
-                "topic": best_match["topic"],
-                "is_crisis": False,
-                "suggested_actions": ["Start Analysis", "Explore Research", "Open Help Center"]
-            },
-            "error": None
-        }
-
-    # 3. Default Helpful Academic Guidance
-    fallback_response = (
-        "I am the **MindSense Research Assistant**. I can help you navigate the platform, understand multimodal affective computing, explain our cross-attention architecture, and clarify how dataset benchmarks are structured.\n\n"
-        "**Popular topics you can ask me about:**\n"
-        "- *How do I start a multimodal analysis?*\n"
-        "- *What is Intermediate Cross-Attention fusion?*\n"
-        "- *What does the confidence score mean?*\n"
-        "- *Which benchmark datasets (CREMA-D, RAVDESS, FER-2013) are used?*\n"
-        "- *How is my audio and camera privacy handled?*\n"
-        "- *Is this a medical diagnostic system?*"
-    )
-
-    log_assistant_interaction(is_crisis=False, topic="General Guidance", latency_ms=80)
-    return {
-        "success": True,
-        "data": {
-            "response": fallback_response,
-            "topic": "General Guidance",
-            "is_crisis": False,
-            "suggested_actions": ["How to Analyze", "Explain Cross-Attention", "Privacy Info"]
-        },
-        "error": None
-    }
+        answer = "This is a scripted app guide, not crisis care. If you may act on thoughts of harming yourself or someone else, contact local emergency services or a trusted person who can stay with you. Seek qualified local support. MindSense cannot assess your safety."
+        topic = "Support"
+    else:
+        matches = [(sum(keyword in query for keyword in item['keywords']), item) for item in KNOWLEDGE_FAQ]
+        score, match = max(matches, key=lambda item: item[0])
+        answer = match['answer'] if score else "I am a scripted app guide. Ask about analysis, late fusion, scores, privacy, datasets, or your journal. I am not a language model or a mental-health counselor."
+        topic = match['topic'] if score else 'App guide'
+    log_assistant_interaction(is_crisis=is_crisis, topic=topic, latency_ms=round((time.perf_counter()-started)*1000))
+    return {"success": True, "data": {"response": answer, "topic": topic, "is_crisis": is_crisis,
+            "suggested_actions": ["Start Analysis", "Privacy Info"], "mode": "scripted_faq"}, "error": None}
 
 
 # ============================================================================
@@ -1436,13 +1012,13 @@ def ask_research_assistant(request: AssistantQueryPayload):
 
 class ShareCreateRequest(BaseModel):
     result_id: str
-    expiration_hours: Optional[int] = 24
+    expiration_hours: int = Field(default=24, ge=1, le=168)
     user_id: Optional[int] = None
 
 @app.post("/api/share/create", response_model=StandardResponse)
 async def api_create_share_link(payload: ShareCreateRequest, request: Request):
     try:
-        user = get_optional_user_from_req(request)
+        user = get_current_user_from_req(request)
         target_owner_id = user["id"] if user else None
         token = create_share_link(
             result_id=payload.result_id,
@@ -1458,6 +1034,8 @@ async def api_create_share_link(payload: ShareCreateRequest, request: Request):
             },
             "error": None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "success": False,
@@ -1492,7 +1070,7 @@ async def api_get_shared_result(token: str):
 
 @app.post("/api/share/{token}/revoke", response_model=StandardResponse)
 async def api_revoke_shared_link(token: str, request: Request):
-    user = get_optional_user_from_req(request)
+    user = get_current_user_from_req(request)
     actor_id = user["username"] if user else "PUBLIC_USER"
     ok = revoke_share_link(token, actor_id=actor_id, owner_id=user["id"] if user else None)
     if ok:
@@ -1506,7 +1084,7 @@ async def api_revoke_shared_link(token: str, request: Request):
 
 class DeveloperLoginRequest(BaseModel):
     username_or_email: str
-    password: str
+    password: str = Field(min_length=8, max_length=128)
 
 class DeveloperFeedbackUpdateRequest(BaseModel):
     status: str
@@ -1526,16 +1104,16 @@ async def api_register_developer(payload: DeveloperRegisterRequest, request: Req
         requested_role=payload.requested_role or "DEVELOPER"
     )
     if ok:
-        return {
-            "success": True,
-            "data": {
-                "message": "Developer registration submitted. Verification token created.",
-                "verification_token": res["verification_token"],
-                "state": res["state"]
-            },
-            "error": None
-        }
-    return {"success": False, "data": None, "error": {"code": "REGISTRATION_FAILED", "message": res}}
+        data = {"message": "Registration received. Email verification and administrator approval are required.", "state": res["state"]}
+        if os.environ.get("MINDSENSE_TEST_MODE") == "1" and os.environ.get("ENVIRONMENT") != "production":
+            data["verification_token"] = res["verification_token"]
+        else:
+            try:
+                send_token(payload.email, res["verification_token"], "email verification")
+            except Exception:
+                data["message"] = "Registration saved. Email delivery is unavailable; contact the administrator."
+        return {"success": True, "data": data}
+    return {"success": False, "error": {"code": "REGISTRATION_FAILED", "message": str(res)}}
 
 @app.post("/api/developer/auth/verify-email", response_model=StandardResponse)
 async def api_verify_developer_email(token: str):
@@ -1579,14 +1157,7 @@ async def developer_login(payload: DeveloperLoginRequest, request: Request):
 @app.post("/api/developer/auth/forgot-password", response_model=StandardResponse)
 async def developer_forgot_password(payload: ForgotPasswordRequest, request: Request):
     rate_limiter.check_rate_limit(request, "dev_forgot_pw", limit=5)
-    ok, res = create_developer_password_reset(payload.username_or_email)
-    if ok:
-        return {
-            "success": True,
-            "data": {"message": "Developer password reset token generated.", "reset_token": res["token"]},
-            "error": None
-        }
-    return {"success": False, "data": None, "error": {"code": "NOT_FOUND", "message": res}}
+    return recovery_response(payload.username_or_email, create_developer_password_reset)
 
 @app.post("/api/developer/auth/reset-password", response_model=StandardResponse)
 async def developer_reset_password(payload: ResetPasswordRequest, request: Request):
@@ -1600,7 +1171,7 @@ async def developer_reset_password(payload: ResetPasswordRequest, request: Reque
 async def developer_logout(request: Request):
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
+        token = auth_header[7:].strip()
         payload = verify_jwt_token(token)
         if payload and "sub" in payload:
             revoke_session_token(token, int(payload["sub"]), "developer")
@@ -1693,10 +1264,10 @@ async def get_developer_health(request: Request):
         "status": overall_status,
         "timestamp": datetime.utcnow().isoformat(),
         "services": {
-            "frontend": {"status": "healthy", "latency_ms": 12},
-            "backend_api": {"status": "healthy", "latency_ms": 15},
-            "database_sqlite": {"status": db_status, "latency_ms": 4},
-            "analysis_engine": {"status": "healthy" if (PYTORCH_AVAILABLE or model is not None) else "operational", "mode": "PyTorch / Rule-Fallback" if PYTORCH_AVAILABLE else "Rule-Fallback"},
+            "frontend": {"status": "not_probed", "latency_ms": None},
+            "backend_api": {"status": "healthy", "latency_ms": None},
+            "database_sqlite": {"status": db_status, "latency_ms": None},
+            "analysis_engine": {"status": "available" if all(m["installed"] for m in engine.status().values()) else "models_missing", "mode": "Published local models + late fusion"},
             "assistant_service": {"status": "healthy", "mode": "Knowledge-Base + Diversion"}
         }
     }
@@ -1715,3 +1286,15 @@ async def get_developer_audit_logs(request: Request):
     return {"success": True, "data": {"logs": logs}, "error": None}
 
 
+
+@app.on_event('startup')
+async def preload_models():
+    if os.environ.get('MINDSENSE_PRELOAD_MODELS') == '1':
+        for modality in ('text', 'audio', 'image'):
+            await run_in_threadpool(engine._load, modality)
+
+# Hash-based frontend routing works with a single same-origin static application.
+static_dir = os.environ.get('MINDSENSE_STATIC_DIR')
+if static_dir:
+    from fastapi.staticfiles import StaticFiles
+    app.mount('/', StaticFiles(directory=static_dir, html=True), name='frontend')

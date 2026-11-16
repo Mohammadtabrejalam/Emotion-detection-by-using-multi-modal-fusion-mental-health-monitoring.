@@ -63,3 +63,10 @@ artifacts/
 
 # Local Python virtual environment
 .venv-gpu/
+
+# Local model downloads, secrets and generated browser artifacts
+models/
+**/.mindsense-signing-key
+frontend/test-results/
+frontend/playwright-report/
+.venv/

@@ -10,7 +10,7 @@ import type {
   Article
 } from '../types';
 
-const API_BASE_URL = (import.meta as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = (import.meta as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || '/api';
 
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('mindsense_token');
@@ -29,6 +29,15 @@ const getDevAuthHeaders = (): Record<string, string> => {
 };
 
 export const apiService = {
+  async currentAccount(): Promise<ApiResponse<{user: User}>> {
+    try { const res = await fetch(`${API_BASE_URL}/auth/me`, {headers: getAuthHeaders()}); return await res.json(); }
+    catch { return {success: false, data: null, error: {code: 'SESSION_ERROR', message: 'Session unavailable'}}; }
+  },
+
+  async getModels(): Promise<ApiResponse<{ models: Record<string, {installed: boolean; loaded: boolean; repo: string; error?: string}> }>> {
+    try { const response = await fetch(`${API_BASE_URL}/models`); return await response.json(); }
+    catch { return {success: false, data: null, error: {code: 'NETWORK_ERROR', message: 'Backend unavailable'}}; }
+  },
   async checkHealth(): Promise<boolean> {
     try {
       const response = await fetch(`${API_BASE_URL}/health`);
@@ -185,7 +194,7 @@ export const apiService = {
     try {
       const response = await fetch(`${API_BASE_URL}/articles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(article),
       });
       return await response.json();
@@ -210,6 +219,7 @@ export const apiService = {
       const url = userId ? `${API_BASE_URL}/articles/${articleId}?user_id=${userId}` : `${API_BASE_URL}/articles/${articleId}`;
       const response = await fetch(url, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       return await response.json();
     } catch (error: any) {
@@ -248,7 +258,7 @@ export const apiService = {
         headers: getAuthHeaders(),
         body: formData,
       });
-      if (!response.ok) throw new Error(`Server returned HTTP ${response.status}`);
+      if (!response.ok) { const failure = await response.json(); throw new Error(typeof failure.detail === 'string' ? failure.detail : `Request failed (${response.status}). Check your inputs or sign in again.`); }
       return await response.json();
     } catch (error: any) {
       return {

@@ -1,49 +1,23 @@
-# MindSense Automated Testing & CI/CD Specification
+# Validation commands
 
-## Testing Infrastructure Overview
-MindSense maintains a 100% automated test suite across backend APIs, frontend component units, end-to-end browser flows, security scanners, and dependency audits.
+Run at repo root:
 
-```
-+-----------------------------------------------------------------------------------+
-|                            GitHub Actions Workflow                                |
-|                               (.github/workflows/test.yml)                         |
-+--------------------------+--------------------------+-----------------------------+
-|     Backend Job          |       Frontend Job       |           E2E Job           |
-|  - Pytest API Suite      |  - Vitest Unit Suite     |  - Playwright Headless      |
-|  - IDOR Security Tests   |  - TypeScript Build      |  - User Journey E2E         |
-|  - Bandit Code Scan      |  - NPM Audit CVE Scan    |  - Developer Security E2E   |
-|  - Pip Audit CVE Scan    |                          |                             |
-+--------------------------+--------------------------+-----------------------------+
+```text
+python -m pytest backend/tests -q
+python -m bandit -r backend/app -s B101
 ```
 
-## CLI Execution Commands
+Install `bandit` separately for the static scan. Unit/API tests run with an isolated temporary SQLite database and explicitly test-only classifier doubles. They test contracts and security boundaries; they are not real-model evaluations. Legacy research tests skip when their original data/checkpoint prerequisites are absent.
 
-### 1. Backend Pytest API & IDOR Security Suite
-```bash
-python -m pytest backend/tests -v
-```
-
-### 2. Frontend Vitest Component Unit Tests
-```bash
+```text
 cd frontend
+npm ci
 npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
 ```
 
-### 3. Playwright End-to-End Browser Tests
-```bash
-cd frontend
-npx playwright test
-```
+Playwright starts an isolated backend database plus Vite. If a text checkpoint is installed it verifies actual inference; otherwise it asserts an explicit missing-model error. GitHub Actions installs the text checkpoint. No simulation checkbox or invented result is used. Real hardware permission prompts and SMTP delivery require manual validation on the target environment.
 
-### 4. Static Code Security & Dependency CVE Scans
-```bash
-# Backend Bandit Security Analysis
-bandit -r backend/app
-
-# Backend Dependency CVE Scan
-pip-audit
-
-# Frontend Dependency Vulnerability Scan
-cd frontend
-npm audit
-```
+To exercise all three real models and the account data flow without browser doubles, install the models/FFmpeg and run `python -m scripts.smoke_real --clip <official-RAVDESS-full-AV-clip>`. It creates and deletes disposable test data. This is not an accuracy benchmark. See `docs/EVALUATION_PUBLISHED.md` for actual dataset metrics and reproduction commands.

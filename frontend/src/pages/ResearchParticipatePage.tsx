@@ -115,6 +115,8 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
     }
   };
 
+  if (!studies.length) return <section className="academic-card p-8 space-y-4 text-slate-300"><h1 className="text-2xl font-bold text-white">Research participation</h1><p>No active human-subject study is configured. This demonstration does not recruit participants or imply institutional approval.</p><button className="btn-secondary" onClick={onBack}>Back</button></section>;
+
   return (
     <div className="space-y-8 animate-fadeIn max-w-4xl mx-auto">
       
@@ -181,7 +183,7 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
               Active Institutional Protocol
             </span>
             <h2 className="text-xl font-bold text-white tracking-tight">
-              {studies.length > 0 ? studies[0].title : "Multimodal Affective Baseline Study 2026"}
+              {studies.length > 0 ? studies[0].title : "No active study"}
             </h2>
             <p className="text-xs text-slate-300">
               Principal Investigator: <strong>Dr. Elena Vance</strong> • MindSense Affective Computing Research Group
@@ -191,7 +193,7 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
           <div className="space-y-4 text-xs text-slate-300 leading-relaxed font-sans">
             <h3 className="font-bold text-white text-sm">Study Objective</h3>
             <p>
-              This study evaluates how intermediate cross-attention neural networks align textual lexical features, vocal acoustics, and facial micro-expressions to infer affective states across diverse environmental conditions.
+              Only studies explicitly configured by the operator are available. Review the actual protocol and consent terms before contributing.
             </p>
 
             <h3 className="font-bold text-white text-sm">What Your Participation Involves</h3>
@@ -207,7 +209,7 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
                 <span>Strict Academic Confidentiality</span>
               </h4>
               <p className="text-slate-400 text-[11px]">
-                Your contributions are assigned an anonymized participant code (e.g. PAR-49201). Personal account identifiers are never attached to research datasets. You retain the right to withdraw and purge your contributions at any time.
+                Your contributions are assigned an pseudonymous participant code (e.g. PAR-49201). Participant records remain linked to your account for withdrawal and deletion. You retain the right to withdraw and purge your contributions at any time.
               </p>
             </div>
           </div>
@@ -292,7 +294,7 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
             <p>You may choose which modalities (text, vocal audio, or facial visual images) to contribute. All contributions are voluntary. Raw audio and image files are processed into anonymized feature representations.</p>
 
             <h4 className="font-bold text-white">3. Data Retention & Deletion Policy</h4>
-            <p>Your research contributions are stored securely in encrypted storage. You retain the right to withdraw consent and purge all research samples at any time via your Account Settings (`/settings`).</p>
+            <p>Research contributions are stored in the server SQLite database, which is not encrypted by this application. You retain the right to withdraw consent and purge all research samples at any time via your Account Settings (`/settings`).</p>
 
             <h4 className="font-bold text-white">4. Scientific & Medical Disclaimer</h4>
             <p>MindSense is an experimental research system. Emotion estimates are non-clinical computational predictions and do NOT constitute psychological evaluation, medical diagnosis, or clinical advice.</p>
@@ -444,7 +446,7 @@ export const ResearchParticipatePage: React.FC<ResearchParticipatePageProps> = (
           <div className="space-y-2 max-w-lg mx-auto">
             <h2 className="text-2xl font-extrabold text-white tracking-tight">Research Contribution Confirmed</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Thank you for advancing research into multimodal affective signal analysis. Your contribution has been successfully cataloged under your anonymized participant code.
+              Thank you for advancing research into multimodal affective signal analysis. Your contribution has been successfully cataloged under your pseudonymous participant code.
             </p>
           </div>
 

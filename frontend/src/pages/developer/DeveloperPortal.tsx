@@ -592,8 +592,8 @@ export const DeveloperPortal: React.FC = () => {
 
               <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-1">
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Analysis Success Rate</span>
-                <p className="text-2xl font-extrabold text-emerald-400">{dashboardData.success_rate}%</p>
-                <span className="text-[10px] text-slate-400">{dashboardData.failure_rate}% failure rate</span>
+                <p className="text-2xl font-extrabold text-emerald-400">{dashboardData.success_rate == null ? "Not measured" : `${dashboardData.success_rate}%`}</p>
+                <span className="text-[10px] text-slate-400">Failures are not logged as a benchmark</span>
               </div>
 
               <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-1">

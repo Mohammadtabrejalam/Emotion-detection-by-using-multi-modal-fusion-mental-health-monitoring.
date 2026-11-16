@@ -71,23 +71,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setLoading(false);
 
     if (res.success && res.data) {
-      setSuccessMsg("Profile registered successfully! Logging you in...");
-      setTimeout(async () => {
-        const loginRes = await apiService.login(regUsername, regPassword);
-        if (loginRes.success && loginRes.data) {
-          onLoginSuccess(loginRes.data.user);
-          onNavigateHome();
-        }
-      }, 700);
+      setSuccessMsg("Profile registered successfully!");
+      onLoginSuccess(res.data.user);
+      onNavigateHome();
     } else {
       setErrorMsg(res.error?.message || "Registration failed.");
     }
-  };
-
-  const fillDemoAccount = () => {
-    setUsernameOrEmail('guest_user');
-    setPassword('demo123');
-    setErrorMsg(null);
   };
 
   return (
@@ -203,13 +192,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               {loading ? 'Authenticating...' : 'Sign In to Workspace'}
             </button>
 
-            <button
-              type="button"
-              onClick={fillDemoAccount}
-              className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs border border-slate-700 transition"
-            >
-              Autofill Guest Account (Demo)
-            </button>
+
           </form>
         ) : (
           /* REGISTER FORM */

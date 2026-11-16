@@ -1,4 +1,6 @@
-# Phase 4 Completion Report — Missing-Modality Robustness
+> Historical research record. This document does not describe the current published-model serving pipeline. See README.md, MODEL_CARD.md, and docs/APPLICATION_READINESS.md for current behavior and measured evidence. Synthetic results are not real-model metrics.
+
+# Phase 4 Completion Report â€” Missing-Modality Robustness
 
 ## Objective
 
@@ -39,7 +41,7 @@ Model:
 
 Evaluation device:
 
-`CUDA — NVIDIA GeForce RTX 2050 4 GB`
+`CUDA â€” NVIDIA GeForce RTX 2050 4 GB`
 
 Random seed:
 
@@ -169,7 +171,7 @@ Automated tests:
 
 ## Phase 4 Conclusion
 
-Phase 4 — Missing-Modality Robustness is complete.
+Phase 4 â€” Missing-Modality Robustness is complete.
 
 The experiment establishes a measurable relationship between modality availability and multimodal emotion-recognition performance.
 

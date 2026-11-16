@@ -1,96 +1,45 @@
-# MindSense application readiness — 16 November 2026
+# MindSense readiness report — 2026-11-16
 
-## Scope delivered
+## Working and exercised
 
-This change repairs the existing application workflow. It does not claim completion of the research experiments or validated emotion recognition.
+- Real local text, audio, and facial-image inference using pinned published checkpoints. Missing models fail explicitly; random/demo fallback is removed.
+- Seven-label alignment, single/multiple modality input, support-aware late fusion, per-modality scores/revisions, and disagreement warnings. All three models were exercised together through the API with no classifier double.
+- Registration/login, authenticated history/dashboard, journal create/read/delete, check-ins, export/account deletion, private result sharing with expiry/revocation, and ownership/RBAC regression coverage.
+- Salted password storage with legacy migration, versioned sessions, reset expiry/single use, no production recovery-token disclosure, no production default accounts. SMTP transport is configured but live delivery is unverified.
+- Responsive analysis/home/model-evidence/media pages, model status, input consent, camera/microphone cleanup, file-size/error states, restored sessions/routes, and same-origin API integration.
+- Dockerfile/compose and environment/admin setup instructions prepared. Nothing deployed or merged.
 
-- Missing or invalid serving checkpoints fall back to explicitly labeled rule-based demonstration, never uninitialized model weights.
-- The analysis UI labels demo results and distinguishes illustrative scores from validated model confidence.
-- Microphone recordings preserve the actual browser MIME type and file extension. WebM and MP4 audio are accepted by the API; FFmpeg is needed to decode them.
-- Empty text and corrupted audio are rejected. Audio/image uploads are limited to 10 MB each. FFmpeg subprocesses time out after 30 seconds.
-- Stereo PCM WAV samples are normalized before downmixing, preserving their amplitude scale.
-- Guest-supplied user IDs cannot write analyses/check-ins into registered accounts.
-- Private result share creation and revocation require the result owner's session.
-- Journal read/save/delete requests send the authentication token expected by the backend.
-- Check-in scores must be between 1 and 5.
-- Backend tests use a temporary SQLite database and independent rate-limit state.
+The real-model API smoke walkthrough passed registration, three-way inference, journal, check-in, dashboard, sharing/revocation, export, deletion, and invalidation of the deleted account's token. Its cold three-model inference took 13.73 seconds in this workspace; that single observation is not a latency benchmark.
 
-## Running locally on Windows
+## Evidence
 
-Use Python 3.11+ and Node.js 22.12+ (the frontend uses Vite 8). Install FFmpeg and put it on PATH for compressed audio and microphone recordings. Standard PCM WAV uploads can use SciPy directly.
+Local validation: **140 backend tests passed, 5 skipped; 10 frontend tests passed; TypeScript/production build passed; Bandit scan passed with documented local-file/allowlisted-query exceptions.**
 
-From the repository root, in PowerShell:
+See `reports/evaluation.json` and `docs/EVALUATION_PUBLISHED.md`. Text on 2,610 MELD test utterances: 43.72% accuracy / 0.270 macro F1, below majority-neutral accuracy 48.12%. RAVDESS actor 01: audio 46.43% on 28 supported-label clips; face 40.38% and fusion 38.46% on 52 non-calm clips. Fusion did not improve image-only accuracy. No fabricated metrics or model-card scores are used as application measurements.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r backend/requirements.txt
-python -m uvicorn backend.app.main:app --reload
-```
+## Remaining limitations and blocked verification
 
-In a second terminal:
+- Browser E2E is prepared but cannot execute locally: Chromium aborts with `socket() failed: Operation not permitted`. This is an environment block, not a passing browser test. GitHub Actions is configured to install Chromium and a real text checkpoint; its outcome must be checked separately.
+- Docker is unavailable here, so image build/container startup is unverified. No production load, backup/restore, TLS, live SMTP, or actual camera/microphone device testing has been completed.
+- Five legacy research tests skip because original data/checkpoints are absent. Published serving models do not complete the original jointly trained cross-attention research protocol.
+- One-actor evaluation is not population evidence. Three-way fusion is integration-tested, not benchmarked against aligned labels. Calibration, demographic fairness, multilingual performance, clinical outcomes, and generalization remain unvalidated.
+- SQLite and localStorage sessions are suitable for a bounded demo, not a claim of hardened clinical-data hosting. SQLite lacks application-level encryption; rate limits are per process; one worker is the documented deployment baseline. Server operators must manage encrypted storage, TLS, backup retention, and abuse limits.
+- Human-subject research recruitment is deliberately inactive unless a legitimate study is separately configured. No fictitious institution or approval is presented. The assistant is a scripted FAQ; the game is educational, not a dataset or clinical test.
 
-```powershell
-cd frontend
-npm ci
-npm run dev
-```
+## Audit map
 
-Open http://localhost:5173. The API documentation is at http://localhost:8000/docs.
+| Area | Outcome |
+|---|---|
+| Serving API/models | Replaced missing synthetic fusion dependency with real published inference; explicit failure contracts |
+| Auth and data storage | Hardened password/session recovery and owner boundaries; no guest inference persistence |
+| Journals/check-ins/dashboard | Kept real user records; removed synthetic wellness scores/diagnosis implications |
+| Sharing | Authenticated owner-only creation/revoke; expiring bearer links; no raw media/journal sharing |
+| Frontend integration | Rebuilt analysis/media/model pages; aligned errors, routes and session restoration |
+| Dataset/research UI | Removed invented benchmark examples and automatic fictitious study; show measured evidence |
+| Assistant/admin telemetry | Label scripted FAQ; remove invented latency, uptime and success rates |
+| Original ML research | Retained as separate experimental infrastructure, not used for production predictions |
+| Deployment | Runnable instructions and container files prepared; environment limitations reported |
 
-The app works as a rule-based demonstration without a serving checkpoint. To select a compatible checkpoint, set the environment variable before starting the backend:
+## Next steps for the owner
 
-```powershell
-$env:MINDSENSE_MODEL_PATH = 'C:\models\mindsense_fusion.pt'
-```
-
-This must be a state dictionary compatible with `backend/app/ml/fusion_model.py` and its text/audio/image preprocessing, with label order `happy, sad, angry, fear, surprise, disgust, neutral`. The E04 research architecture is separate; pointing this variable to an arbitrary research checkpoint does not integrate that model into serving. A synthetic checkpoint is still not evidence of emotion-recognition accuracy.
-
-Optional configuration:
-
-- `MINDSENSE_DATABASE_PATH`: absolute path to a SQLite database (parent directory must exist).
-- `JWT_SECRET_KEY`: signing key actually consumed by the backend.
-- `ALLOWED_ORIGINS`: comma-separated browser origins.
-- Frontend `VITE_API_BASE_URL`: API prefix, default `http://localhost:8000/api`.
-
-Environment files are not automatically loaded by the backend. Set process environment variables explicitly. The legacy root `.env.example` contains settings that the application does not implement, including PostgreSQL configuration.
-
-## Verification
-
-Run from the repository root:
-
-```powershell
-python -m pytest backend/tests -q
-cd frontend
-npm run build
-npm test
-npx playwright install chromium
-npm run test:e2e
-```
-
-External-data tests report skips if their real media are absent. The E04 checkpoint-integrity check also reports a skip when its external artifact is not installed, retaining its SHA-256 assertion when present. Require that artifact for research verification with:
-
-```powershell
-$env:MINDSENSE_REQUIRE_RESEARCH_ARTIFACTS = '1'
-python -m pytest backend/tests/test_fusion_concat.py -k e04_checkpoint_integrity
-```
-
-This strict command fails on the current checkout because `artifacts/E04_Multimodal_Fusion_Frozen/best_model.pt` is missing. Skipped tests do not count as scientific validation.
-
-### Results in this environment
-
-- Backend: 123 passed, 5 skipped (external data/checkpoint prerequisites).
-- Frontend: 8 tests passed; TypeScript and production build passed.
-- Frontend lint: exits successfully with pre-existing React warnings.
-- Browser E2E: blocked before test execution by Chromium process restrictions.
-- Production build warns that its main JavaScript chunk exceeds 500 kB.
-
-## Remaining prerequisites for full completion
-
-1. Supply the authorized research datasets and the actual trained checkpoints. The repository contains phase reports, but the current checkout cannot independently reproduce all their reported results.
-2. Complete the IEMOCAP cross-dataset evaluation described in `PHASE_6_PROTOCOL.md`, including reproducible metrics and artifacts. Do not substitute synthetic metrics.
-3. Integrate the selected research model with the serving model's preprocessing and label contract, then evaluate it on held-out real data.
-4. Run Playwright on a host where Chromium can launch. This environment blocked browser startup (`socket() failed: Operation not permitted`), so browser end-to-end behavior has not been verified here.
-5. Before public deployment, harden the existing development authentication flows: remove seeded demo/admin credentials, replace the default JWT signing key, migrate unsalted password hashes, and deliver reset/verification tokens privately instead of returning them in public API responses. Guest records currently share a public demo workspace. Use synthetic guest inputs only.
-
-No public deployment, research-data acquisition, or medical validation is included in this change.
+Check out PR #3's branch, install dependencies/FFmpeg, download models, and follow README.md. Review the model/data licenses and inspect the reports before describing performance in interviews. On your Windows machine, run the browser tests and test actual microphone/camera permissions. Build/start Docker on a Docker-enabled host, configure SMTP if needed, and verify backup/deletion behavior before approving any deployment. Do not present this as a diagnostic product or a proven improvement over unimodal models.

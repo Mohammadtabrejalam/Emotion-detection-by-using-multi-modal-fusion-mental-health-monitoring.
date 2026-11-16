@@ -2,8 +2,9 @@ import sqlite3
 import json
 import os
 import hashlib
+from .security import hash_password, verify_password
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Tuple
 
 logger = logging.getLogger("mindsense.database")
@@ -11,12 +12,10 @@ logger = logging.getLogger("mindsense.database")
 DATABASE_PATH = os.environ.get("MINDSENSE_DATABASE_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "mindsense.db")
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE_PATH)
+    os.makedirs(os.path.dirname(os.path.abspath(DATABASE_PATH)), exist_ok=True)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
     return conn
-
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
 def init_db():
     conn = get_db_connection()
@@ -338,9 +337,17 @@ def init_db():
     if "password_reset_expires_at" not in u_cols:
         cursor.execute("ALTER TABLE users ADD COLUMN password_reset_expires_at TEXT")
     
+    for table in ("users", "developer_users"):
+        columns = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+        if "auth_version" not in columns:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN auth_version INTEGER DEFAULT 0")
+    columns = {row[1] for row in cursor.execute("PRAGMA table_info(analyses)")}
+    if "result_json" not in columns:
+        cursor.execute("ALTER TABLE analyses ADD COLUMN result_json TEXT")
+
     # Insert default guest user if no users exist
     cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()[0] == 0 and os.environ.get("MINDSENSE_TEST_MODE") == "1" and os.environ.get("ENVIRONMENT") != "production":
         guest_pw = hash_password("demo123")
         cursor.execute("""
         INSERT INTO users (username, email, password_hash, name, created_at)
@@ -349,7 +356,7 @@ def init_db():
 
     # Insert default admin developer if no developer users exist
     cursor.execute("SELECT COUNT(*) FROM developer_users")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()[0] == 0 and os.environ.get("MINDSENSE_TEST_MODE") == "1" and os.environ.get("ENVIRONMENT") != "production":
         admin_pw = hash_password("admin123")
         cursor.execute("""
         INSERT INTO developer_users (email, username, password_hash, role, name, organization, requested_role, account_state, email_verified, created_at)
@@ -358,7 +365,7 @@ def init_db():
 
     # Seed curated articles if empty
     cursor.execute("SELECT COUNT(*) FROM articles")
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()[0] == 0 and os.environ.get("MINDSENSE_TEST_MODE") == "1":
         seed_articles = [
             (
                 "How Multimodal AI Decodes Unspoken Human Emotion",
@@ -436,16 +443,17 @@ def authenticate_user(username_or_email: str, password: str, ip_address: str = "
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        pw_hash = hash_password(password)
         query_val = username_or_email.strip().lower()
         cursor.execute("""
-        SELECT * FROM users WHERE (username = ? OR email = ?) AND password_hash = ?
-        """, (query_val, query_val, pw_hash))
+        SELECT * FROM users WHERE (username = ? OR email = ?)
+        """, (query_val, query_val))
         user_row = cursor.fetchone()
         
         timestamp = datetime.utcnow().isoformat()
-        if user_row:
+        if user_row and verify_password(password, user_row["password_hash"]):
             user = dict(user_row)
+            if not user["password_hash"].startswith("pbkdf2_sha256$"):
+                cursor.execute("UPDATE users SET password_hash = ?, auth_version = auth_version + 1 WHERE id = ?", (hash_password(password), user["id"]))
             cursor.execute("""
             INSERT INTO login_sessions (user_id, timestamp, ip_address, user_agent, status)
             VALUES (?, ?, ?, ?, ?)
@@ -498,12 +506,12 @@ def change_user_password(user_id: int, old_password: str, new_password: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        old_hash = hash_password(old_password)
-        cursor.execute("SELECT id FROM users WHERE id = ? AND password_hash = ?", (user_id, old_hash))
-        if not cursor.fetchone():
+        cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if not row or not verify_password(old_password, row["password_hash"]):
             return False
         new_hash = hash_password(new_password)
-        cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
+        cursor.execute("UPDATE users SET password_hash = ?, auth_version = auth_version + 1 WHERE id = ?", (new_hash, user_id))
         conn.commit()
         return True
     finally:
@@ -640,12 +648,15 @@ def get_history(limit: int = 50, user_id: int = None):
         if user_id is not None:
             cursor.execute("SELECT * FROM analyses WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (user_id, limit))
         else:
-            cursor.execute("SELECT * FROM analyses ORDER BY timestamp DESC LIMIT ?", (limit,))
+            cursor.execute("SELECT * FROM analyses WHERE user_id IS NULL ORDER BY timestamp DESC LIMIT ?", (limit,))
             
         analyses = [dict(row) for row in cursor.fetchall()]
         
         for analysis in analyses:
-            analysis["modalities_used"] = json.loads(analysis["modalities_used"])
+            saved = json.loads(analysis.pop("result_json", None) or "{}")
+            analysis.update(saved)
+            if isinstance(analysis["modalities_used"], str):
+                analysis["modalities_used"] = json.loads(analysis["modalities_used"])
             analysis["is_demo"] = bool(analysis["is_demo"])
             
             cursor.execute("SELECT modality, emotion, confidence FROM modality_results WHERE analysis_id = ?", (analysis["id"],))
@@ -665,14 +676,10 @@ def delete_history(user_id: int = None):
             a_ids = [row[0] for row in cursor.fetchall()]
             for aid in a_ids:
                 cursor.execute("DELETE FROM modality_results WHERE analysis_id = ?", (aid,))
+            cursor.execute("DELETE FROM share_links WHERE result_id IN (SELECT id FROM analyses WHERE user_id = ?)", (user_id,))
             cursor.execute("DELETE FROM analyses WHERE user_id = ?", (user_id,))
-            cursor.execute("DELETE FROM daily_checkins WHERE user_id = ?", (user_id,))
-            cursor.execute("DELETE FROM daily_notes WHERE user_id = ?", (user_id,))
         else:
-            cursor.execute("DELETE FROM modality_results")
-            cursor.execute("DELETE FROM analyses")
-            cursor.execute("DELETE FROM daily_checkins")
-            cursor.execute("DELETE FROM daily_notes")
+            raise ValueError("An authenticated owner is required.")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -707,7 +714,7 @@ def get_checkins(limit: int = 100, user_id: int = None):
         if user_id is not None:
             cursor.execute("SELECT * FROM daily_checkins WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (user_id, limit))
         else:
-            cursor.execute("SELECT * FROM daily_checkins ORDER BY timestamp DESC LIMIT ?", (limit,))
+            cursor.execute("SELECT * FROM daily_checkins WHERE user_id IS NULL ORDER BY timestamp DESC LIMIT ?", (limit,))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
     finally:
@@ -977,7 +984,7 @@ def revoke_share_link(token: str, actor_id: str = "SYSTEM", owner_id: int = None
         now = datetime.utcnow().isoformat()
         cursor.execute("UPDATE share_links SET revoked_at = ? WHERE share_id = ? AND owner_id IS ? AND revoked_at IS NULL", (now, token, owner_id))
         conn.commit()
-        log_audit_event(actor_id, "DEVELOPER", "REVOKE_SHARE_LINK", token, "Revoked public share link")
+        log_audit_event(actor_id, "USER", "REVOKE_SHARE_LINK", token, "Revoked public share link")
         return cursor.rowcount > 0
     finally:
         conn.close()
@@ -988,14 +995,16 @@ def authenticate_developer(email_or_username: str, password: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        pw_hash = hash_password(password)
         cursor.execute("""
         SELECT * FROM developer_users 
-        WHERE (email = ? OR username = ?) AND password_hash = ?
-        """, (email_or_username, email_or_username, pw_hash))
+        WHERE (email = ? OR username = ?)
+        """, (email_or_username, email_or_username))
         dev_row = cursor.fetchone()
-        if dev_row:
+        if dev_row and verify_password(password, dev_row["password_hash"]):
             dev_dict = dict(dev_row)
+            if not dev_dict["password_hash"].startswith("pbkdf2_sha256$"):
+                cursor.execute("UPDATE developer_users SET password_hash = ? WHERE id = ?", (hash_password(password), dev_dict["id"]))
+                conn.commit()
             del dev_dict["password_hash"]
             log_audit_event(dev_dict["username"], dev_dict["role"], "DEVELOPER_LOGIN", str(dev_dict["id"]), "Developer logged in")
             return dev_dict
@@ -1152,8 +1161,8 @@ def get_developer_dashboard_metrics():
                 logger.debug("Skipping unparseable modalities record: %s", err)
 
         # Real success rate calculation
-        success_rate = 100.0 if total_analyses > 0 else 100.0
-        failure_rate = round(100.0 - success_rate, 1)
+        success_rate = None  # Failures are not persisted, so a success rate cannot be measured.
+        failure_rate = None
 
         return {
             "total_visits": total_visits,
@@ -1165,10 +1174,10 @@ def get_developer_dashboard_metrics():
             "active_share_links": active_share_links,
             "modality_counts": modality_counts,
             "system_health": {
-                "frontend": "healthy",
+                "frontend": "not_probed",
                 "backend_api": "healthy",
                 "database": "healthy",
-                "analysis_service": "healthy",
+                "analysis_service": "not_probed",
                 "assistant_service": "healthy"
             }
         }
@@ -1190,8 +1199,8 @@ def get_developer_analytics_metrics():
         return {
             "visits_time_series": visits_by_date[::-1],
             "analyses_time_series": analyses_by_date[::-1],
-            "avg_latency_ms": 45,
-            "uptime_percent": 100.0
+            "avg_latency_ms": None,
+            "uptime_percent": None
         }
     finally:
         conn.close()
@@ -1210,7 +1219,7 @@ def register_developer(email: str, username: str, password: str, name: str, orga
         
         pw_hash = hash_password(password)
         verify_token = secrets.token_urlsafe(32)
-        exp_time = datetime.utcnow().isoformat()
+        exp_time = (datetime.utcnow() + timedelta(hours=24)).isoformat()
         
         cursor.execute("""
         INSERT INTO developer_users 
@@ -1219,7 +1228,7 @@ def register_developer(email: str, username: str, password: str, name: str, orga
         """, (
             email, username, pw_hash, requested_role, name, 
             organization or "Independent Researcher", requested_role,
-            "PENDING_APPROVAL", 1, verify_token, exp_time, datetime.utcnow().isoformat()
+            "PENDING_APPROVAL", 0, hashlib.sha256(verify_token.encode()).hexdigest(), exp_time, datetime.utcnow().isoformat()
         ))
         conn.commit()
         dev_id = cursor.lastrowid
@@ -1232,7 +1241,7 @@ def verify_developer_email(token: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, username, account_state FROM developer_users WHERE email_verification_token = ?", (token,))
+        cursor.execute("SELECT id, username, account_state FROM developer_users WHERE email_verification_token = ? AND email_verification_expires_at > ?", (hashlib.sha256(token.encode()).hexdigest(), datetime.utcnow().isoformat()))
         row = cursor.fetchone()
         if not row:
             return False, "Invalid or expired email verification token."
@@ -1271,11 +1280,13 @@ def update_developer_account_status(dev_id: int, new_status: str, actor_id: str,
         if new_status not in valid_states:
             return False, "Invalid account state."
             
-        cursor.execute("SELECT username, role, account_state FROM developer_users WHERE id = ?", (dev_id,))
+        cursor.execute("SELECT username, role, account_state, email_verified FROM developer_users WHERE id = ?", (dev_id,))
         row = cursor.fetchone()
         if not row:
             return False, "Developer account not found."
             
+        if new_status == "ACTIVE" and not row["email_verified"]:
+            return False, "Verify email before activating this developer."
         now_str = datetime.utcnow().isoformat()
         cursor.execute("""
         UPDATE developer_users 
@@ -1299,7 +1310,7 @@ def create_developer_password_reset(username_or_email: str):
             return False, "Developer account not found."
             
         reset_token = secrets.token_urlsafe(32)
-        cursor.execute("UPDATE developer_users SET password_reset_token = ? WHERE id = ?", (reset_token, row["id"]))
+        cursor.execute("UPDATE developer_users SET password_reset_token = ?, password_reset_expires_at = datetime('now', '+30 minutes') WHERE id = ?", (hashlib.sha256(reset_token.encode()).hexdigest(), row["id"]))
         conn.commit()
         return True, {"token": reset_token, "email": row["email"]}
     finally:
@@ -1309,13 +1320,13 @@ def reset_developer_password(token: str, new_password: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, username FROM developer_users WHERE password_reset_token = ?", (token,))
+        cursor.execute("SELECT id, username FROM developer_users WHERE password_reset_token = ? AND password_reset_expires_at > datetime('now')", (hashlib.sha256(token.encode()).hexdigest(),))
         row = cursor.fetchone()
         if not row:
             return False, "Invalid or expired password reset token."
             
         new_hash = hash_password(new_password)
-        cursor.execute("UPDATE developer_users SET password_hash = ?, password_reset_token = NULL WHERE id = ?", (new_hash, row["id"]))
+        cursor.execute("UPDATE developer_users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, auth_version = auth_version + 1 WHERE id = ?", (new_hash, row["id"]))
         conn.commit()
         log_audit_event(str(row["id"]), "DEVELOPER", "PASSWORD_RESET_SUCCESS", str(row["id"]), f"Password reset completed for developer {row['username']}")
         return True, "Developer password updated successfully."
@@ -1332,7 +1343,7 @@ def create_user_password_reset(username_or_email: str):
             return False, "User account not found."
             
         reset_token = secrets.token_urlsafe(32)
-        cursor.execute("UPDATE users SET password_reset_token = ? WHERE id = ?", (reset_token, row["id"]))
+        cursor.execute("UPDATE users SET password_reset_token = ?, password_reset_expires_at = datetime('now', '+30 minutes') WHERE id = ?", (hashlib.sha256(reset_token.encode()).hexdigest(), row["id"]))
         conn.commit()
         return True, {"token": reset_token, "email": row["email"]}
     finally:
@@ -1342,13 +1353,13 @@ def reset_user_password(token: str, new_password: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, username FROM users WHERE password_reset_token = ?", (token,))
+        cursor.execute("SELECT id, username FROM users WHERE password_reset_token = ? AND password_reset_expires_at > datetime('now')", (hashlib.sha256(token.encode()).hexdigest(),))
         row = cursor.fetchone()
         if not row:
             return False, "Invalid or expired password reset token."
             
         new_hash = hash_password(new_password)
-        cursor.execute("UPDATE users SET password_hash = ?, password_reset_token = NULL WHERE id = ?", (new_hash, row["id"]))
+        cursor.execute("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, auth_version = auth_version + 1 WHERE id = ?", (new_hash, row["id"]))
         conn.commit()
         log_audit_event(str(row["id"]), "USER", "USER_PASSWORD_RESET_SUCCESS", str(row["id"]), f"Password reset completed for user {row['username']}")
         return True, "User password updated successfully."
@@ -1402,15 +1413,15 @@ def get_active_research_studies():
     try:
         cursor.execute("SELECT id, title, description, institution, principal_investigator, status, created_at FROM research_studies WHERE status = 'active'")
         rows = cursor.fetchall()
-        if not rows:
+        if not rows and os.environ.get("MINDSENSE_TEST_MODE") == "1" and os.environ.get("ENVIRONMENT") != "production":
             cursor.execute("""
             INSERT INTO research_studies (title, description, institution, principal_investigator, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """, (
-                "Multimodal Affective Baseline Study 2026",
-                "Longitudinal study observing dynamic affective cross-attention alignment across text lexical cues, vocal acoustic prosody, and facial micro-expressions.",
-                "MindSense Affective Computing Research Group",
-                "Dr. Elena Vance",
+                "TEST ONLY Study",
+                "Test fixture, not an approved human-subject research study.",
+                "Test fixture",
+                "Test fixture",
                 "active",
                 datetime.utcnow().isoformat()
             ))
@@ -1446,6 +1457,8 @@ def save_research_consent(user_id: int, study_id: int, consent_version: str = "1
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        if not cursor.execute("SELECT 1 FROM research_studies WHERE id=? AND status='active'", (study_id,)).fetchone():
+            return False
         now_str = datetime.utcnow().isoformat()
         cursor.execute("""
         INSERT INTO research_consents (user_id, study_id, consent_given, consent_version, signed_at)
@@ -1528,7 +1541,7 @@ def export_user_complete_data(user_id: int):
             
         user_data = dict(u_row)
         
-        cursor.execute("SELECT id, timestamp, modalities_used, final_emotion, confidence_score FROM analyses WHERE user_id = ?", (user_id,))
+        cursor.execute("SELECT id, timestamp, modalities_used, final_emotion, confidence_score, result_json FROM analyses WHERE user_id = ?", (user_id,))
         user_data["analyses"] = [dict(r) for r in cursor.fetchall()]
         
         cursor.execute("SELECT id, timestamp, feeling_score, energy_score, sleep_score, stress_score, notes FROM daily_checkins WHERE user_id = ?", (user_id,))
@@ -1541,9 +1554,13 @@ def export_user_complete_data(user_id: int):
         p_row = cursor.fetchone()
         if p_row:
             user_data["research_participant"] = dict(p_row)
-            cursor.execute("SELECT id, study_id, contributed_modalities, created_at FROM research_contributions WHERE participant_id = ?", (p_row["id"],))
+            cursor.execute("SELECT id, study_id, contributed_modalities, questionnaire_answers_json, created_at FROM research_contributions WHERE participant_id = ?", (p_row["id"],))
             user_data["research_contributions"] = [dict(r) for r in cursor.fetchall()]
             
+        # Table identifiers come only from this fixed internal allowlist, never from a request.
+        for table in ("user_feedback", "articles", "challenge_attempts", "game_sessions", "research_consents"):
+            if cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+                user_data[table] = [dict(r) for r in cursor.execute(f"SELECT * FROM {table} WHERE user_id=?", (user_id,)).fetchall()]  # nosec B608
         return user_data
     finally:
         conn.close()
@@ -1552,6 +1569,8 @@ def delete_user_complete_account(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        if cursor.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='game_sessions'").fetchone():
+            cursor.execute("DELETE FROM game_sessions WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM daily_notes WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM daily_checkins WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM login_sessions WHERE user_id = ?", (user_id,))
@@ -1565,6 +1584,10 @@ def delete_user_complete_account(user_id: int):
             cursor.execute("DELETE FROM research_participants WHERE id = ?", (p_row["id"],))
             
         cursor.execute("DELETE FROM challenge_attempts WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM share_links WHERE result_id IN (SELECT id FROM analyses WHERE user_id = ?)", (user_id,))
+        cursor.execute("DELETE FROM modality_results WHERE analysis_id IN (SELECT id FROM analyses WHERE user_id = ?)", (user_id,))
+        cursor.execute("DELETE FROM user_feedback WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM articles WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM analyses WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
         

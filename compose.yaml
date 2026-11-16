@@ -1,0 +1,15 @@
+services:
+  mindsense:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      MINDSENSE_PRELOAD_MODELS: "1"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000}
+    volumes:
+      - mindsense-data:/data
+      - ./models:/models:ro
+    restart: unless-stopped
+volumes:
+  mindsense-data:

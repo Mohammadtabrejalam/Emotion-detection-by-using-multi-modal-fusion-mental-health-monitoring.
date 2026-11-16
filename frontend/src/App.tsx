@@ -80,15 +80,33 @@ export const App: React.FC = () => {
   });
 
   // Prompt loader for Analysis
+  const [loadedAnalysisFile, setLoadedAnalysisFile] = useState<File | null>(null);
   const [loadedAnalysisPrompt, setLoadedAnalysisPrompt] = useState<string>('');
 
-  // Sync hash changes
   useEffect(() => {
-    const handleHashChange = () => {
-      setCurrentHash(window.location.hash || '#/home');
+    if (localStorage.getItem('mindsense_token')) {
+      apiService.currentAccount().then(res => {
+        if (res.success && res.data) setCurrentUser(res.data.user);
+        else localStorage.removeItem('mindsense_token');
+      });
+    }
+  }, []);
+
+  // Restore routes on refresh and direct links as well as menu navigation.
+  useEffect(() => {
+    const synchronize = () => {
+      const hash = window.location.hash || '#/home';
+      setCurrentHash(hash);
+      const [route, tab] = hash.replace(/^#\/?/, '').split('/');
+      const pillar = (['home','analyze','insights','research','resources'].includes(route) ? route : 'home') as MainPillar;
+      setNavStack([{pillar, subTab: tab, isAuthView: route === 'auth', isAccountView: route === 'account'}]);
+      if (pillar === 'analyze') setAnalyzeSubTab(tab === 'media' ? 'media' : 'live');
+      if (pillar === 'insights') setInsightsSubTab((['history','journal','checkin'].includes(tab) ? tab : 'trends') as any);
+      if (pillar === 'research') setResearchSubTab((['architecture','datasets'].includes(tab) ? tab : 'overview') as any);
+      if (pillar === 'resources') setResourcesSubTab((['casestudies','awareness'].includes(tab) ? tab : 'publications') as any);
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    synchronize(); window.addEventListener('hashchange', synchronize);
+    return () => window.removeEventListener('hashchange', synchronize);
   }, []);
 
   // Synchronize browser history and popstate
@@ -118,7 +136,8 @@ export const App: React.FC = () => {
   // Record page visit & load recent analysis on mount / location change
   useEffect(() => {
     apiService.recordVisit(window.location.pathname);
-    apiService.getHistory(currentUser?.id).then(res => {
+    if (!currentUser) { setRecentAnalysis(null); return; }
+    apiService.getHistory(currentUser.id).then(res => {
       if (res.success && res.data?.history && res.data.history.length > 0) {
         setRecentAnalysis(res.data.history[0]);
       }
@@ -179,7 +198,9 @@ export const App: React.FC = () => {
       else if (pillar === 'resources') setResourcesSubTab(subTab as any);
     }
 
-    let hashStr = `/#${pillar}${subTab ? '/' + subTab : ''}`;
+    let hashStr = `#/${pillar}${subTab ? '/' + subTab : ''}`;
+    if (isAuth) hashStr = '#/auth';
+    if (isAccount) hashStr = '#/account';
     if (howToUse) hashStr = '#/how-to-use';
     if (rules) hashStr = '#/rules';
 
@@ -202,7 +223,7 @@ export const App: React.FC = () => {
         else if (prevLoc.pillar === 'resources') setResourcesSubTab(prevLoc.subTab as any);
       }
 
-      let hashStr = `/#${prevLoc.pillar}${prevLoc.subTab ? '/' + prevLoc.subTab : ''}`;
+      let hashStr = `#/${prevLoc.pillar}${prevLoc.subTab ? '/' + prevLoc.subTab : ''}`;
       if (prevLoc.isHowToUse) hashStr = '#/how-to-use';
       if (prevLoc.isRules) hashStr = '#/rules';
 
@@ -221,7 +242,8 @@ export const App: React.FC = () => {
     handleNavigate('analyze', 'live');
   };
 
-  const handleLoadPromptToStudio = (text?: string) => {
+  const handleLoadPromptToStudio = (text?: string, file?: File) => {
+    setLoadedAnalysisFile(file || null);
     if (text) {
       setLoadedAnalysisPrompt(text);
     }
@@ -372,6 +394,8 @@ export const App: React.FC = () => {
               currentUser={currentUser}
               onUpdateUser={(updated) => setCurrentUser(updated)}
               onLogout={() => {
+                void apiService.logout();
+                setRecentAnalysis(null);
                 setCurrentUser(null);
                 handleNavigate('home');
               }}
@@ -424,7 +448,7 @@ export const App: React.FC = () => {
                   activeTab={analyzeSubTab}
                   onSelectTab={(id) => handleNavigate('analyze', id)}
                   title="Affective Analysis Laboratory"
-                  description="Synchronize text, vocal acoustics, and facial micro-expressions into real-time cross-attention classification."
+                  description="Compare text, speech, and facial-expression model outputs with transparent late fusion."
                   onBack={handleBack}
                   backLabel={getBackLabel()}
                   breadcrumbs={[
@@ -438,6 +462,7 @@ export const App: React.FC = () => {
                   <Analysis 
                     currentUser={currentUser} 
                     initialText={loadedAnalysisPrompt}
+                    initialFile={loadedAnalysisFile}
                   />
                 ) : (
                   <MediaProcessing 
@@ -448,7 +473,8 @@ export const App: React.FC = () => {
             )}
 
             {/* PILLAR 3: INSIGHTS */}
-            {currentPillar === 'insights' && (
+            {currentPillar === 'insights' && !currentUser && <div className="academic-card p-8 text-slate-300 space-y-4"><h1 className="text-xl font-bold text-white">Your private workspace</h1><p>Sign in to access your journal, check-ins, history, and dashboard.</p><button className="btn-primary" onClick={() => handleNavigate('home', undefined, true)}>Sign in</button></div>}
+            {currentPillar === 'insights' && currentUser && (
               <div className="space-y-6">
                 <SubNav
                   tabs={insightsTabs}
@@ -614,7 +640,7 @@ export const App: React.FC = () => {
 
           <div className="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-400">
             <p>© {new Date().getFullYear()} MindSense Affective Computing Platform. Built for empirical research and educational study.</p>
-            <p className="font-mono text-[11px] text-slate-400">v1.3 Fused Cross-Attention Architecture</p>
+            <p className="font-mono text-[11px] text-slate-400">v2 · Published models + late fusion</p>
           </div>
 
         </div>

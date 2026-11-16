@@ -73,7 +73,7 @@ export const ProblemScenarios: React.FC<ProblemScenariosProps> = ({ onLoadScenar
           Why Multimodal AI Is Critical
         </h2>
         <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-          Examine classic scenarios where single-modality systems fail and test how Intermediate Cross-Attention resolves contradictory signals.
+          Examine classic scenarios where single-modality systems fail and observe whether baseline models disagree; these authored examples have no ground-truth labels.
         </p>
       </div>
 

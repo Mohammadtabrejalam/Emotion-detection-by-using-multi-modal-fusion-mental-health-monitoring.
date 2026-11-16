@@ -130,6 +130,8 @@ def test_rbac_permission_enforcement():
     ok, res = register_developer(uemail, uname, "DevPass123!", "Junior Dev", "Research Lab", "DEVELOPER")
     dev_id = res["id"]
     
+    # Verify before approval.
+    verify_developer_email(res["verification_token"])
     # Approve developer account to ACTIVE
     update_developer_account_status(dev_id, "ACTIVE", "ADMIN", "SUPER_ADMIN")
 

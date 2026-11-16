@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const testData = mkdtempSync(join(tmpdir(), 'mindsense-e2e-'));
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,6 +33,9 @@ export default defineConfig({
       cwd: '..',
       env: {
         PYTHONPATH: '.',
+        MINDSENSE_DATABASE_PATH: join(testData, 'test.db'),
+        MINDSENSE_TEST_MODE: '0',
+        OMP_NUM_THREADS: '2',
       },
     },
     {

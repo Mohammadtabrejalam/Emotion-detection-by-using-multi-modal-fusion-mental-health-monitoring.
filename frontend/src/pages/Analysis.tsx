@@ -1,834 +1,139 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  FileText, 
-  Mic, 
-  Camera, 
-  CheckCircle2, 
-  AlertCircle, 
-  RefreshCw, 
-  ChevronDown, 
-  Square, 
-  Trash2, 
-  Check, 
-  Layers, 
-  Zap,
-  Info,
-  SlidersHorizontal
-} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Mic, Square, RefreshCw, Shield, AlertCircle } from 'lucide-react';
 import { apiService } from '../services/api';
 import type { AnalysisData, User } from '../types';
 import { ShareModal } from '../components/ShareModal';
 
 export type ModalityMode = 'text' | 'audio' | 'image' | 'multimodal';
+type ModelState = { installed: boolean; loaded: boolean; repo: string; error?: string };
+interface AnalysisProps { currentUser?: User | null; initialText?: string; initialFile?: File | null }
 
-interface AnalysisProps {
-  currentUser?: User | null;
-  initialText?: string;
-}
-
-export const Analysis: React.FC<AnalysisProps> = ({ currentUser, initialText }) => {
-  // Active modality selection mode tab
-  const [selectedMode, setSelectedMode] = useState<ModalityMode>('text');
-  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
-
-  // Input states
-  const [text, setText] = useState<string>(initialText || '');
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
-  // Advanced Configuration & Details
-  const [showAdvancedConfig, setShowAdvancedConfig] = useState<boolean>(false);
-  const [demoMode, setDemoMode] = useState<boolean>(false);
-  const [showModelDetails, setShowModelDetails] = useState<boolean>(false);
-
-  // Execution & Pipeline States
-  const [loading, setLoading] = useState<boolean>(false);
-  const [pipelineStep, setPipelineStep] = useState<number>(0);
+export const Analysis = ({ currentUser, initialText = '', initialFile }: AnalysisProps) => {
+  const [text, setText] = useState(initialText);
+  const [audio, setAudio] = useState<File | null>(null);
+  const [image, setImage] = useState<File | null>(null);
+  const [models, setModels] = useState<Record<string, ModelState>>({});
   const [result, setResult] = useState<AnalysisData | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Audio Recording States
-  const [isRecordingAudio, setIsRecordingAudio] = useState<boolean>(false);
-  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioTimerRef = useRef<any>(null);
-
-  // Webcam Capture States
-  const [isWebcamActive, setIsWebcamActive] = useState<boolean>(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [camera, setCamera] = useState(false);
+  const [share, setShare] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const stream = useRef<MediaStream | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const mounted = useRef(true);
+  const stopTracks = () => { stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; };
   useEffect(() => {
-    if (initialText) {
-      setText(initialText);
-      setSelectedMode('text');
-    }
-  }, [initialText]);
+    mounted.current = true;
+    apiService.getModels().then(res => { if (mounted.current && res.success) setModels(res.data?.models || {}); });
+    return () => { mounted.current = false; if (timer.current) clearTimeout(timer.current); if (recorder.current?.state === 'recording') recorder.current.stop(); stopTracks(); };
+  }, []);
+  useEffect(() => { setText(initialText); }, [initialText]);
+  useEffect(() => { if (initialFile) { if (initialFile.type.startsWith('image/')) setImage(initialFile); else setAudio(initialFile); } }, [initialFile]);
+  useEffect(() => { if (camera && video.current) video.current.srcObject = stream.current; }, [camera]);
 
-  // Audio Recording handlers
-  const startAudioRecording = async () => {
-    setErrorMsg(null);
+  const chooseFile = (file: File | undefined, kind: 'audio' | 'image') => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { setError('Each file must be at most 10 MB.'); return; }
+    setError(''); setResult(null);
+    (kind === 'audio' ? setAudio : setImage)(file);
+  };
+  const record = async () => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setErrorMsg("Audio recording is not supported in this browser environment.");
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      setError('');
+      const media = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mounted.current) { media.getTracks().forEach(t => t.stop()); return; }
+      stream.current = media;
+      const rec = new MediaRecorder(media); recorder.current = rec;
+      const chunks: Blob[] = [];
+      rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        if (timer.current) clearTimeout(timer.current);
+        stopTracks();
+        if (!mounted.current) return;
+        const type = rec.mimeType || chunks[0]?.type || 'audio/webm';
+        const ext = type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm';
+        setAudio(new File(chunks, `speech.${ext}`, { type })); setRecording(false);
       };
-
-      mediaRecorder.onstop = () => {
-        const mimeType = mediaRecorder.mimeType || audioChunksRef.current[0]?.type || 'audio/webm';
-        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        const file = new File([audioBlob], `recorded_audio_${Date.now()}.${extension}`, { type: mimeType });
-        setAudioFile(file);
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
-      setIsRecordingAudio(true);
-      setRecordingSeconds(0);
-      audioTimerRef.current = setInterval(() => {
-        setRecordingSeconds(s => s + 1);
-      }, 1000);
-    } catch {
-      setErrorMsg("Microphone access permission was denied or microphone is unavailable.");
-    }
+      rec.start(); setRecording(true); setResult(null);
+      timer.current = setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, 30000);
+    } catch { stopTracks(); setError('Microphone access was unavailable. You can upload a speech recording instead.'); }
   };
-
-  const stopAudioRecording = () => {
-    if (mediaRecorderRef.current && isRecordingAudio) {
-      mediaRecorderRef.current.stop();
-      setIsRecordingAudio(false);
-      if (audioTimerRef.current) {
-        clearInterval(audioTimerRef.current);
-      }
-    }
-  };
-
-  // Webcam Capture handlers
-  const startCamera = async () => {
-    setErrorMsg(null);
+  const openCamera = async () => {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setErrorMsg("Webcam access is not supported in this browser environment.");
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setIsWebcamActive(true);
-    } catch {
-      setErrorMsg("Camera access permission was denied or camera is unavailable.");
-    }
+      setError('');
+      const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      if (!mounted.current) { media.getTracks().forEach(t => t.stop()); return; }
+      stream.current = media; setCamera(true);
+    } catch { setError('Camera access was unavailable. You can upload a photo instead.'); }
   };
-
-  const captureFrame = () => {
-    if (!videoRef.current) return;
+  const capture = () => {
+    if (!video.current?.videoWidth) return;
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, 640, 480);
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const file = new File([blob], `webcam_snap_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          setImageFile(file);
-          setImagePreviewUrl(URL.createObjectURL(blob));
-          stopCamera();
-        }
-      }, 'image/jpeg', 0.9);
-    }
+    canvas.width = video.current.videoWidth; canvas.height = video.current.videoHeight;
+    canvas.getContext('2d')?.drawImage(video.current, 0, 0);
+    canvas.toBlob(blob => { if (blob && mounted.current) setImage(new File([blob], 'portrait.jpg', { type: 'image/jpeg' })); }, 'image/jpeg');
+    stopTracks(); setCamera(false); setResult(null);
   };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsWebcamActive(false);
-  };
-
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreviewUrl(URL.createObjectURL(file));
-    }
-  };
-
-  const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAudioFile(file);
-    }
-  };
-
-  // Run Inference Pipeline
-  const handleAnalyze = async () => {
-    // Mode-specific validation
-    let textToSend: string | null = null;
-    let audioToSend: File | null = null;
-    let imageToSend: File | null = null;
-
-    if (selectedMode === 'text') {
-      if (!text.trim()) {
-        setErrorMsg("Please enter a text statement to analyze.");
-        return;
-      }
-      textToSend = text.trim();
-    } else if (selectedMode === 'audio') {
-      if (!audioFile) {
-        setErrorMsg("Please record microphone audio or upload a .wav audio file.");
-        return;
-      }
-      audioToSend = audioFile;
-    } else if (selectedMode === 'image') {
-      if (!imageFile) {
-        setErrorMsg("Please capture a webcam photo or upload a facial image.");
-        return;
-      }
-      imageToSend = imageFile;
-    } else if (selectedMode === 'multimodal') {
-      if (!text.trim() && !audioFile && !imageFile) {
-        setErrorMsg("Please provide at least one active modality stream (Text, Audio, or Image).");
-        return;
-      }
-      if (text.trim()) textToSend = text.trim();
-      if (audioFile) audioToSend = audioFile;
-      if (imageFile) imageToSend = imageFile;
-    }
-
-    setLoading(true);
-    setErrorMsg(null);
-    setResult(null);
-    setPipelineStep(1);
-
-    const stepInterval = setInterval(() => {
-      setPipelineStep(prev => (prev < 4 ? prev + 1 : prev));
-    }, 400);
-
+  const analyze = async () => {
+    if (!text.trim() && !audio && !image) { setError('Add at least one input.'); return; }
+    setBusy(true); setError(''); setResult(null);
     try {
-      const response = await apiService.analyzeEmotion(
-        textToSend,
-        audioToSend,
-        imageToSend,
-        demoMode,
-        currentUser?.id
-      );
-
-      clearInterval(stepInterval);
-      setPipelineStep(4);
-
-      if (response.success && response.data) {
-        setResult(response.data);
-      } else {
-        setErrorMsg(response.error?.message || "Inference failed. Please verify your backend server connection.");
-      }
-    } catch {
-      clearInterval(stepInterval);
-      setErrorMsg("An unexpected connection failure occurred during analysis.");
-    } finally {
-      setLoading(false);
-    }
+      const response = await apiService.analyzeEmotion(text.trim() || null, audio, image, false, currentUser?.id);
+      if (!mounted.current) return;
+      if (response.success && response.data) setResult(response.data);
+      else setError(response.error?.message || 'Analysis failed. No substitute result was generated.');
+    } finally { if (mounted.current) setBusy(false); }
   };
-
-  const formatSecs = (s: number) => {
-    const mins = Math.floor(s / 60);
-    const secs = s % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  return (
-    <div className="space-y-8 font-sans max-w-5xl mx-auto">
-      
-      {/* 1. SECTION HEADER */}
-      <div className="space-y-1">
-        <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest block">
-          Affective Laboratory
-        </span>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Start Analysis
-        </h1>
-        <p className="text-xs text-slate-400 leading-relaxed max-w-2xl">
-          Select your input modality method, provide input data, and execute the Intermediate Cross-Attention Transformer.
-        </p>
-      </div>
-
-      {/* 2. MODALITY SELECTION TABS */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-          Step 1: Choose Your Input Method
-        </label>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-semibold">
-          <button
-            onClick={() => { setSelectedMode('text'); setErrorMsg(null); }}
-            className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
-              selectedMode === 'text'
-                ? 'bg-slate-900 text-white border-brand-500 shadow-md font-bold'
-                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FileText className={`h-4 w-4 ${selectedMode === 'text' ? 'text-brand-400' : 'text-slate-500'}`} />
-              <span>Text</span>
-            </div>
-            {selectedMode === 'text' && <span className="h-2 w-2 rounded-full bg-brand-500" />}
-          </button>
-
-          <button
-            onClick={() => { setSelectedMode('audio'); setErrorMsg(null); }}
-            className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
-              selectedMode === 'audio'
-                ? 'bg-slate-900 text-white border-brand-500 shadow-md font-bold'
-                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Mic className={`h-4 w-4 ${selectedMode === 'audio' ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <span>Audio</span>
-            </div>
-            {selectedMode === 'audio' && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
-          </button>
-
-          <button
-            onClick={() => { setSelectedMode('image'); setErrorMsg(null); }}
-            className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
-              selectedMode === 'image'
-                ? 'bg-slate-900 text-white border-brand-500 shadow-md font-bold'
-                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Camera className={`h-4 w-4 ${selectedMode === 'image' ? 'text-blue-400' : 'text-slate-500'}`} />
-              <span>Image</span>
-            </div>
-            {selectedMode === 'image' && <span className="h-2 w-2 rounded-full bg-blue-500" />}
-          </button>
-
-          <button
-            onClick={() => { setSelectedMode('multimodal'); setErrorMsg(null); }}
-            className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
-              selectedMode === 'multimodal'
-                ? 'bg-slate-900 text-white border-brand-500 shadow-md font-bold'
-                : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Layers className={`h-4 w-4 ${selectedMode === 'multimodal' ? 'text-indigo-400' : 'text-slate-500'}`} />
-              <span>Multimodal</span>
-            </div>
-            {selectedMode === 'multimodal' && <span className="h-2 w-2 rounded-full bg-indigo-500" />}
-          </button>
-        </div>
-      </div>
-
-      {/* 3. INPUT AREA (PROGRESSIVE DISCLOSURE) */}
-      <div className="space-y-3">
-        <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-          Step 2: Provide Input Data
-        </label>
-
-        {/* MODE A: TEXT ONLY */}
-        {selectedMode === 'text' && (
-          <div className="academic-card p-6 space-y-3 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <FileText className="h-4 w-4 text-brand-400" />
-                <span>Qualitative Text Statement</span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono">{text.length} characters</span>
-            </div>
-
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type or paste a text statement to evaluate lexical emotion signals..."
-              rows={5}
-              className="w-full bg-slate-900/80 border border-slate-700/80 focus:border-brand-500 rounded-xl p-3 text-xs text-white outline-none resize-none leading-relaxed"
-            />
-            {text && (
-              <div className="flex justify-end">
-                <button onClick={() => setText('')} className="text-[11px] text-slate-400 hover:text-red-400">
-                  Clear Text
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* MODE B: AUDIO ONLY */}
-        {selectedMode === 'audio' && (
-          <div className="academic-card p-6 space-y-4 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Mic className="h-4 w-4 text-emerald-400" />
-                <span>Speech Acoustic Ingestion (16kHz Mono)</span>
-              </div>
-              {audioFile && (
-                <span className="text-[11px] text-emerald-400 font-semibold font-mono flex items-center gap-1">
-                  <Check className="h-3 w-3" /> Audio File Loaded
-                </span>
-              )}
-            </div>
-
-            <div className="bg-slate-950/60 p-6 rounded-xl border border-slate-800 flex flex-col items-center justify-center space-y-4 min-h-[140px]">
-              {audioFile ? (
-                <div className="text-center space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-mono border border-emerald-500/20">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>{audioFile.name}</span>
-                  </div>
-                  <div>
-                    <button
-                      onClick={() => setAudioFile(null)}
-                      className="text-xs text-slate-400 hover:text-red-400 inline-flex items-center gap-1 transition"
-                    >
-                      <Trash2 className="h-3 w-3" /> Remove Audio File
-                    </button>
-                  </div>
-                </div>
-              ) : isRecordingAudio ? (
-                <div className="text-center space-y-3">
-                  <div className="flex items-center justify-center gap-2 text-red-400 animate-pulse">
-                    <span className="h-3 w-3 rounded-full bg-red-500" />
-                    <span className="font-mono text-xs font-bold">Recording Speech: {formatSecs(recordingSeconds)}</span>
-                  </div>
-                  <button
-                    onClick={stopAudioRecording}
-                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-1.5 mx-auto shadow"
-                  >
-                    <Square className="h-3.5 w-3.5" /> Stop Recording
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <button
-                    onClick={startAudioRecording}
-                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs border border-slate-700 transition flex items-center gap-2"
-                  >
-                    <Mic className="h-4 w-4 text-emerald-400" /> Record Microphone
-                  </button>
-                  <span className="text-xs text-slate-500">or</span>
-                  <label className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition cursor-pointer">
-                    <span>Upload .wav File</span>
-                    <input type="file" accept="audio/*" onChange={handleAudioFileUpload} className="hidden" />
-                  </label>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* MODE C: IMAGE ONLY */}
-        {selectedMode === 'image' && (
-          <div className="academic-card p-6 space-y-4 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Camera className="h-4 w-4 text-blue-400" />
-                <span>Facial Vision Expression Crop (48x48 Matrix)</span>
-              </div>
-              {imageFile && (
-                <span className="text-[11px] text-emerald-400 font-semibold font-mono flex items-center gap-1">
-                  <Check className="h-3 w-3" /> Image Loaded
-                </span>
-              )}
-            </div>
-
-            <div className="bg-slate-950/60 p-6 rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[140px]">
-              {isWebcamActive ? (
-                <div className="space-y-3 text-center w-full max-w-sm">
-                  <video ref={videoRef} autoPlay playsInline className="w-full h-40 rounded-xl object-cover border border-slate-700" />
-                  <div className="flex justify-center gap-2">
-                    <button
-                      onClick={captureFrame}
-                      className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow"
-                    >
-                      Capture Photo
-                    </button>
-                    <button
-                      onClick={stopCamera}
-                      className="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : imageFile && imagePreviewUrl ? (
-                <div className="text-center space-y-2">
-                  <img src={imagePreviewUrl} alt="Facial Preview" className="h-24 w-24 rounded-xl object-cover mx-auto border border-slate-700 shadow" />
-                  <button
-                    onClick={() => { setImageFile(null); setImagePreviewUrl(null); }}
-                    className="text-xs text-slate-400 hover:text-red-400 inline-flex items-center gap-1 transition"
-                  >
-                    <Trash2 className="h-3 w-3" /> Remove Image
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <button
-                    onClick={startCamera}
-                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs border border-slate-700 transition flex items-center gap-2"
-                  >
-                    <Camera className="h-4 w-4 text-blue-400" /> Open Webcam
-                  </button>
-                  <span className="text-xs text-slate-500">or</span>
-                  <label className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-xs border border-slate-700 transition cursor-pointer">
-                    <span>Upload Image</span>
-                    <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
-                  </label>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* MODE D: MULTIMODAL (ALL INPUTS) */}
-        {selectedMode === 'multimodal' && (
-          <div className="grid md:grid-cols-3 gap-4 animate-fadeIn">
-            
-            {/* Text Box */}
-            <div className="academic-card p-5 space-y-2 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                  <span className="font-bold text-white text-xs">1. Text Stream</span>
-                  {text.trim() && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                </div>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Enter text statement..."
-                  rows={4}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-white outline-none resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Audio Box */}
-            <div className="academic-card p-5 space-y-2 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                  <span className="font-bold text-white text-xs">2. Audio Stream</span>
-                  {audioFile && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                </div>
-                {audioFile ? (
-                  <div className="text-center py-3 space-y-1">
-                    <span className="text-[11px] font-mono text-emerald-400 block truncate">{audioFile.name}</span>
-                    <button onClick={() => setAudioFile(null)} className="text-[10px] text-slate-400 hover:text-red-400">Remove</button>
-                  </div>
-                ) : (
-                  <div className="py-2 space-y-2 text-center">
-                    <button onClick={startAudioRecording} className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded border border-slate-800">
-                      Record Audio
-                    </button>
-                    <label className="text-[10px] text-brand-400 hover:underline cursor-pointer block">
-                      <span>Upload .wav</span>
-                      <input type="file" accept="audio/*" onChange={handleAudioFileUpload} className="hidden" />
-                    </label>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Image Box */}
-            <div className="academic-card p-5 space-y-2 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
-                  <span className="font-bold text-white text-xs">3. Vision Stream</span>
-                  {imageFile && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-                </div>
-                {imageFile && imagePreviewUrl ? (
-                  <div className="text-center py-1 space-y-1">
-                    <img src={imagePreviewUrl} alt="Snap" className="h-12 w-12 rounded object-cover mx-auto border border-slate-700" />
-                    <button onClick={() => { setImageFile(null); setImagePreviewUrl(null); }} className="text-[10px] text-slate-400 hover:text-red-400">Remove</button>
-                  </div>
-                ) : (
-                  <div className="py-2 space-y-2 text-center">
-                    <button onClick={startCamera} className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded border border-slate-800">
-                      Open Camera
-                    </button>
-                    <label className="text-[10px] text-brand-400 hover:underline cursor-pointer block">
-                      <span>Upload Image</span>
-                      <input type="file" accept="image/*" onChange={handleImageFileUpload} className="hidden" />
-                    </label>
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-        )}
-      </div>
-
-      {/* 4. PROGRESSIVE DISCLOSURE: ADVANCED SETTINGS */}
-      <div className="space-y-2">
-        <button
-          onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-          className="text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition"
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          <span>Advanced Configuration</span>
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAdvancedConfig ? 'rotate-180 text-brand-400' : ''}`} />
-        </button>
-
-        {showAdvancedConfig && (
-          <div className="academic-card p-4 space-y-3 animate-fadeIn text-xs">
-            <label className="flex items-center gap-2.5 text-slate-300 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={demoMode}
-                onChange={(e) => setDemoMode(e.target.checked)}
-                className="rounded border-slate-700 text-brand-600 focus:ring-brand-500 h-4 w-4 bg-slate-950"
-              />
-              <div>
-                <span className="font-semibold block">Rule-Based Simulation Mode</span>
-                <span className="text-[11px] text-slate-400">Run heuristic classification without active PyTorch model weights.</span>
-              </div>
-            </label>
-          </div>
-        )}
-      </div>
-
-      {/* 5. PRIMARY ACTION BUTTON */}
-      <div className="space-y-4 pt-2">
-        {errorMsg && (
-          <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/80 text-rose-200 text-xs flex items-center gap-2.5 animate-fadeIn">
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        <button
-          onClick={handleAnalyze}
-          disabled={loading}
-          className="w-full py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-bold text-sm tracking-wide transition shadow-lg flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Analyzing your input...</span>
-            </>
-          ) : (
-            <>
-              <Zap className="h-4 w-4 text-amber-300" />
-              <span>Start Analysis</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* PIPELINE OVERLAY */}
-      {loading && (
-        <div className="academic-card p-6 space-y-3 animate-fadeIn">
-          <span className="text-xs font-bold text-white uppercase tracking-wider block">
-            Analyzing your input...
-          </span>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs font-mono">
-            {[
-              { num: 1, label: 'Modality Preprocessing' },
-              { num: 2, label: 'Unimodal Encoders' },
-              { num: 3, label: 'Cross-Attention Fusion' },
-              { num: 4, label: 'Softmax Classification' }
-            ].map((st) => (
-              <div 
-                key={st.num}
-                className={`p-2.5 rounded-lg border flex items-center gap-2 transition ${
-                  pipelineStep >= st.num 
-                    ? 'bg-brand-500/10 border-brand-500/30 text-brand-300' 
-                    : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                }`}
-              >
-                <span className="text-[10px] font-bold">{st.num}.</span>
-                <span className="text-[11px]">{st.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 6. RESEARCH-STYLE RESULTS DISPLAY */}
-      {result && (
-        <div className="space-y-6 animate-fadeIn pt-4 border-t border-slate-800">
-          
-          {result.is_demo && (
-            <p role="status" className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
-              Rule-based demonstration. These scores are illustrative, not validated emotion predictions. A compatible trained checkpoint is required for model inference.
-            </p>
-          )}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white tracking-tight">Analysis Output & Classification</h2>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsShareModalOpen(true)}
-                className="px-3 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600 text-brand-300 hover:text-white border border-brand-500/30 text-xs font-semibold transition flex items-center gap-1.5"
-              >
-                <span>Share Result</span>
-              </button>
-              <span className="text-[10px] uppercase font-bold text-brand-400 bg-brand-500/10 px-2.5 py-1 rounded border border-brand-500/20 font-mono">
-                {result.is_demo ? 'Rule-Based Demo' : 'Research Estimate'}
-              </span>
-            </div>
-          </div>
-
-          <div className="academic-card p-6 md:p-8 space-y-6">
-            
-            {/* Primary Emotion & Confidence */}
-            <div className="grid md:grid-cols-12 gap-6 items-center">
-              <div className="md:col-span-7 space-y-2">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                  Detected Dominant Emotion
-                </span>
-                <div className="text-3xl sm:text-4xl font-extrabold text-white capitalize tracking-tight flex items-center gap-3">
-                  <span>{result.emotion}</span>
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 font-mono text-brand-400 font-bold">
-                    {(result.confidence * 100).toFixed(1)}% Confidence
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed font-normal pt-1">
-                  Intermediate cross-attention fused {result.modalities_used.length} active modality stream(s): {result.modalities_used.join(' + ')}.
-                </p>
-              </div>
-
-              <div className="md:col-span-5 bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block font-mono">
-                  Input Modalities Evaluated
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {result.modalities_used.map((m: string, idx: number) => (
-                    <span key={idx} className="bg-slate-900 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-md text-[11px] font-mono capitalize">
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Probability Curves */}
-            <div className="space-y-2.5 pt-2 border-t border-slate-800">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                Softmax Probability Distribution Across 7 Affect Categories
-              </span>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {Object.entries(result.probabilities || {}).map(([emo, prob]) => {
-                  const percent = Math.round(Number(prob) * 100);
-                  const isTop = emo.toLowerCase() === result.emotion.toLowerCase();
-                  return (
-                    <div key={emo} className={`p-3 rounded-xl border ${isTop ? 'bg-brand-500/10 border-brand-500/30' : 'bg-slate-900/60 border-slate-800'}`}>
-                      <div className="flex justify-between items-center text-xs mb-1.5">
-                        <span className={`capitalize font-semibold ${isTop ? 'text-white font-bold' : 'text-slate-300'}`}>{emo}</span>
-                        <span className="font-mono text-[11px] text-slate-400">{percent}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${isTop ? 'bg-brand-500' : 'bg-slate-700'}`}
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Explanation Callouts */}
-          <div className="grid md:grid-cols-2 gap-4 text-xs">
-            <div className="academic-card p-5 space-y-2 border-indigo-500/30">
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
-                <Info className="h-4 w-4" />
-                <span>What Does This Result Mean?</span>
-              </div>
-              <ul className="space-y-1.5 text-slate-300 leading-relaxed">
-                <li>• <strong>Pattern Estimate:</strong> The neural model identified feature alignments corresponding to {result.emotion} across your input stream(s).</li>
-                <li>• <strong>Softmax Confidence:</strong> {(result.confidence * 100).toFixed(1)}% confidence represents mathematical model certainty relative to the 7 classified affect categories.</li>
-              </ul>
-            </div>
-
-            <div className="academic-card p-5 space-y-2 border-amber-500/30">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                <AlertCircle className="h-4 w-4" />
-                <span>What This Result Does NOT Mean</span>
-              </div>
-              <ul className="space-y-1.5 text-slate-300 leading-relaxed">
-                <li>• <strong>Not a Medical Diagnosis:</strong> This output is an AI research estimate and does not replace psychiatric or clinical diagnosis.</li>
-                <li>• <strong>Not Clinical Severity:</strong> Softmax scores reflect mathematical alignment with benchmark training distributions, not medical status.</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Collapsible Model Details */}
-          <div className="space-y-2">
-            <button
-              onClick={() => setShowModelDetails(!showModelDetails)}
-              className="text-xs font-semibold text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition"
-            >
-              <Layers className="h-3.5 w-3.5 text-indigo-400" />
-              <span>Inspect Collapsed Technical Model Details</span>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showModelDetails ? 'rotate-180 text-brand-400' : ''}`} />
-            </button>
-
-            {showModelDetails && (
-              <div className="academic-card p-6 space-y-4 animate-fadeIn">
-                {result.modality_predictions && (
-                  <div className="space-y-3">
-                    <span className="text-xs font-bold text-white uppercase tracking-wider block">
-                      Unimodal Encoder Breakdown
-                    </span>
-                    <div className="grid sm:grid-cols-3 gap-3 text-xs">
-                      {result.modality_predictions.text && (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Text NLP Encoder</span>
-                          <p className="text-sm font-bold text-white capitalize">{result.modality_predictions.text.emotion}</p>
-                          <span className="text-[11px] text-slate-400 font-mono">Confidence: {(result.modality_predictions.text.confidence * 100).toFixed(1)}%</span>
-                        </div>
-                      )}
-                      {result.modality_predictions.audio && (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Audio SER Encoder</span>
-                          <p className="text-sm font-bold text-white capitalize">{result.modality_predictions.audio.emotion}</p>
-                          <span className="text-[11px] text-slate-400 font-mono">Confidence: {(result.modality_predictions.audio.confidence * 100).toFixed(1)}%</span>
-                        </div>
-                      )}
-                      {result.modality_predictions.image && (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Vision CNN Encoder</span>
-                          <p className="text-sm font-bold text-white capitalize">{result.modality_predictions.image.emotion}</p>
-                          <span className="text-[11px] text-slate-400 font-mono">Confidence: {(result.modality_predictions.image.confidence * 100).toFixed(1)}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* SECURE SHARE MODAL */}
-      <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        result={result}
-        currentUser={currentUser}
-      />
-
+  const field = 'w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-400';
+  return <section className="space-y-6 max-w-5xl mx-auto">
+    <div className="academic-card p-6 md:p-8 space-y-4">
+      <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-widest"><Shield size={16}/> Private by default</div>
+      <h1 className="text-2xl md:text-3xl font-bold text-white">Understand expressions. Keep context.</h1>
+      <p className="text-slate-300 text-sm leading-relaxed">Analyze English text, up to 30 seconds of speech, or a photo of one consenting adult. Combine inputs from the same moment to compare model outputs.</p>
+      <p className="text-xs text-slate-400">These models classify expression patterns. They cannot determine what someone truly feels or diagnose mental-health conditions. {currentUser ? 'Your result will be saved privately to your account.' : 'Guest results are not saved. Sign in to keep history and share results.'} Raw text, photos, and recordings are not stored.</p>
+      <div className="flex flex-wrap gap-2" aria-label="Model availability">{['text','audio','image'].map(kind => <span key={kind} className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">{kind}: {models[kind] ? models[kind].installed ? 'installed' : 'not installed' : 'checking'}</span>)}</div>
     </div>
-  );
+    <div className="grid md:grid-cols-2 gap-5">
+      <div className="academic-card p-5 md:col-span-2 space-y-2">
+        <label htmlFor="analysis-text" className="font-semibold text-white">Text <span className="text-slate-400 font-normal text-xs">optional · English · first 256 tokens</span></label>
+        <textarea id="analysis-text" className={field} rows={4} maxLength={5000} placeholder="Type or paste a text statement..." value={text} onChange={e => setText(e.target.value)} disabled={busy}/>
+        <p className="text-xs text-slate-500 text-right">{text.length}/5000 characters</p>
+      </div>
+      <div className="academic-card p-5 space-y-3">
+        <label htmlFor="analysis-audio" className="font-semibold text-white">Speech <span className="text-xs text-slate-400">optional · 0.1–30 seconds</span></label>
+        <input id="analysis-audio" aria-label="Upload speech" type="file" accept=".wav,.mp3,.ogg,.m4a,.webm,.mp4" className={field} disabled={busy || recording} onChange={e => chooseFile(e.target.files?.[0], 'audio')}/>
+        <button className="btn-secondary flex gap-2 items-center" disabled={busy || camera} onClick={recording ? () => recorder.current?.stop() : record}>{recording ? <Square size={16}/> : <Mic size={16}/>} {recording ? 'Stop recording' : 'Record speech'}</button>
+        {audio && <div className="text-xs text-slate-300 break-all">{audio.name} <button onClick={() => setAudio(null)} className="text-rose-300 ml-2" disabled={busy}>Remove speech</button></div>}
+        <p className="text-xs text-slate-400">Speech model labels: happy, sad, angry, neutral.</p>
+      </div>
+      <div className="academic-card p-5 space-y-3">
+        <label htmlFor="analysis-image" className="font-semibold text-white">Facial photo <span className="text-xs text-slate-400">optional · one face</span></label>
+        <input id="analysis-image" aria-label="Upload facial photo" type="file" accept=".png,.jpg,.jpeg,.webp" className={field} disabled={busy} onChange={e => chooseFile(e.target.files?.[0], 'image')}/>
+        <button className="btn-secondary flex gap-2 items-center" disabled={busy || recording || camera} onClick={openCamera}><Camera size={16}/> Open camera</button>
+        {camera && <div className="space-y-2"><video ref={video} autoPlay muted playsInline className="w-full rounded-xl"/><button onClick={capture} className="btn-primary">Capture photo</button><button onClick={() => { stopTracks(); setCamera(false); }} className="btn-secondary ml-2">Close camera</button></div>}
+        {image && <div className="text-xs text-slate-300 break-all">{image.name} <button onClick={() => setImage(null)} className="text-rose-300 ml-2" disabled={busy}>Remove photo</button></div>}
+        <p className="text-xs text-slate-400">Maximum 10 MB and 12 megapixels. No group photos.</p>
+      </div>
+    </div>
+    <label className="flex items-start gap-3 text-sm text-slate-300"><input type="checkbox" className="mt-1" checked={consent} onChange={e => setConsent(e.target.checked)}/> I have permission to analyze these inputs and understand this is not a clinical assessment.</label>
+    {error && <div role="alert" className="p-4 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-200 text-sm flex gap-2"><AlertCircle size={18}/>{error}</div>}
+    <button onClick={analyze} disabled={busy || !consent || recording || camera} className="btn-primary w-full py-3 disabled:opacity-40">{busy ? <span className="flex items-center justify-center gap-2"><RefreshCw className="animate-spin" size={18}/> Running installed models…</span> : 'Start Analysis'}</button>
+    {result && <div className="academic-card p-6 space-y-5" aria-live="polite">
+      <h2 className="text-xl text-white font-bold">Analysis Output & Classification</h2>
+      <p className="text-sm text-slate-400">Top expression label</p><p className="text-3xl capitalize font-bold text-indigo-300">{result.emotion}</p>
+      <p className="text-sm text-slate-300">Model score: {(result.confidence * 100).toFixed(1)}% · uncalibrated</p>
+      <div className="space-y-2">{Object.entries(result.probabilities).sort((a,b) => b[1]-a[1]).map(([label,value]) => <div key={label} className="grid grid-cols-[80px_1fr_55px] gap-3 items-center text-xs text-slate-300"><span className="capitalize">{label}</span><progress aria-label={`${label} model score`} value={value} max={1} className="w-full accent-indigo-400"/><span>{(value*100).toFixed(1)}%</span></div>)}</div>
+      <div className="grid sm:grid-cols-3 gap-3">{Object.entries(result.modality_predictions).filter(([,p]) => p).map(([kind,p]) => <div className="rounded-xl bg-slate-950 p-4" key={kind}><p className="text-xs text-slate-400 capitalize">{kind}</p><p className="text-white font-semibold capitalize">{p!.emotion}</p><p className="text-xs text-slate-400 break-all">{p!.model}</p></div>)}</div>
+      <p className="text-xs text-slate-400">{result.fusion_method}</p>
+      <ul className="list-disc pl-5 text-xs text-amber-200 space-y-1">{result.warnings?.map(w => <li key={w}>{w}</li>)}</ul>
+      <p className="text-sm text-slate-300">{result.wellness_insight}</p>
+      <p className="text-xs text-slate-500">{result.saved ? 'Saved privately to your history.' : 'Guest result: not saved to the server.'}</p>
+      {result.saved && <button className="btn-secondary" onClick={() => setShare(true)}>Share Result</button>}
+    </div>}
+    {result && <ShareModal isOpen={share} onClose={() => setShare(false)} result={result} currentUser={currentUser}/>}
+  </section>;
 };

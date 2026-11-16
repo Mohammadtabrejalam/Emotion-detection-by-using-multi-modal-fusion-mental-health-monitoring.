@@ -86,7 +86,7 @@ def test_invalid_corrupt_mp4_media_stream_inspection():
         assert dur2 is None
 
 
-def test_meld_mock_csv_ingestion_and_manifest():
+def test_meld_mock_csv_ingestion_and_manifest(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         train_dir = tmp_path / "train_splits"
@@ -104,6 +104,7 @@ def test_meld_mock_csv_ingestion_and_manifest():
             encoding="utf-8"
         )
 
+        monkeypatch.setattr("backend.app.ml.data.prepare_meld.DATASET_STATS_PATH", tmp_path / "stats.json")
         manifest_output = tmp_path / "manifest.json"
         manifest = ingest_meld_dataset(
             meld_root=tmp_path,

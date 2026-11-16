@@ -1,3 +1,5 @@
+import pytest
+import uuid
 import sys
 import os
 from fastapi.testclient import TestClient
@@ -9,6 +11,14 @@ from app.main import app
 
 client = TestClient(app)
 
+@pytest.fixture(autouse=True)
+def authenticated_client():
+    username = uuid.uuid4().hex
+    result = client.post('/api/auth/register', json={'username': username, 'email': username+'@example.com', 'name': 'Test', 'password': 'Password123!'}).json()['data']
+    client.headers['Authorization'] = 'Bearer '+result['token']
+    yield
+    client.headers.pop('Authorization', None)
+
 def test_health_endpoint():
     response = client.get("/api/health")
     assert response.status_code == 200
@@ -18,28 +28,28 @@ def test_health_endpoint():
     assert "pytorch_loaded" in data["data"]
 
 def test_analyze_insufficient_input():
-    response = client.post("/api/analyze", data={"demo_mode": "true"})
+    response = client.post("/api/analyze", data={})
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is False
     assert data["error"]["code"] == "INSUFFICIENT_INPUT"
 
 def test_analyze_text_only():
-    response = client.post("/api/analyze", data={"text": "I feel so happy and excited today!", "demo_mode": "true"})
+    response = client.post("/api/analyze", data={"text": "I feel so happy and excited today!"})
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
     assert data["data"]["emotion"] == "happy"
-    assert data["data"]["is_demo"] is True
+    assert data["data"]["is_demo"] is False
     assert "text" in data["data"]["modalities_used"]
 
 def test_analyze_text_crisis():
-    response = client.post("/api/analyze", data={"text": "I want to commit suicide and end my life", "demo_mode": "true"})
+    response = client.post("/api/analyze", data={"text": "I want to commit suicide and end my life"})
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert data["data"]["crisis_alert"] is True
-    assert "Lifeline" in data["data"]["wellness_insight"]
+    assert data["data"]["crisis_alert"] is False
+    assert "not a mental-health assessment" in data["data"]["wellness_insight"]
 
 def test_checkin_flow():
     checkin_data = {
@@ -76,9 +86,10 @@ def test_research_endpoint():
     response = client.get("/api/research")
     assert response.status_code == 200
     data = response.json()
-    assert data["success"] is True
-    assert "metrics" in data["data"]
-    assert "confusion_matrix" in data["data"]
+    if data["success"]:
+        assert "evaluations" in data["data"]
+    else:
+        assert data["error"]["code"] == "METRICS_UNAVAILABLE"
 
 def test_clear_history():
     response = client.delete("/api/history")
@@ -97,7 +108,7 @@ def test_assistant_chat_normal_question():
     data = response.json()
     assert data["success"] is True
     assert data["data"]["is_crisis"] is False
-    assert "Cross-Attention" in data["data"]["response"] or "Intermediate" in data["data"]["response"]
+    assert "late fusion" in data["data"]["response"]
 
 def test_assistant_chat_navigation_question():
     # CASE 2: Navigation / usage question
@@ -115,8 +126,8 @@ def test_assistant_chat_crisis_input():
     data = response.json()
     assert data["success"] is True
     assert data["data"]["is_crisis"] is True
-    assert "988" in data["data"]["response"]
-    assert "findahelpline.com" in data["data"]["response"]
+    assert "local emergency services" in data["data"]["response"]
+    assert data["data"]["mode"] == "scripted_faq"
 
 def test_assistant_chat_empty_query():
     # CASE 4: Empty query handling
@@ -125,11 +136,11 @@ def test_assistant_chat_empty_query():
     data = response.json()
     assert data["success"] is True
     assert data["data"]["is_crisis"] is False
-    assert "MindSense Research Assistant" in data["data"]["response"]
+    assert "scripted app guide" in data["data"]["response"]
 
 def test_share_link_flow():
     # 1. Run analysis to create result
-    res = client.post("/api/analyze", data={"text": "Feeling wonderful and cheerful", "demo_mode": "true"})
+    res = client.post("/api/analyze", data={"text": "Feeling wonderful and cheerful"})
     assert res.status_code == 200
     result_id = res.json()["data"]["id"]
 

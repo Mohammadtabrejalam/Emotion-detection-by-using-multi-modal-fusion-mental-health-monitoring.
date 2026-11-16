@@ -148,7 +148,7 @@ def run_fusion_ablation_comparison(
 
     # 2. Instantiate and Evaluate E04 Attention Reference Model
     print("\nLoading and evaluating E04 Attention Reference Model...")
-    e04_ckpt = torch.load(e04_checkpoint_path, map_location=device, weights_only=False)
+    e04_ckpt = torch.load(e04_checkpoint_path, map_location=device, weights_only=True)
     e04_cfg = e04_ckpt.get("config", {})
 
     e04_model = MultimodalFusionTransformer(
@@ -165,7 +165,7 @@ def run_fusion_ablation_comparison(
 
     # 3. Instantiate and Evaluate Concatenation Baseline Model
     print("\nLoading and evaluating Concatenation Baseline Model...")
-    concat_ckpt = torch.load(concat_checkpoint_path, map_location=device, weights_only=False)
+    concat_ckpt = torch.load(concat_checkpoint_path, map_location=device, weights_only=True)
     concat_cfg = concat_ckpt.get("config", {})
 
     concat_model = MultimodalConcatenationFusion(

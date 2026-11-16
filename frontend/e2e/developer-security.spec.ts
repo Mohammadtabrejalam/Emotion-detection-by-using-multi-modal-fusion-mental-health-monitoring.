@@ -6,7 +6,7 @@ test.describe('Developer Portal Security & Isolation E2E Tests', () => {
     await page.goto('/#/developer/dashboard');
 
     // System MUST render Developer Authentication login form or access warning
-    await expect(page.getByText(/Developer Authentication/i).or(page.getByText(/Sign In/i))).toBeVisible();
+    await expect(page.getByText(/Developer Authentication/i).or(page.getByText(/Sign In/i)).first()).toBeVisible();
     await expect(page.getByText(/Developer System Telemetry/i)).not.toBeVisible();
   });
 

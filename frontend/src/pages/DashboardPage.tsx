@@ -114,11 +114,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
             <div className="academic-card p-5 space-y-2">
               <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-                <span>Wellness Alignment Score</span>
+                <span>Clinical assessment</span>
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
               </div>
               <p className="text-2xl font-extrabold text-emerald-400 font-mono">
-                {trends?.wellness_score || 78}/100
+                Not provided
               </p>
               <p className="text-[11px] text-slate-400">Calculated from somatic check-ins</p>
             </div>
@@ -282,7 +282,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   <span>ML Architecture</span>
                   <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition" />
                 </div>
-                <p className="text-[11px] text-slate-400">Cross-Attention mathematical specs</p>
+                <p className="text-[11px] text-slate-400">Published models and late fusion</p>
               </button>
 
               <button 

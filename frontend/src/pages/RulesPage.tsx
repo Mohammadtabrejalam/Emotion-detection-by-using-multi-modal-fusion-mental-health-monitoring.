@@ -95,7 +95,7 @@ export const RulesPage: React.FC<RulesPageProps> = ({ onBack }) => {
             <span>4. Responsible AI & Research Standards</span>
           </div>
           <p className="text-slate-300 leading-relaxed text-[11px]">
-            When publishing academic literature using MindSense output, researchers must explicitly report the model version (v1.3 Fused Cross-Attention), baseline dataset constraints (CREMA-D, RAVDESS, FER-2013), and inherent AI probability limitations.
+            When publishing academic literature using MindSense output, researchers must explicitly report the model version (published-late-fusion-v1), measured evaluation scope (MELD test, RAVDESS actor-01 diagnostic subset), and inherent AI probability limitations.
           </p>
         </div>
 

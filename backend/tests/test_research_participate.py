@@ -11,7 +11,7 @@ def test_research_studies_listing():
     assert res["success"] is True
     assert "studies" in res["data"]
     assert len(res["data"]["studies"]) > 0
-    assert res["data"]["studies"][0]["title"] == "Multimodal Affective Baseline Study 2026"
+    assert res["data"]["studies"][0]["title"] == "TEST ONLY Study"
 
 def test_research_participation_and_withdrawal_flow():
     # 1. Register test user & get JWT token
