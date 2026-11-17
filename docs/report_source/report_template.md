@@ -18,15 +18,15 @@ Graduating batch 2027
 
 ## Abstract
 
-MindSense is a research demonstration that combines published text, speech and facial-expression classifiers through late fusion. This report examines the implemented system, its evaluation evidence and a specific failure of audiovisual fusion. It evaluates the strength of the available evidence without treating expression labels as clinical assessments.
+MindSense brings text, speech and facial-expression analysis into a single web application. Users can compare predictions, keep private journals and record their own daily check-ins. The application combines published classifiers through late fusion: each model processes its input separately, and the backend combines their scores. This report describes the implementation and investigates a practical question raised during evaluation: why did adding speech sometimes make the facial prediction worse?
 
-Arithmetic verification of the committed prediction records confirms 43.72% accuracy and 0.270 macro F1 for text on 2,610 MELD test utterances. The majority-neutral baseline reaches 48.12% accuracy. On 52 eligible audiovisual clips from RAVDESS Actor 01, face-only classification reaches 40.38% accuracy and 0.392 macro F1; the existing fusion reaches 38.46% and 0.355. Fusion changes four face-only decisions, correcting one error and introducing two. Speech is evaluated separately on its 28 supported-class clips and cannot be compared directly with the seven-class results.
+The saved prediction records show that the text model achieved 43.72% accuracy and 0.270 macro F1 on 2,610 MELD test utterances. This was below the 48.12% accuracy of always predicting neutral. On 52 RAVDESS clips from Actor 01, face-only inference achieved 40.38% accuracy and 0.392 macro F1, compared with 38.46% and 0.355 for audiovisual fusion. Adding speech corrected one face-only error but introduced two. The speech model was also evaluated on 28 clips belonging to the four classes it supports; that result uses a different sample set from the seven-class comparison.
 
-Analysis of the serving code identifies a label-support mismatch: audio produces four classes, while face produces seven. Averaging over a different number of modalities for different classes changes the allocation of normalized scores. This is a testable engineering concern, but the available labels alone do not establish it as the cause of the observed accuracy loss.
+One issue lies in the models' different output labels. The speech model predicts four classes, whereas the facial model predicts seven. The existing fusion rule averages scores over whichever models provide each label, then normalizes the result. This changes the probability assigned to the three classes that speech cannot predict. The mathematical effect can be shown directly, although the Actor 01 labels alone cannot establish how much of the accuracy loss it caused.
 
 {{ABSTRACT_RESULT}}
 
-## Evidence status
+## Project overview
 
 | Evidence | Status in this report |
 | --- | --- |
@@ -35,13 +35,13 @@ Analysis of the serving code identifies a label-support mismatch: audio produces
 | Actor 02 to 06 follow-up | Exact procedure restored from execution transcript; fresh inference and metrics retained |
 | Browser and regression checks | CI logs and screenshot artifact recovered for the inspected commit |
 
-The report addresses three questions: what the application implements, what can explain the fusion failure, and what evidence would be sufficient to support an improvement. The original exploratory evidence, reproduced actor-separated study, and remaining limitations are presented separately.
+The chapters connect the application design to its evaluation: how the models are used, where the original fusion lost accuracy, and whether a revised rule performs better on separate actors. The initial Actor 01 analysis and the later experiment have different purposes, so their results are reported separately.
 
 <!-- PAGEBREAK -->
 
 ## Contents
 
-Abstract and evidence status
+Abstract and project overview
 
 Introduction and research objectives
 
@@ -75,19 +75,19 @@ Appendix B Algorithm and evidence map
 
 ## Introduction and research objectives
 
-A person can describe a situation in words, speak with a particular tone, and show a facial expression. These channels are related but can disagree. MindSense makes classifier outputs visible while providing private tools for authored reflection. Its purpose is educational exploration, not the inference of a hidden psychological truth. In the project title, mental health monitoring refers to journals and self-reported check-ins over time; it does not imply that an emotion score diagnoses depression, anxiety, or another condition.
+Words, tone of voice and facial expressions do not always convey the same message. A short sentence may sound reassuring in text while its delivery suggests frustration. MindSense lets users inspect predictions from these channels together and reflect on them through private journals and check-ins. In the project title, mental health monitoring refers to these self-reported records over time. The classifiers do not diagnose depression, anxiety or other mental-health conditions.
 
-The engineering problem is to connect real models to a reliable application. A prediction demonstration is incomplete if missing checkpoints silently produce guesses, a journal belongs to the wrong user, or a result link exposes unrelated private records. The project therefore treats model provenance, input limits, authentication, ownership, persistence, consent, error recovery, and reproducible setup as core requirements.
+Connecting a classifier to a web page is only one part of the engineering problem. The application also needs to handle unavailable model files, reject invalid inputs, protect each user's journal and prevent shared links from exposing unrelated records. For this reason, model provenance, input limits, authentication, ownership, persistence, consent, error recovery and reproducible setup are treated as core requirements.
 
-The research problem arose from an actual negative result: the original audio/face fusion classified one fewer Actor 01 clip correctly than face-only inference. That observation motivates a controlled comparison rather than a presumption that fusion must help. The speech model recognizes four categories, while the facial model recognizes seven; their scores were trained in different domains and do not automatically represent compatible probabilities.
+The research question came from a negative result in the first evaluation. Combining audio and face predictions produced one fewer correct answer than face-only inference on Actor 01. This made it necessary to check the fusion rule rather than assume that a second modality would help. The two models also recognise different class sets and were trained in different domains, so their confidence scores cannot be assumed to have the same meaning.
 
-The first objective is to identify the mathematical effect of the existing averaging rule. The second is to compare support-preserving fusion against face-only, audio-only, existing fusion, an ordinary average, and calibration controls using the same samples. The third is to test whether empirical reliability adds value beyond a constant weight and whether an entropy factor is selected. The fourth is to measure uncertainty and bounded robustness without overstating their meaning.
+The study has four objectives. First, it examines how the existing averaging rule changes the distribution of scores. Second, it compares a rule that preserves the facial model's probability mass with individual models, ordinary averaging and calibration controls on the same clips. Third, it checks whether learned class reliability helps more than a constant audio weight and whether an entropy term adds value. Finally, it measures variation between actors, prediction uncertainty and performance when a modality is missing or its scores are altered.
 
-The hypothesis can fail. A classifier can be confidently wrong, and reliability learned from a few actors can transfer poorly. A scientifically useful result may be a negative finding or a tie with a simpler method. Success in this project means reproducible evidence and accurate interpretation, not a mandatory positive improvement.
+Reliability weighting may also fail: a model can be confidently wrong, and reliability estimated from a few actors may not transfer to another person. A tie or a loss against a simpler method therefore remains a useful result. The experiment is designed to produce a comparison that can be repeated and examined, rather than to guarantee a positive outcome.
 
 ### Scope and acceptance criteria
 
-The application supports text, audio and face inference, registration and login, journals, check-ins, history, dashboards, sharing, export and deletion. The new research study is audiovisual. RAVDESS contains repeated semantically neutral statements, so its semantic text is unsuitable for a claim about seven-class text-emotion performance. Three-way integration has been tested, but aligned three-way predictive improvement has not been benchmarked.
+The application includes text, speech and facial inference, registration and login, journals, check-ins, history, dashboards, sharing, export and deletion. The follow-up experiment uses audio and video only. RAVDESS repeats semantically neutral statements, which makes their text unsuitable for evaluating seven-class text-emotion recognition. The three-input application path has been tested, but the predictive benefit of combining all three inputs has not been measured on an aligned dataset.
 
 | Requirement | Verification approach |
 | --- | --- |
@@ -98,29 +98,29 @@ The application supports text, audio and face inference, registration and login,
 | Separation of data roles | Fixed fitting, validation and test actor identifiers |
 | Honest reporting | Negative actor-level and calibration findings retained |
 
-The deliverables are working application code, a bounded experimental contribution, score records and hashes, reproducible scripts, and this academic report. They do not include a deployment, clinical validation, or an asserted new state-of-the-art algorithm.
+The project deliverables are the application, the fusion experiment, saved scores and hashes, reproduction scripts and this report. Clinical validation, a public deployment and a claim of state-of-the-art performance fall outside the completed work.
 
 <!-- PAGEBREAK -->
 
 ## 1 Related work and project contribution
 
-Multimodal emotion recognition combines evidence from channels such as speech and facial expression. RAVDESS provides controlled acted audiovisual material [1]; MELD provides conversational text, audio and video [2]. They differ in collection setting and task structure, so results on one should not be interpreted as performance on the other. MindSense uses only MELD text in its verified MELD experiment.
+Multimodal emotion recognition uses more than one source of information, commonly speech and facial expression. The choice of dataset affects what a result can demonstrate. RAVDESS contains controlled, acted audiovisual recordings [1], while MELD contains conversations with text, audio and video [2]. Their settings and task structures differ, so their scores are not interchangeable. The MELD experiment in this project uses only its text.
 
-Temperature scaling is an established post-processing approach to confidence calibration [3]. COLD Fusion learns modality-specific latent distributions and constrains their uncertainty through calibration and ordinal ranking [4]. Its audiovisual uncertainty modelling is materially different from a score-level adapter around frozen classifiers. The proposed MindSense investigation neither implements nor directly compares against COLD Fusion. Referencing that work establishes prior art, not an empirical baseline.
+Guo and colleagues describe temperature scaling as a post-processing method for calibrating confidence [3]. Tellamekala and colleagues take a different approach in COLD Fusion: they learn modality-specific latent distributions and use calibration and ordinal-ranking constraints to model uncertainty [4]. MindSense instead works with final scores from frozen classifiers. COLD Fusion is therefore discussed as related work, not presented as an implemented numerical baseline.
 
-The concrete project contribution is integration of pinned published models, explicit label mapping, a transparent serving rule and traceable evaluation. The evaluated fusion adapter is a bounded engineering contribution. A better result on two actors does not by itself establish a new algorithm or a general advantage over established methods.
+The contribution of MindSense is the integration of pinned published models, explicit label mapping, an inspectable fusion rule and an evaluation of that rule. The experimental adapter extends this implementation. Its value is in showing what happens with these models under a fixed comparison; a gain on two actors is insufficient to establish a new algorithm or a general advantage over existing research.
 
 ### Foundations and comparison with existing approaches
 
-Baltrusaitis, Ahuja and Morency organize multimodal learning around representation, translation, alignment, fusion and co-learning [8]. This distinction prevents a score-combination application from being described as a jointly learned representation model. MindSense's current inference path is late fusion. The presence of older cross-attention modules in the repository does not change what the serving API executes.
+Baltrusaitis, Ahuja and Morency distinguish representation, translation, alignment, fusion and co-learning in their taxonomy of multimodal learning [8]. MindSense belongs to the late-fusion category because it combines classifier outputs. It does not learn a shared representation during application inference. Although older cross-attention modules remain in the repository, the active API does not execute them.
 
-Baevski and colleagues introduce wav2vec 2.0, which learns speech representations through masking in latent space and a contrastive objective [9]. The published speech expert is an emotion-classification adaptation of that foundation. Speech-recognition results in the foundational paper are not emotion-recognition measurements for this project, and source-dataset accuracy cannot establish RAVDESS performance.
+The speech model builds on wav2vec 2.0, which learns representations using masked latent features and a contrastive objective [9]. The checkpoint used here adapts that model family to emotion classification. The foundational paper's speech-recognition results explain the architecture, but they do not measure this checkpoint's performance on RAVDESS. That performance must be tested with the project's own input pipeline.
 
-Dosovitskiy and colleagues show how a transformer can process image patches for classification [10]. The facial expert uses a ViT checkpoint specialized for expressions. A cropped frame from acted video differs from its fine-tuning images; the full input path includes a detector and cropper that the encoder paper does not evaluate. This motivates measurement of the actual application path rather than quoting a model-family benchmark.
+The facial model uses a Vision Transformer, following the image-patch classification approach described by Dosovitskiy and colleagues [10]. Its expression-classification checkpoint receives a detected and cropped face. A midpoint frame from an acted video may differ from its fine-tuning images, and detection or cropping can affect the result before classification begins. Evaluation therefore includes the application's complete image-processing path.
 
-GoEmotions supplies fine-grained English Reddit emotion labels [11]. Mapping those labels into seven application categories changes the output task. Group maxima avoid simply rewarding categories with more member labels, but they are not a learned alignment or calibration method. The MELD transfer test measures this concrete adapter on independent utterances, without the conversational history available in the original dataset setting.
+GoEmotions provides fine-grained emotion labels for English Reddit comments [11]. MindSense groups these labels into seven categories and uses the highest score in each group before normalization. This avoids summing more evidence merely because a group contains more labels, but it does not learn an alignment between datasets or calibrate the scores. The MELD test evaluates the resulting adapter one utterance at a time, without conversational history.
 
-Simple fixed-weight averaging is an essential control because it isolates whether merely adding another expert changes decisions. Temperature scaling addresses score sharpness but does not repair a missing class. The support-preserving hierarchy addresses group mass, while empirical reliability changes weights by predicted class. These components should be tested separately before crediting a gain to adaptivity. COLD Fusion [4] is a substantially different latent-distribution method; it is prior art, not an executed baseline in this report.
+The experimental controls separate the effects of several choices. Fixed-weight averaging checks what happens when another model is added. Temperature scaling changes score sharpness, but cannot create an output class that a model lacks. The hierarchy preserves probability mass across label groups, while class reliability changes the audio weight according to the predicted category. Testing these choices separately makes it possible to identify which ones contribute to the measured result.
 
 | Method family | What it models | Evaluation status here |
 | --- | --- | --- |
@@ -131,17 +131,17 @@ Simple fixed-weight averaging is an essential control because it isolates whethe
 | Class reliability and entropy | Predicted class precision and score concentration | Validation-selected variant |
 | COLD Fusion | Calibrated ordinal latent distributions | Literature comparison only |
 
-### Research gap and falsifiable contribution
+### Research gap and study questions
 
-The defensible gap is project-specific: the serving application had no actor-separated evidence showing whether its mismatched label spaces and uncalibrated expert scores helped or harmed classification. Reliability-aware fusion already exists in published research. This study tests a lightweight adapter around the actual frozen experts, includes simpler controls, and preserves unsuccessful findings. It does not establish that this combination has never appeared elsewhere.
+The gap addressed here is specific to MindSense: there was no evaluation on separate actors showing whether the application's different label spaces and uncalibrated scores helped or harmed classification. Reliability-aware fusion already has a research history. This study examines a lightweight adaptation of the actual frozen models, compares it with simpler alternatives and reports the cases where it fails. It does not claim that the combination has never appeared elsewhere.
 
-The primary comparison is adaptive fusion against the current serving rule on identical test clips. Face-only, calibration and static weighting reveal whether any advantage requires an adaptive rule. Per-actor analysis tests whether an aggregate gain is consistent; score-based stress checks test bounded failure scenarios. These comparisons can reject a broad improvement claim even when the overall accuracy rises.
+The main comparison is between adaptive fusion and the application's existing rule on identical test clips. Face-only inference, calibration and static weighting show whether any improvement depends on adaptation. Results are also broken down by actor because an overall gain can conceal a decline for one person. Missing-input and score-perturbation checks examine specific failure conditions without claiming to cover every real-world disturbance.
 
 <!-- PAGEBREAK -->
 
 ## 2 Implemented system
 
-The React frontend sends requests to a FastAPI backend. The inference service loads local model files, preprocesses the supplied modalities, obtains classifier scores and combines them. A model lock serializes inference within the supported single process. The active API does not instantiate the older cross-attention research network [R1, R2].
+The application uses a React frontend and a FastAPI backend. For each analysis, the backend preprocesses the available inputs, runs locally loaded models and applies late fusion to their scores. A lock allows one inference operation at a time within the supported single process. The active API uses this service rather than the older cross-attention research network [R1, R2].
 
 | Input | Published model | Serving interpretation |
 | --- | --- | --- |
@@ -149,11 +149,11 @@ The React frontend sends requests to a FastAPI backend. The inference service lo
 | Speech at 16 kHz | superb/wav2vec2-base-superb-er | Softmax scores for happy, sad, angry and neutral |
 | One facial image | trpakov/vit-face-expression | Softmax scores for seven expression classes after face detection and cropping |
 
-The model cards describe GoEmotions, IEMOCAP/SUPERB and FER2013 as the respective task data [5-7]. Their published metrics are not substituted for MindSense measurements. The serving registry pins exact revisions, reproduced in Appendix A.
+The model cards identify GoEmotions, IEMOCAP/SUPERB and FER2013 as the respective task data [5-7]. Appendix A records the exact model revisions. Published model-card scores describe their source evaluations; the results in this report come from the MindSense evaluations.
 
 Text is limited to the first 256 tokens. Audio is decoded to 16 kHz and accepted between 0.1 and 30 seconds. Facial analysis requires exactly one detectable frontal face. These constraints affect coverage and should be reported alongside accuracy.
 
-Guest results are returned without saving them. Authenticated history stores result metadata and scores; the architecture documents separate private journaling, check-ins, export and deletion. The application does not persist raw analysis text, photographs or recordings. This does not mean that journal entries are never stored. SQLite lacks application-level encryption, and browser bearer tokens use localStorage [R2].
+Guest analyses are returned without being saved. For signed-in users, history stores result metadata and scores. Journals and check-ins are separate records that users choose to save. The analysis path does not persist raw text, photographs or recordings. The main storage limitations are that SQLite is not encrypted by the application and browser bearer tokens are stored in localStorage [R2].
 
 <!-- PAGEBREAK -->
 
@@ -161,17 +161,17 @@ Guest results are returned without saving them. Authenticated history stores res
 
 ### Runtime architecture
 
-The React and TypeScript frontend calls same-origin /api routes. Vite proxies these calls during development; FastAPI serves both the built frontend and the API in the container. The backend validates identity and input, offloads CPU inference to a worker thread, and applies a process-local lock around model use. The documented deployment uses one process; it is not a horizontally scaled serving cluster.
+The React and TypeScript frontend calls /api routes on the same origin. During development, Vite forwards these calls to FastAPI; in the container, FastAPI also serves the built frontend. The backend validates identity and input, then runs CPU inference in a worker thread protected by a process-local lock. The documented setup uses one process rather than a cluster of inference workers.
 
 ![Runtime architecture](report_assets/architecture.png)
 
 Figure 4. Runtime components derived from the serving code. The experiment does not replace the application fusion rule.
 
-Models are downloaded explicitly during setup. Inference uses local files and disables remote model code. The registry pins the revision, expected weight filename, label aliases and text grouping. The model-status endpoint distinguishes installed files from successfully loaded models. A health endpoint only establishes process availability; successful inference must be verified separately.
+Setup downloads the models before they are used. At inference time, files are loaded locally and remote model code is disabled. The registry specifies each revision, weight filename, label alias and text grouping. The model-status endpoint distinguishes files being present from a model loading successfully. The health endpoint checks that the service is running; it cannot by itself confirm that prediction works.
 
 ### Active database design
 
-The active persistence layer is SQLite accessed by database.py using parameterized queries. The repository also includes SQLAlchemy model declarations, but these are not the schema authority used by the current serving routes. Schema initialization adds required columns to existing local databases, including result_json and authentication-version fields.
+The active routes store data in SQLite through database.py and parameterized queries. SQLAlchemy declarations also exist in the repository, but the running routes use the schema managed by database.py. Initialization adds required columns to existing local databases, including result_json and fields used to invalidate older authentication tokens.
 
 ![Core database relationships](report_assets/database.png)
 
@@ -187,27 +187,27 @@ Figure 5. Core owner and result relationships in the active SQLite implementatio
 | share_links | Token result expiry revocation | owner_id and result_id |
 | login_sessions | Login history | user_id |
 
-Guest analysis returns a result without inserting it. Authenticated results retain model evidence and ownership. Raw analysis text, photographs and audio are not persisted by this path; journal entries and check-in notes are distinct features that users deliberately save. Account deletion explicitly removes relevant records and sharing access rather than relying only on nullable foreign-key behavior.
+The database records who owns each saved analysis and retains its model scores. Raw analysis inputs are not inserted by this path; journal content and check-in notes are stored through their own features. Account deletion explicitly removes the relevant user records and sharing access instead of relying only on nullable foreign keys.
 
 ### Frontend and API integration
 
-The analysis screen shows checkpoint availability, consent, loading states, errors, per-modality scores and disagreement warnings. The user may provide a subset of modalities. Audio recording and camera capture release their media streams after use. File size, image resolution, text length and duration limits are explained at input. The frontend restores sessions and hash routes after refresh; private routes require authentication.
+The analysis screen shows which checkpoints are available and lets the user choose one or more inputs. It displays consent requirements, loading progress, errors, individual scores and warnings when the models disagree. Input controls explain file-size, resolution, text-length and audio-duration limits. Recording and camera capture release their media streams after use. Session restoration and hash routing allow a page refresh without losing the current route, while private routes require login.
 
-The journal saves authored reflections, retrieves them after reload, and supports deletion. Check-ins preserve self-reported values rather than manufacturing a mental-health score. Dashboard summaries use stored records. The assistant is a scripted guide and the game is educational; neither supplies research labels or a clinical assessment.
+Journal entries can be saved, retrieved after a reload and deleted. Check-ins record values reported by the user; the application does not generate a mental-health score from them. Dashboards summarise the stored records. A scripted guide helps users navigate the application, and an educational game illustrates emotion categories. Neither feature supplies benchmark labels or clinical assessments.
 
-FastAPI uses a consistent success/error envelope. Inference is multipart, while account and journal routes accept structured bodies. Identity comes from a validated bearer token rather than an arbitrary user identifier supplied in the request. The backend checks ownership when reading, deleting, exporting or sharing private data.
+API responses use a consistent success/error structure. Analysis requests are multipart because they can contain files, while account and journal endpoints accept structured bodies. The backend obtains identity from a validated bearer token and checks ownership before reading, deleting, exporting or sharing a private record. Supplying another user's identifier is not sufficient to gain access.
 
 ### Authentication and sharing
 
 Passwords use salted PBKDF2-SHA256. Signed tokens require the expected algorithm, expiry, account type and current authentication version. Logout revokes the session token; password changes and resets invalidate prior versions. Password reset tokens are hashed, expire after 30 minutes and are single use. Production recovery requires configured SMTP and does not disclose the reset token in the API response.
 
-Only an authenticated result owner can create or revoke a result link. Links are random bearer tokens with expiry. A valid link exposes the selected result, not journals or raw input. Anyone who obtains it can use it while active. History clearing and account deletion remove associated access. This is controlled sharing, not a promise that a bearer URL remains private after it is forwarded.
+Only the signed-in owner can create or revoke a link to a saved result. Each link contains a random bearer token and has an expiry time. While active, it allows anyone holding the link to view that result, but does not expose journals or raw inputs. Clearing history or deleting the account removes the associated access. Users must therefore treat an active link as something that can be forwarded.
 
 ### Deployment preparation
 
 The repository contains a Dockerfile, compose configuration, environment example, administrator creation script and Windows setup instructions. Model files and SQLite data need persistent storage. Production requires an explicit signing secret. Local development generates a private key file. No default production accounts are created.
 
-Container startup has been checked in CI. Production load, TLS termination, encrypted volumes, backup restoration, retention and live email still require deployment-specific verification. A successful health check is not evidence of capacity or clinical-data compliance. No merge or deployment was performed as part of this report.
+CI verifies that the container starts and serves the application. A deployment still needs its own checks for load, TLS termination, encrypted volumes, backup restoration, retention and live email. A health check cannot establish capacity or compliance requirements. The project has not been merged or deployed as part of this report.
 
 <!-- PAGEBREAK -->
 
@@ -226,26 +226,26 @@ Define u = sum of b(k) over U. Since audio sums to one over S and face sums to o
     p(k) = r(k) / Z
     sum over U of p(k) = u / (1 + u / 2)
 
-For 0 < u <= 1, the final unsupported-class mass is lower than the face-only mass u. Normalizing the vector does not preserve the original allocation across the supported and unsupported groups. This is a structural property of the code, independent of dataset performance. It also differs from zero-padding audio to seven labels and taking an ordinary equal-weight mixture, which would assign total unsupported mass u/2.
+For 0 < u <= 1, the final probability mass on unsupported classes is smaller than the original face-only mass u. Normalization therefore changes the balance between the supported and unsupported groups. This follows from the formula itself, regardless of the dataset. It is also different from padding audio with three zeros and taking an equal-weight average, which would assign mass u/2 to unsupported classes.
 
-As a constructed arithmetic illustration, take face scores happy = 0.55 and fear = 0.45, and audio happy = 1. The legacy rule assigns fear 0.45/1.225, approximately 0.3673. This illustration is not a model prediction or performance measurement.
+For a numerical illustration, suppose face scores are happy = 0.55 and fear = 0.45, while audio assigns happy = 1. The existing rule gives fear a final score of 0.45/1.225, or approximately 0.3673. These are constructed values used to explain the equation, not outputs from an evaluated clip.
 
-### A comparator that preserves mass
+### Preserving probability across label groups
 
-A candidate comparator can preserve the face model's total mass on unsupported classes while allowing audio to redistribute only the supported mass. For a fixed weight w between zero and one:
+An alternative is to keep the face model's probability mass on unsupported classes and let audio redistribute only the supported portion. For an audio weight w between zero and one:
 
     q(k) = b(k)                                  for k in U
     q(k) = (1-w)b(k) + w(1-u)a(k)                 for k in S
 
-The scores remain non-negative and sum to one. At w = 0 this is face-only classification. At w = 1, audio distributes the supported mass 1-u. The formula remains defined when u = 1. The restored experiment implements this hierarchy on temperature-scaled probabilities. Its results and controls are reported below; mathematical coherence alone does not establish improved performance.
+This distribution remains non-negative and sums to one. When w = 0, it returns face-only classification. When w = 1, audio determines the allocation of the supported mass 1-u. It remains defined even when u = 1. The experiment applies this hierarchy to temperature-scaled probabilities and tests it against the other methods.
 
-The assumption is consequential: the face model is trusted to allocate mass between S and U. If that allocation is wrong, preservation can retain the error. Temperature scaling and reliability weighting introduce additional choices that require development data. A mechanism that is mathematically coherent is not automatically empirically better.
+The hierarchy still relies on the facial model to decide how much probability belongs to S and U. If that split is wrong, preserving it also preserves the mistake. Temperature and reliability parameters must therefore be fitted on development data, and the final comparison must determine whether the method is useful in practice.
 
 <!-- PAGEBREAK -->
 
 ## 4 Verified evaluation method and results
 
-The committed evaluator uses the complete 2,610-row official MELD test CSV. It maps joy to happy, sadness to sad and anger to angry, then evaluates each utterance independently without dialogue context. This measures transfer through the seven-label adapter, not a model trained on MELD [R3, R4].
+The text evaluation uses all 2,610 rows of the official MELD test CSV. It maps joy to happy, sadness to sad and anger to angry, then processes each utterance without dialogue context. The resulting score measures transfer through the seven-label adapter; the model was not trained on MELD for this project [R3, R4].
 
 For RAVDESS Actor 01, the evaluator selects full audiovisual speech files, excludes calm, reads a fixed midpoint frame and runs audio and face inference on the same clip. The report records 52 eligible clips and no decoding or face-detection failures. Speech metrics retain only 28 clips whose true label belongs to S. No new model fitting is performed by this evaluator [R3, R5].
 
@@ -257,9 +257,9 @@ For RAVDESS Actor 01, the evaluator selects full audiovisual speech files, exclu
 | Actor 01 face | 52 | 7 | 40.38% | 0.392 |
 | Actor 01 existing fusion | 52 | 7 | 38.46% | 0.355 |
 
-Accuracy is the fraction of correct labels. Macro F1 is the unweighted mean of per-class F1 over the fixed class set. The verification script reconstructs confusion matrices and class precision, recall, F1 and support from individual prediction records. It checks these against every saved metric. This verifies internal numerical consistency; it does not independently regenerate classifier outputs from media.
+Accuracy counts the proportion of correct labels. Macro F1 gives each class equal weight by averaging its F1 score over the fixed class set. The verification script rebuilds the confusion matrices and per-class precision, recall, F1 and support from the saved predictions, then compares them with the recorded metrics. This checks the calculations; rerunning model inference from the media is a separate step.
 
-Text is 4.41 percentage points below the majority-neutral baseline. Its macro F1 and per-class errors remain relevant, but they do not erase the accuracy deficit. Face predicts 21 of 52 Actor 01 clips correctly; fusion predicts 20. Speech's 13 correct predictions out of 28 use a different sample set and label space, so its 46.43% accuracy is not evidence that it outperforms face.
+The text model falls 4.41 percentage points below the majority-neutral baseline. Its macro F1 and class-level errors provide additional information, but do not remove that accuracy deficit. On Actor 01, face-only inference gets 21 of 52 clips correct and fusion gets 20. Speech gets 13 of its 28 supported-class clips correct. Because its labels and sample set differ, the higher speech percentage cannot be interpreted as a direct win over face-only inference.
 
 ![Actor 01 confusion matrices](report_assets/actor01_confusions.png)
 
@@ -278,7 +278,7 @@ Fusion and face agree on 48 of 52 predicted labels. They are both correct on 19 
 | 01-01-06-02-02-02-01.mp4 | fear | disgust | angry | Both wrong |
 | 01-01-07-01-02-01-01.mp4 | disgust | disgust | neutral | Introduces error |
 
-The net change is one fewer correct prediction, or -1.92 percentage points. This small count is more informative than describing fusion as a general failure. The two introduced errors involve different support situations: sad is supported by audio, while disgust is not. Label-support imbalance therefore cannot be asserted as the sole cause from these records.
+The net loss is one correct prediction, equivalent to -1.92 percentage points. The error table helps explain this small difference more precisely than a general statement that fusion fails. Of the two newly incorrect predictions, sad is a class supported by audio and disgust is not. These records do not establish label mismatch as the sole cause of either error.
 
 | Class | Support | Face F1 | Existing fusion F1 |
 | --- | --- | --- | --- |
@@ -290,9 +290,9 @@ The net change is one fewer correct prediction, or -1.92 percentage points. This
 | disgust | 8 | 0.533 | 0.462 |
 | neutral | 4 | 0.242 | 0.235 |
 
-The existing reports preserve top labels and file hashes, but not the full per-modality score vectors for every clip. Consequently, they support paired correctness analysis and confusion matrices. They do not support reconstructing alternative fusion probabilities, temperature scaling, expected calibration error or negative log-likelihood. Those analyses require retained logits or score vectors and an explicit metric definition.
+The initial reports save top labels and file hashes, but not complete per-modality score vectors for every clip. They allow paired correctness analysis and reconstruction of confusion matrices. Alternative fusion probabilities, temperature scaling, expected calibration error and negative log-likelihood require the full scores, so these cannot be recovered from those labels alone. The follow-up collector retains the score vectors needed for these analyses.
 
-Actor 01 is a diagnostic case that motivated the hypothesis. It cannot serve as a fresh test of a method designed after examining its errors. Its exclusion from the subsequent actor-separated protocol is appropriate. The same caution now applies to any new design decision made after reading the previously observed Actor 05 and 06 outcomes.
+Actor 01 was used to investigate the failure and form the hypothesis. It was therefore excluded from the later fitting, validation and test partitions. After examining the Actor 05 and 06 results, those actors likewise cannot be treated as untouched test data for a newly redesigned method.
 
 <!-- PAGEBREAK -->
 
@@ -313,17 +313,17 @@ Figure 2. Genuine Chromium screenshot from the PR workflow at commit 03fc2fd. Th
 | Browser Playwright | 6 passed |
 | Production build and audit workflow | Completed successfully |
 
-The result screenshot shows authored guest text classified as happy with a 97.9% uncalibrated score. It explicitly shows audio and image models as not installed in that browser environment. It proves the text-only UI path ran, not successful browser inference across all three modalities. {{TEST_STATUS}}
+The result screenshot shows guest text classified as happy with an uncalibrated score of 97.9%. Audio and image checkpoints were not installed in that browser environment, as the interface indicates. The screenshot documents the text-analysis path; separate API and research runs provide evidence for the other models. {{TEST_STATUS}}
 
 <!-- PAGEBREAK -->
 
 ## 8 Security privacy and ethical considerations
 
-Emotion inputs and journals are sensitive even in an educational prototype. The application minimizes stored analysis inputs, makes results private by default, and requires ownership checks for private records. Export and deletion let users inspect and remove their records. No sensitive journal content is required for the benchmark; the research cache contains public dataset identifiers and classifier outputs.
+Privacy is central to the application because journal entries and emotion-related inputs can contain personal information. Analyses are private by default, and access to saved records requires an ownership check. Users can export their records or delete them. The benchmark does not use private journals: its cache contains identifiers from public datasets and classifier outputs.
 
-SQLite lacks application-level encryption. Sessions stored in browser localStorage remain exposed to cross-site scripting. Rate limits are process-local. A real host must secure TLS, secrets, volumes, backups and logs. Application deletion does not prove that external backup copies have been erased; deployment retention policies must handle this separately. Passing automated tests or vulnerability scans does not constitute a complete security audit.
+The implementation has limits that matter before public use. SQLite is not encrypted at application level, bearer tokens in localStorage are exposed if cross-site scripting occurs, and rate limits apply within a single process. A host must protect TLS configuration, secrets, volumes, backups and logs. Account deletion removes application records but cannot erase external backup copies; retention policies must address those separately. Automated tests and vulnerability scans cover specific checks, not every security risk.
 
-RAVDESS labels describe acted expressions. They do not measure diagnosis, intention, truthfulness, workplace suitability or treatment benefit. Predictions should not support consequential decisions about a person. The application does not infer sensitive demographic attributes or claim fairness across demographic groups. Its data and checkpoints do not establish generalization across cultures, accents, languages, disability, lighting or spontaneous behavior.
+RAVDESS labels describe acted expressions. They do not establish a person's diagnosis, intention, truthfulness, suitability for work or response to treatment. The predictions should not be used for consequential decisions about a person. The application neither infers sensitive demographic attributes nor claims fairness across groups. Performance across cultures, accents, languages, disabilities, lighting conditions and spontaneous behaviour has not been established.
 
 Model and dataset licenses are separate obligations. Source model-card scores are not project measurements. Raw RAVDESS media are downloaded from the official record and not committed. The data record specifies CC BY-NC-SA 4.0; the article publication license must not be confused with the media license. Human-subject recruitment is inactive unless a legitimate study is separately approved and configured.
 
@@ -333,17 +333,17 @@ Model and dataset licenses are separate obligations. Source model-card scores ar
 
 {{CONCLUSION}}
 
-The experiment fits on two actors, validates on one and tests on two. It is not full 24-actor evaluation or repeated actor-disjoint cross-validation. The validation actor may favor a setting that transfers poorly, and two bootstrap clusters do not support population inference. A single midpoint frame loses motion and can show a transitional expression. The speech expert lacks fear, surprise and disgust outputs, and preserving visual group mass can preserve a visual mistake.
+The study uses two actors for fitting, one for validation and two for testing. This leaves substantial uncertainty compared with a full 24-actor evaluation or repeated actor-disjoint cross-validation. The selected settings may depend strongly on the validation actor. The two test actors also provide too few clusters for reliable population inference. Other limitations come from the input pipeline: one midpoint frame discards motion, and the speech model has no fear, surprise or disgust output. Preserving the facial model's group mass cannot correct an error in that group allocation.
 
-The text adapter remains below a majority-neutral accuracy baseline on MELD. No aligned three-way predictive benchmark or clinical validation was completed. Original cross-attention research assets remain missing. Published checkpoints also prevent a comprehensive audit of all upstream pretraining overlap; project-level actor separation does not prove universal upstream data independence.
+The text adapter remains below the majority-neutral accuracy baseline on MELD. Neither an aligned three-way predictive benchmark nor clinical validation has been completed. The original cross-attention research assets are still missing. In addition, published checkpoints limit how fully upstream pretraining overlap can be audited: separating actors within this project does not prove that every upstream training source was independent.
 
-The restoration rerun reproduces an already observed experiment; it is not new independent evidence. The exact computational procedure was restored from the earlier execution transcript and committed before rescoring. No objective or grid was changed using known test outcomes. The original score bytes were lost, so provenance records distinguish regenerated artifacts from byte-for-byte recovery.
+The saved follow-up is a reproduction of an experiment whose results had already been observed. After the original local score files were lost, the exact computational procedure was restored from the execution transcript and committed before inference was rerun. No objective or search grid was changed in response to the test results. The regenerated files are documented as such rather than described as byte-for-byte recovery or new independent evidence.
 
 ### Future scope
 
-A larger study should preregister nested actor-disjoint folds, with all calibration and selection performed inside each training partition. Additional untouched actors are needed before a changed method can claim fresh generalization. A seven-class audio model could remove the current support mismatch, but would require licensed data and a new comparison. Temporal facial aggregation could test the midpoint limitation.
+The next research step is a larger preregistered evaluation with nested actor-disjoint folds. Calibration and parameter selection should stay within each training partition, and any revised method should be assessed on actors not used to guide its design. A seven-class speech model would allow a direct test of the label-support issue. Aggregating several facial frames could also show whether the midpoint-only approach discards useful information. Both changes require a fresh comparison, with appropriate dataset licences.
 
-An aligned conversational dataset could support text/audio/face evaluation if speaker partitions, context and label definitions are valid. Reproducing COLD Fusion would require its training design and a shared evaluation setup before any numerical comparison. Live microphone/camera testing, SMTP delivery, load capacity, encrypted storage and backup restoration remain deployment work. None of these extensions should silently change the meaning of the current evidence.
+An aligned conversational dataset could extend evaluation to text, audio and face if speaker partitions, context and labels are handled consistently. A numerical comparison with COLD Fusion would require its training method and a shared evaluation setup. For deployment, the remaining work includes live microphone and camera testing, SMTP delivery, load testing, encrypted storage and backup restoration. These are future tasks, separate from the results reported here.
 
 <!-- PAGEBREAK -->
 
@@ -429,11 +429,11 @@ Exact SHA256 hashes for the saved prediction reports are included in the verifie
 
 ### Viva questions supported by the evidence
 
-Why can fusion be worse? An inaccurate modality can change a correct decision; in Actor 01 this happened twice, while one error was corrected. Differing label support also changes the score allocation, although its empirical contribution is not isolated.
+Why did fusion lose accuracy? On Actor 01, adding audio changed two correct facial decisions into errors and corrected one error. The label mismatch changes score allocation as well, but this evaluation does not isolate its contribution to each mistake.
 
-What is original here? The implemented integration, explicit adapters and project-specific empirical audit are supportable contributions. The report does not claim invention of reliability-aware fusion or temperature scaling.
+What does the project contribute? It connects real models to a private web application, makes the label adapters explicit and tests the fusion rule on separate actors. Reliability-aware fusion and temperature scaling are established ideas, not inventions of this project.
 
-Did the new method generalize? The reproduced study reports a small aggregate gain on two actors, accompanied by a per-actor decline and an uncertainty interval crossing zero. It supports a bounded finding, not broad superiority.
+How strong is the improvement? It is a small overall gain across two test actors. One actor's macro F1 declined and the uncertainty interval crosses zero, so a larger evaluation is needed before claiming a general advantage.
 
 
 ### Research and report execution
