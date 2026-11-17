@@ -1,0 +1,12 @@
+{
+  "date": "2026-11-17",
+  "pdf_pages": 28,
+  "visual_review": "All 28 rendered pages reviewed; tables, figures, code and references checked.",
+  "sha256": {
+    "docs/MindSense_Academic_Report.docx": "96ef8d4dadf4e0079c0f8e60bd9e2e41fece351550658c5f01508c83b8b0e1ca",
+    "docs/MindSense_Academic_Report.pdf": "71d68b04b9aff5b3f2c3a57a654d131266095a4129fdab9ed1cb5cc22f426292",
+    "docs/ACADEMIC_REPORT.md": "352ce30f5fd81f0fe509b306c0fdd902a6d22e743c01602b30a48459f4bcc1f8",
+    "research/fusion_v2/scores.jsonl": "6a5b50581666c29718fe530b963590f17be3c5981d487558c74bea0c3ff18cc1",
+    "research/fusion_v2/results.json": "2053d576e5bd129e8e541d0f3c437148874d8c537aebc53bb3fcbb484001630f"
+  }
+}

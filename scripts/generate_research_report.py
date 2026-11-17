@@ -258,7 +258,7 @@ def experiment_section(r):
 
 ### Dataset roles and preprocessing
 
-The fixed protocol assigns Actors 02 and 03 to fitting, Actor 04 to validation, and Actors 05 and 06 to testing. Actor 01 is excluded because its errors motivated the method. The allocation is a project subset, not an official RAVDESS split. Each actor contributes 52 non-calm audiovisual speech clips. Only filenames starting 01-01 are retained from official Video_Speech_Actor archives. Calm is excluded, not relabeled as neutral.
+The fixed protocol assigns Actors 02 and 03 to fitting, Actor 04 to validation, and Actors 05 and 06 to testing. Actor 01 is excluded because its errors motivated the method. The allocation is a project subset, not an official RAVDESS split. Each actor contributes 52 non-calm audiovisual speech clips. Only filenames starting 01-01 are retained from official Video_Speech_Actor archives. Calm is excluded, not relabeled as neutral. Each actor contributes four neutral clips and eight clips for each other retained class. Thus the test set contains eight neutral clips and sixteen for each of the other six classes. The two repeated statements and intensity/repetition structure create within-actor dependence; 104 clips are not 104 independent people.
 
 The collector takes the midpoint video frame, converts BGR to RGB, and invokes the production one-face cropper and published model. The same clip supplies mono 16 kHz audio. Audio must be finite, audible and between 0.1 and 30 seconds. No frame is selected using its emotion label; no favorable examples replace failed inputs. Every record includes actor, truth, filename, SHA-256 and either actual model outputs or a failure. The full paired comparison retains the same successfully processed samples for every method.
 
@@ -358,7 +358,7 @@ A paired actor bootstrap samples the two test actors with replacement for 1000 r
                 ],
             ),
             "Adaptive macro F1 improves on Actor 05 but decreases on Actor 06 relative to both face-only and existing fusion. Aggregate improvement hides heterogeneous class behavior.",
-            f"The descriptive actor-bootstrap 95% interval for adaptive-minus-face macro F1 is {r['paired_actor_bootstrap_delta_f1']['percentile_95']}. It crosses zero. Only two test actors make this too fragile for a population confidence or significance claim.",
+            f"The descriptive actor-bootstrap 95% interval for adaptive-minus-face macro F1 is [{r['paired_actor_bootstrap_delta_f1']['percentile_95'][0]:.4f}, {r['paired_actor_bootstrap_delta_f1']['percentile_95'][1]:.4f}]. It crosses zero. Only two test actors make this too fragile for a population confidence or significance claim.",
             table(
                 ["Method", "NLL", "Brier", "ECE"],
                 [
@@ -368,7 +368,7 @@ A paired actor bootstrap samples the two test actors with replacement for 1000 r
             ),
             "The adaptive method lowers NLL and Brier loss relative to existing fusion but has higher ECE. Uncertainty quality therefore does not improve under every measure. Calibration changes no face-only top labels, as expected.",
             "![Actor and selective accuracy](report_assets/actor_uncertainty.png)\n\nFigure 11. Actor variation and confidence-ranked selective accuracy.",
-            "### Prespecified stress conditions",
+            "<!-- PAGEBREAK -->\n\n### Prespecified stress conditions",
             table(
                 ["Condition", "Accuracy", "Macro F1"],
                 [
@@ -396,7 +396,7 @@ def main():
     f = r["test"]["face"]
     abstract = f"The restored actor-disjoint procedure was rerun on 260 real clips with separate fitting, validation and test actors. On the 104 test clips, adaptive class-reliability fusion achieved {a['accuracy']*100:.2f}% accuracy and {a['macro_f1']:.4f} macro F1, compared with {b['accuracy']*100:.2f}% and {b['macro_f1']:.4f} for existing fusion and {f['accuracy']*100:.2f}% and {f['macro_f1']:.4f} for face-only. The selected entropy contribution was zero; actor-level results and calibration measures were mixed, and the two-actor interval crossed zero. This is a limited empirical finding, not a novel algorithm or broad superiority claim."
     conclusion = "The reproduced study supports a modest aggregate improvement for calibrated, support-preserving class-reliability fusion on this small subset. It also supplies reasons for restraint: the static method rejected audio, entropy was not selected, one actor lost macro F1, and ECE worsened relative to existing fusion. Those findings remain part of the contribution. The serving default is retained; a larger evaluation is needed before recommending a general replacement."
-    tests = "A fresh local rerun now completed 149 tests with five skips: the 143 existing backend tests plus six restored mathematical/protocol checks. The checks cover mass conservation, limiting weights, temperature ordering, reliability smoothing, exact serving-baseline equivalence, metrics and actor separation. These deterministic fixtures are not performance samples. The recorded CI result remains tied to its commit and run [R7]."
+    tests = "The restored code passed 149 backend/research tests with five legacy skips in CI at ff1fba7. This includes the 143 existing backend tests and six research checks; the frontend suite passed 10 tests and the production build, and all six Playwright browser tests passed. The research checks also passed locally on 17 November. They cover mass conservation, limiting weights, temperature ordering, reliability smoothing, exact serving-baseline equivalence, metrics and actor separation. These deterministic fixtures are not performance samples. The original screenshot provenance remains tied to [R7]; the restored-code verification is linked in [R8]."
     for key, val in {
         "ABSTRACT_RESULT": abstract,
         "EXPERIMENT_SECTION": experiment_section(r),

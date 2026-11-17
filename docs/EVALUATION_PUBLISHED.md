@@ -1,5 +1,7 @@
 # Reproduce actual serving-model evaluation
 
+For the later actor-separated comparison, see [fusion research reproduction](../research/fusion_v2/README.md). It adds fitting/validation/test separation, seven same-sample baselines, calibration, per-actor analysis, score-level stress checks and uncertainty estimates. The original evaluations below remain unchanged.
+
 Install `backend/requirements-inference.txt`, FFmpeg, and `scikit-learn`, then download checkpoints with `python -m scripts.download_models`. Run scripts as modules from the repository root. The model revisions are pinned in the registry; the downloader records weight SHA256 hashes. This evaluation did not train weights or tune thresholds on the reported labels.
 
 ## MELD text

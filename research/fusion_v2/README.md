@@ -1,39 +1,65 @@
-# Fusion study evidence status
+# Frozen expert fusion study
 
-The fixed protocol is unchanged. At the inspected PR head `03fc2fd978adc071bb8685c1216bd4a03911da0e`, this directory contained only `protocol.json`. The continuation recovered earlier prediction reports and browser evidence, but did not recover the actor 02–06 scores, fusion implementation, fitted parameters, selection log or follow-up result files.
+The reproducible study compares seven audiovisual methods on the same held-out RAVDESS clips. It is a project-specific empirical investigation, not a claim to invent reliability-aware fusion. The serving default is unchanged.
 
-## Available evidence
+## Data and evaluation boundary
 
-- `../../reports/meld_text.json`: 2,610 saved text predictions.
-- `../../reports/ravdess_actor01.json`: 52 saved audiovisual prediction records, including 28 audio-supported clips.
-- `verified_report_evidence.json`: metrics recomputed from those saved labels, with source SHA256 hashes and paired Actor 01 decisions.
-- `../../docs/ACADEMIC_REPORT.md`: academic report separating verified findings, mathematical analysis and provisional supplied outcomes.
-- `../../docs/report_assets/`: unchanged GitHub-hosted browser screenshots and a derived confusion-matrix figure.
+- Fitting: Actors 02 and 03, 104 clips.
+- Validation: Actor 04, 52 clips.
+- Test: Actors 05 and 06, 104 clips.
+- Actor 01 is exploratory and excluded from fitting/selection/test. Calm is excluded rather than relabeled.
+- Neural experts remain frozen. Temperatures and predicted-class reliability use fitting actors only; weights and entropy power use validation macro F1 only.
+- The original procedure was restored and committed before rescoring. Outcomes had already been observed; this is reproduction, not independent validation. See [RECOVERY.md](RECOVERY.md).
 
-Run `python -m scripts.verify_report_evidence` from the repository root. This uses only the Python standard library and does not rerun model inference. Build the DOCX with `python -m scripts.build_academic_report --output /path/to/report.docx`; authoring dependencies are python-docx, matplotlib and Pillow. A DOCX renderer is required separately for PDF export.
+The score cache includes clip identity, actor, source SHA256, model revisions, and actual probabilities. `results.json` contains parameters, complete validation selection traces, full held-out probabilities, metrics, confusion matrices, actor-specific results, stress checks and a seeded paired actor bootstrap. No raw media or model weights are committed.
 
-## Reported follow-up results awaiting artifacts
+## Findings
 
-The user's continuation supplied the following summary. It is retained as a claim to verify, not as a reproduced experiment:
-
-| Method on Actors 05–06 | Reported accuracy | Reported macro F1 |
+| Method on the same 104 test clips | Accuracy | Macro F1 |
 | --- | ---: | ---: |
-| Face | 48.08% | 0.485 |
-| Existing fusion | 50.00% | 0.493 |
-| Adaptive fusion | 52.88% | 0.515 |
+| Face only | 48.08% | 0.4848 |
+| Existing serving fusion | 50.00% | 0.4933 |
+| Adaptive class reliability | 52.88% | 0.5148 |
 
-The summary also reports 260 new clips scored; no entropy contribution selected on validation; lower adaptive macro F1 on Actor 06; worse calibration error than existing fusion; an actor-cluster interval crossing zero; and 149 passing local tests with five legacy skips. None of these follow-up claims has a recovered numerical artifact or local test log. Do not invent exact parameters, per-actor values, calibration definitions or interval endpoints.
+The gain is three additional correct clips over existing fusion. It is not consistent across actors: Actor 06 macro F1 falls. Validation selected zero entropy power and zero audio weight for the static hierarchy. Adaptive NLL and Brier loss improve, but ECE worsens against existing fusion. The two-actor bootstrap interval crosses zero and is too fragile for population inference. Existing fusion beats face-only on these actors, so the earlier Actor 01 loss is not a universal result.
 
-Because the test outcomes are already known, do not tune a replacement implementation on Actors 05–06 and call it held out. Recover the original implementation/configuration and score records, or designate any reconstructed experiment exploratory and reserve fresh actors for a subsequent frozen evaluation. The current protocol alone does not define the fitting objective, reliability function or tie-breaking rules.
+The experiment measures score-level contamination and missing modalities. It does not measure live microphone noise or camera occlusion. Text is not included in this audiovisual study; aligned three-way performance remains unevaluated. Emotion labels are not clinical diagnoses.
 
-## Browser provenance and CI
+## Reproduce from saved scores
 
-- Inspected commit: `03fc2fd978adc071bb8685c1216bd4a03911da0e`.
-- [Audit workflow 43871924375](https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring./actions/runs/43871924375): 143 backend tests passed, 5 skipped; 10 frontend tests passed; 6 browser tests passed.
-- [Companion workflow 43871924186](https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring./actions/runs/43871924186): succeeded.
-- Browser artifact: `14227524645`, name `mindsense-browser-evidence`.
-- ZIP SHA256, matched against the GitHub artifact digest: `7d9e3bce8ffecffba5e4407064b4669d7851a3550836ec792bca2629405e133c`.
-- Files: `home.png`, `mobile-analysis.png`, `real-text-result.png`.
-- The result image shows actual text inference; audio and face models are absent in that CI environment. It is not a three-modality browser-inference demonstration.
+From the repository root:
 
-The application and frozen protocol are unchanged by this report continuation. PR #3 remains draft; nothing is merged or deployed.
+```bash
+python -m pip install -r research/fusion_v2/requirements.txt
+python -m pytest research/fusion_v2/test_experiment.py -q
+python -m research.fusion_v2.experiment
+python -m scripts.check_fusion_reproduction
+python -m scripts.verify_report_evidence
+```
+
+This does not download weights or media. The aggregate check compares against prior execution values for audit only; those values never enter fitting or selection. Full floating-point score bytes can vary with the runtime, so a mismatch must be investigated and reported without retuning on these test actors.
+
+## Reproduce actual inference
+
+Install CPU PyTorch, `backend/requirements-inference.txt`, the research requirements, `requests`, and FFmpeg. Follow the main README for environment setup. Then:
+
+```bash
+python -m scripts.download_models --modalities audio image
+```
+
+Archive or move the committed `research/fusion_v2/scores.jsonl` before a full fresh run; the collector resumes existing records by ID. Run:
+
+```bash
+python -m research.fusion_v2.collect
+python -m research.fusion_v2.experiment
+```
+
+The collector downloads official [RAVDESS archives](https://zenodo.org/records/1188976). Dataset terms are CC BY-NC-SA 4.0; do not assume commercial usage rights. Allow several GB of temporary disk space and CPU inference time. `RAVDESS_CACHE` changes the ignored media directory. Use one collector process to maintain deterministic record order. `--actors` and `--cache-only` are recovery options; final evaluation requires every prespecified actor record.
+
+The `Frozen audiovisual research reproduction` workflow performs real inference and preserves score artifacts. Its package list is in `reproduction_environment.txt`; `environment.json` describes the earlier local reproduction. The inference procedure and pinned models are the same. Future method changes need untouched actors or a newly registered split.
+
+## Reports and verification
+
+The [academic report](../../docs/ACADEMIC_REPORT.md), [DOCX](../../docs/MindSense_Academic_Report.docx), [PDF](../../docs/MindSense_Academic_Report.pdf), and [build instructions](../../docs/report_source/README.md) describe the application, equations, literature, measured findings and limitations.
+
+The restored implementation passed 149 backend/research tests with five legacy skips, 10 frontend tests, six browser tests, production build and container startup in CI. See `verification.json` for commit/run provenance. Browser screenshots are genuine CI captures; the result screenshot is actual text inference with only text weights installed, not a three-modality browser-inference demonstration.

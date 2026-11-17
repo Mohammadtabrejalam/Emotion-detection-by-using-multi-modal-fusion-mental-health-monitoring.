@@ -2,7 +2,7 @@
 
 A demonstrable expression-analysis application: published text, speech, and facial-image classifiers run locally on the backend, with support-aware late fusion, private journaling, self-reported check-ins, history, and expiring result links.
 
-**Research demonstration, not a mental-health diagnostic system.** Models classify expression patterns; they do not establish internal feelings. The fusion baseline has not demonstrated improvement. No random predictions or missing-checkpoint substitutes are served.
+**Research demonstration, not a mental-health diagnostic system.** Models classify expression patterns; they do not establish internal feelings. Fusion performance varies by actor; the research findings do not establish broad superiority. No random predictions or missing-checkpoint substitutes are served.
 
 ## Run locally (Windows PowerShell)
 
@@ -55,7 +55,7 @@ Committed reports contain individual prediction IDs, source hashes, per-class me
 | Face on RAVDESS actor 01 | 52 | 40.38% | 0.392 |
 | Speech + face fusion on actor 01 | 52 | 38.46% | 0.355 |
 
-MELD's majority-neutral baseline is **48.12%**, higher than the text model's accuracy. The text model was trained for GoEmotions, then projected to seven categories; this is a cross-dataset transfer evaluation. RAVDESS uses **one actor only**, excludes calm, and cannot establish population performance. Audio supports four labels; its sample set differs from face/fusion. Fusion underperformed face alone on this subset. Three-way fusion and clinical outcomes have not been benchmarked.
+MELD's majority-neutral baseline is **48.12%**, higher than the text model's accuracy. The text model was trained for GoEmotions, then projected to seven categories; this is a cross-dataset transfer evaluation. This original RAVDESS evaluation uses **one actor only**, excludes calm, and cannot establish population performance. Audio supports four labels; its sample set differs from face/fusion. Fusion underperformed face alone on this subset. Three-way fusion and clinical outcomes have not been benchmarked.
 
 See [model card](MODEL_CARD.md), [evaluation reproduction](docs/EVALUATION_PUBLISHED.md), [deployment](docs/DEPLOYMENT.md), and [readiness report](docs/APPLICATION_READINESS.md), and [interview guide](docs/INTERVIEW_GUIDE.md).
 
@@ -82,5 +82,5 @@ The older `backend/app/ml` cross-attention training and dataset pipelines remain
 
 The [academic report](docs/ACADEMIC_REPORT.md) documents the implemented models, fusion mathematics, recomputed MELD/Actor 01 metrics, genuine browser evidence and study limitations. Run `python -m scripts.verify_report_evidence` to verify the saved prediction metrics without downloading models.
 
-The actor 02–06 follow-up protocol is committed, but its supplied results remain provisional until the original scores, fitted parameters and implementation are recovered. See [fusion study evidence status](research/fusion_v2/README.md). No claim of algorithmic novelty, broad superiority or clinical validity is made.
+The actor-separated follow-up includes 260 real audiovisual clips, frozen experts, seven methods and a 104-clip test shared by all methods. Adaptive class reliability reaches 52.88% accuracy and 0.5148 macro F1 versus 50.00% and 0.4933 for existing fusion. Actor-level and calibration findings are mixed; the two-actor interval crosses zero. This reproduces a previously observed experiment and is not fresh independent validation. See [scores, methods and limitations](research/fusion_v2/README.md), [PDF report](docs/MindSense_Academic_Report.pdf), [Word report](docs/MindSense_Academic_Report.docx) and [report reproduction](docs/report_source/README.md). No algorithmic novelty or clinical validity is claimed.
 

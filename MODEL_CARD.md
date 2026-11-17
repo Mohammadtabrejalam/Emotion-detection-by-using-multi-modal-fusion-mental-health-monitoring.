@@ -1,5 +1,7 @@
 # Serving model card: published-late-fusion-v1
 
+The [actor-separated fusion study](research/fusion_v2/README.md) evaluates a separate experimental adapter. Its small aggregate gain and mixed actor/calibration findings do not change this serving model or establish broad superiority. The full academic report is under `docs/ACADEMIC_REPORT.md`.
+
 MindSense uses existing trained models, not a newly trained multimodal network. Pinned model revisions and declared model licenses are in `backend/app/inference/registry.py`; downloads preserve model cards and a SHA256 weight manifest. Review upstream dataset and model terms before redistribution or commercial use.
 
 | Input | Published checkpoint | Declared model license | Serving contract |

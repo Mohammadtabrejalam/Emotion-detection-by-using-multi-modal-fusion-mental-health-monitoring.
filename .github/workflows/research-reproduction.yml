@@ -2,9 +2,6 @@ name: Frozen audiovisual research reproduction
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/research-reproduction.yml'
 
 permissions:
   contents: read

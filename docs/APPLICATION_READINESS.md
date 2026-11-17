@@ -1,5 +1,7 @@
 # MindSense readiness report — 2026-11-16
 
+Research/report continuation: see [the frozen expert study](../research/fusion_v2/README.md) and [academic report](ACADEMIC_REPORT.md) for the actor-separated comparison, numerical artifacts and report downloads. The research module is separate from the serving default; the original application verification below remains tied to its recorded commit.
+
 ## Working and exercised
 
 - Real local text, audio, and facial-image inference using pinned published checkpoints. Missing models fail explicitly; random/demo fallback is removed.

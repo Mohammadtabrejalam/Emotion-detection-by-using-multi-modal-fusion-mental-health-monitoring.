@@ -94,6 +94,8 @@ def table(doc, lines):
             pr.append(margins)
             p = cell.paragraphs[0]; p.paragraph_format.space_after=Pt(0); p.paragraph_format.space_before=Pt(0)
             p.paragraph_format.line_spacing=1.05
+            if rows[0][0] in ('Method family', 'Role', 'Actor'):
+                p.paragraph_format.keep_with_next = i < len(rows)-1
             if j > 0 and re.fullmatch(r'[\d.,% -]+', value): p.alignment=WD_ALIGN_PARAGRAPH.CENTER
             inline(p,value)
             for run in p.runs: run.font.size=Pt(9); run.bold=i==0
@@ -140,6 +142,7 @@ def main():
         elif line.startswith('### '):p=doc.add_paragraph(line[4:],'Heading 2')
         elif line.startswith('    '):
             p=doc.add_paragraph();p.paragraph_format.space_after=Pt(3);p.paragraph_format.left_indent=Inches(.12)
+            p.paragraph_format.keep_with_next = i+1 < len(lines) and lines[i+1].startswith('    ')
             run=p.add_run(line.strip());run.font.name='Liberation Mono';run.font.size=Pt(9)
         else:
             p=doc.add_paragraph(style='Caption' if line.startswith('Figure ') else 'Normal');inline(p,line)
