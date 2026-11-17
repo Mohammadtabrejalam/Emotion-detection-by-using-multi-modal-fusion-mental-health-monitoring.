@@ -1,0 +1,52 @@
+name: Frozen audiovisual research reproduction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/research-reproduction.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      HF_HUB_DISABLE_XET: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU inference and research dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r backend/requirements-inference.txt -r research/fusion_v2/requirements.txt requests
+      - name: Download pinned published experts
+        run: python -m scripts.download_models --modalities audio image
+      - name: Collect actual predictions from the frozen actor subset
+        run: python -m research.fusion_v2.collect
+      - name: Evaluate without changing the frozen procedure
+        run: |
+          python -m research.fusion_v2.experiment
+          python -m scripts.verify_report_evidence
+          python -m pytest research/fusion_v2/test_experiment.py -q
+          python -m pip freeze > research/fusion_v2/reproduction_environment.txt
+      - name: Preserve real scores and metrics even after a later failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindsense-fusion-reproduction
+          path: |
+            research/fusion_v2/scores.jsonl
+            research/fusion_v2/results.json
+            research/fusion_v2/reproduction_environment.txt
+            research/fusion_v2/verified_report_evidence.json
+          if-no-files-found: warn
+          retention-days: 90
