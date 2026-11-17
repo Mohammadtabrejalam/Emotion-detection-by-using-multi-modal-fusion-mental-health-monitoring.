@@ -69,6 +69,10 @@ def table(doc, lines):
     if rows[0][0] == 'Class': widths = [2.7, 1.3, 1.3, 1.4]
     if rows[0][0] == 'RAVDESS filename': widths = [2.6, .65, .8, .8, 1.85]
     if rows[0][0] == 'Reported test method': widths = [2.4, 1.1, 1.1, 2.1]
+    if rows[0][0] == 'Method' and n == 4: widths = [2.65, 1.35, 1.35, 1.35]
+    if rows[0][0] == 'Actor' and n == 4: widths = [1.0, 1.9, 1.9, 1.9]
+    if rows[0][0] == 'Condition' and n == 3: widths = [3.6, 1.55, 1.55]
+    if rows[0][0] == 'Method family': widths = [1.8, 2.6, 2.3]
     for col, width in zip(t.columns, widths): col.width = Inches(width)
     props = t._tbl.tblPr
     borders = OxmlElement('w:tblBorders')
@@ -128,7 +132,7 @@ def main():
         if m:
             p=doc.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.keep_with_next=True
-            width=6.1 if 'home.png' in m[2] else 6.6
+            width=6.1 if 'home.png' in m[2] else 5.5 if '/confusion_' in m[2] else 6.6
             picture=p.add_run().add_picture(str(ROOT/'docs'/m[2]),width=Inches(width))
             picture._inline.docPr.set('descr',m[1]);i+=1;continue
         if line.startswith('# '):p=doc.add_paragraph(line[2:],'Title')
@@ -142,7 +146,7 @@ def main():
         i+=1
     doc.core_properties.title='MindSense multimodal emotion recognition'
     doc.core_properties.subject='Academic report on implementation and fusion evaluation'
-    doc.core_properties.author='';doc.core_properties.keywords='multimodal emotion recognition; evaluation; fusion'
+    doc.core_properties.author='Mohammad Tabrez Alam';doc.core_properties.keywords='multimodal emotion recognition; evaluation; fusion'
     args.output.parent.mkdir(parents=True,exist_ok=True);doc.save(args.output)
     print(args.output)
 

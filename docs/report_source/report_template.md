@@ -12,7 +12,7 @@ Galgotias College of Engineering and Technology
 
 Graduating batch 2027
 
-16 November 2026
+17 November 2026
 
 <!-- PAGEBREAK -->
 
@@ -36,6 +36,40 @@ Analysis of the serving code identifies a label-support mismatch: audio produces
 | Browser and regression checks | CI logs and screenshot artifact recovered for the inspected commit |
 
 The report addresses three questions: what the application implements, what can explain the fusion failure, and what evidence would be sufficient to support an improvement. The original exploratory evidence, reproduced actor-separated study, and remaining limitations are presented separately.
+
+<!-- PAGEBREAK -->
+
+## Contents
+
+Abstract and evidence status
+
+Introduction and research objectives
+
+1 Related work and project contribution
+
+2 Implemented system
+
+System architecture and implementation details
+
+3 Fusion mathematics and failure hypothesis
+
+4 Verified evaluation method and results
+
+5 Error analysis on Actor 01
+
+6 Actor separated experiment
+
+7 Browser evidence and software verification
+
+8 Security privacy and ethical considerations
+
+9 Discussion limitations and conclusion
+
+References
+
+Appendix A Reproduction and provenance
+
+Appendix B Algorithm and evidence map
 
 <!-- PAGEBREAK -->
 
@@ -75,6 +109,35 @@ Multimodal emotion recognition combines evidence from channels such as speech an
 Temperature scaling is an established post-processing approach to confidence calibration [3]. COLD Fusion learns modality-specific latent distributions and constrains their uncertainty through calibration and ordinal ranking [4]. Its audiovisual uncertainty modelling is materially different from a score-level adapter around frozen classifiers. The proposed MindSense investigation neither implements nor directly compares against COLD Fusion. Referencing that work establishes prior art, not an empirical baseline.
 
 The concrete project contribution is integration of pinned published models, explicit label mapping, a transparent serving rule and traceable evaluation. The evaluated fusion adapter is a bounded engineering contribution. A better result on two actors does not by itself establish a new algorithm or a general advantage over established methods.
+
+### Foundations and comparison with existing approaches
+
+Baltrusaitis, Ahuja and Morency organize multimodal learning around representation, translation, alignment, fusion and co-learning [8]. This distinction prevents a score-combination application from being described as a jointly learned representation model. MindSense's current inference path is late fusion. The presence of older cross-attention modules in the repository does not change what the serving API executes.
+
+Baevski and colleagues introduce wav2vec 2.0, which learns speech representations through masking in latent space and a contrastive objective [9]. The published speech expert is an emotion-classification adaptation of that foundation. Speech-recognition results in the foundational paper are not emotion-recognition measurements for this project, and source-dataset accuracy cannot establish RAVDESS performance.
+
+Dosovitskiy and colleagues show how a transformer can process image patches for classification [10]. The facial expert uses a ViT checkpoint specialized for expressions. A cropped frame from acted video differs from its fine-tuning images; the full input path includes a detector and cropper that the encoder paper does not evaluate. This motivates measurement of the actual application path rather than quoting a model-family benchmark.
+
+GoEmotions supplies fine-grained English Reddit emotion labels [11]. Mapping those labels into seven application categories changes the output task. Group maxima avoid simply rewarding categories with more member labels, but they are not a learned alignment or calibration method. The MELD transfer test measures this concrete adapter on independent utterances, without the conversational history available in the original dataset setting.
+
+Simple fixed-weight averaging is an essential control because it isolates whether merely adding another expert changes decisions. Temperature scaling addresses score sharpness but does not repair a missing class. The support-preserving hierarchy addresses group mass, while empirical reliability changes weights by predicted class. These components should be tested separately before crediting a gain to adaptivity. COLD Fusion [4] is a substantially different latent-distribution method; it is prior art, not an executed baseline in this report.
+
+| Method family | What it models | Evaluation status here |
+| --- | --- | --- |
+| Face and audio separately | Individual frozen expert outputs | Executed controls |
+| Equal score averaging | Fixed combination of final scores | Executed controls |
+| Temperature scaling | Confidence sharpness | Fitted control |
+| Hierarchical fusion | Shared and unsupported label mass | Executed adaptation |
+| Class reliability and entropy | Predicted class precision and score concentration | Validation-selected variant |
+| COLD Fusion | Calibrated ordinal latent distributions | Literature comparison only |
+
+### Research gap and falsifiable contribution
+
+The defensible gap is project-specific: the serving application had no actor-separated evidence showing whether its mismatched label spaces and uncalibrated expert scores helped or harmed classification. Reliability-aware fusion already exists in published research. This study tests a lightweight adapter around the actual frozen experts, includes simpler controls, and preserves unsuccessful findings. It does not establish that this combination has never appeared elsewhere.
+
+The primary comparison is adaptive fusion against the current serving rule on identical test clips. Face-only, calibration and static weighting reveal whether any advantage requires an adaptive rule. Per-actor analysis tests whether an aggregate gain is consistent; score-based stress checks test bounded failure scenarios. These comparisons can reject a broad improvement claim even when the overall accuracy rises.
+
+<!-- PAGEBREAK -->
 
 ## 2 Implemented system
 
@@ -264,6 +327,8 @@ RAVDESS labels describe acted expressions. They do not measure diagnosis, intent
 
 Model and dataset licenses are separate obligations. Source model-card scores are not project measurements. Raw RAVDESS media are downloaded from the official record and not committed. The data record specifies CC BY-NC-SA 4.0; the article publication license must not be confused with the media license. Human-subject recruitment is inactive unless a legitimate study is separately approved and configured.
 
+<!-- PAGEBREAK -->
+
 ## 9 Discussion limitations and conclusion
 
 {{CONCLUSION}}
@@ -297,6 +362,14 @@ An aligned conversational dataset could support text/audio/face evaluation if sp
 [6] SUPERB. wav2vec2-base-superb-er model card. [Model documentation](https://huggingface.co/superb/wav2vec2-base-superb-er).
 
 [7] trpakov. vit-face-expression model card. [Model documentation](https://huggingface.co/trpakov/vit-face-expression).
+
+[8] Baltrusaitis, T., Ahuja, C., and Morency, L.-P. (2017). Multimodal Machine Learning: A Survey and Taxonomy. [arXiv 1705.09406](https://arxiv.org/abs/1705.09406).
+
+[9] Baevski, A., Zhou, H., Mohamed, A., and Auli, M. (2020). wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations. [arXiv 2006.11477](https://arxiv.org/abs/2006.11477).
+
+[10] Dosovitskiy, A., et al. (2020). An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale. [arXiv 2010.11929](https://arxiv.org/abs/2010.11929).
+
+[11] Demszky, D., Movshovitz-Attias, D., Ko, J., Cowen, A., Nemade, G., and Ravi, S. (2020). GoEmotions: A Dataset of Fine-Grained Emotions. ACL, 4040-4054. [DOI 10.18653/v1/2020.acl-main.372](https://aclanthology.org/2020.acl-main.372/).
 
 All repository references below point to commit 03fc2fd978adc071bb8685c1216bd4a03911da0e, inspected on 16 November 2026. Literature and model-card pages were checked on the same date. Model-card metrics are background only.
 
@@ -369,4 +442,33 @@ Did the new method generalize? The reproduced study reports a small aggregate ga
 
 Cached-score reproduction requires neither neural weights nor raw media. Full reproduction additionally installs backend/requirements-inference.txt, CPU PyTorch and FFmpeg, downloads the pinned experts, archives the current scores.jsonl, and runs python -m research.fusion_v2.collect. RAVDESS_CACHE selects a writable media directory. The default is ignored data/raw/ravdess-fusion-v2. Several gigabytes of temporary storage can be needed while archives download.
 
-The report generator assembles the template with results.json and creates data-derived figures. The DOCX builder converts that complete Markdown source. PDF conversion requires LibreOffice; render all pages and inspect them after a toolchain change. The code, evidence and report outputs are maintained on the existing draft PR.
+The report generator assembles the template with results.json and creates data-derived figures. The DOCX builder converts that complete Markdown source. PDF conversion requires LibreOffice; render all pages and inspect them after a toolchain change. The code, evidence and report outputs are maintained on the existing draft PR. The research reproduction workflow preserves scores and metrics as downloadable artifacts, so the experiment does not depend on a temporary authoring workspace.
+
+<!-- PAGEBREAK -->
+
+## Appendix B Algorithm and evidence map
+
+    1 Read the frozen actor protocol and the actual score cache.
+    2 Require unique clip IDs and all prescribed actor records.
+    3 Use the same successful audio and face pairs for every method.
+    4 Fit temperatures and class reliability on fitting actors only.
+    5 Select static and adaptive weights by validation macro F1.
+    6 Freeze those settings and compute test metrics by method and actor.
+    7 Apply the prespecified missing-input and score-contamination checks.
+    8 Compute the seeded paired actor bootstrap without changing parameters.
+    9 Save scores, hashes, settings, selection traces and held-out outputs.
+    10 Generate report figures and tables from the saved results.
+
+| File | Audit purpose |
+| --- | --- |
+| protocol.json | Fixed actor allocation grids and evaluation boundary |
+| collect.py | Official media collection and actual expert calls |
+| scores.jsonl | Per-clip source hash model revision and probabilities |
+| experiment.py | Fitting selection metrics and bootstrap procedure |
+| results.json | Counts settings validation trace and full test outputs |
+| reproduction_check.json | Comparison with prior recorded aggregate values |
+| reproduction_environment.txt | Package versions for the preserved CI inference run |
+| verification.json | Test commands counts and CI provenance |
+| RECOVERY.md | Explanation of the interrupted artifact history |
+
+No test-set outcome is used to select a setting. Future changes should reserve untouched actors rather than repeatedly redesigning against Actors 05 and 06. The small two-actor test remains a limitation even when reproduction is exact.
