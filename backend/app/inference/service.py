@@ -1,6 +1,7 @@
 """No network calls, random weights, or heuristic fallbacks during serving."""
 import io
 import threading
+from .video import decode_clip, DecoderUnavailable, InvalidClip, FRACTIONS
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from .registry import LABELS, MODELS, MODEL_ROOT, TEXT_GROUPS, ALIASES
@@ -36,7 +37,6 @@ def fuse(predictions):
 
 
 def face_crop(image_bytes):
-    import cv2
     try:
         with Image.open(io.BytesIO(image_bytes)) as source:
             if source.width * source.height > 12_000_000:
@@ -44,18 +44,41 @@ def face_crop(image_bytes):
             image = ImageOps.exif_transpose(source).convert('RGB')
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise InputError('Upload a valid PNG, JPEG, or WebP image.') from exc
-    detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    if detector.empty():
-        raise ModelUnavailable('Face detector is unavailable.')
+    crop = visible_face(image)
+    if crop is None:
+        raise InputError('Upload an image containing exactly one clearly visible face.')
+    return crop
+
+
+_detectors = threading.local()
+
+
+def visible_face(image):
+    import cv2
+    detector = getattr(_detectors, 'cascade', None)
+    if detector is None:
+        detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        if detector.empty():
+            raise ModelUnavailable('Face detector is unavailable.')
+        _detectors.cascade = detector
     # Detect at bounded resolution, then crop the original RGB image.
     thumbnail = image.copy()
     thumbnail.thumbnail((1000, 1000))
     boxes = detector.detectMultiScale(cv2.cvtColor(np.array(thumbnail), cv2.COLOR_RGB2GRAY), 1.1, 5, minSize=(40, 40))
-    if len(boxes) != 1:
+    if len(boxes) == 0:
+        return None
+    if len(boxes) > 1:
         raise InputError('Upload an image containing exactly one clearly visible face.')
     x, y, w, h = boxes[0]
     sx, sy = image.width / thumbnail.width, image.height / thumbnail.height
     return image.crop((int(x*sx), int(y*sy), int((x+w)*sx), int((y+h)*sy)))
+
+
+def validate_speech(waveform):
+    if not 1600 <= len(waveform) <= 480000:
+        raise InputError('Audio must be between 0.1 and 30 seconds.')
+    if not np.isfinite(waveform).all() or np.max(np.abs(waveform)) < 1e-5:
+        raise InputError('Audio is silent or invalid. Record audible speech.')
 
 
 class EmotionEngine:
@@ -107,8 +130,9 @@ class EmotionEngine:
         else:
             inputs = processor(images=value, return_tensors='pt')
         with torch.inference_mode():
-            logits = model(**inputs).logits[0]
-            vector = torch.sigmoid(logits) if kind == 'text' else torch.softmax(logits, -1)
+            logits = model(**inputs).logits
+            # For a video, average the normalized scores of its sampled faces.
+            vector = torch.sigmoid(logits[0]) if kind == 'text' else torch.softmax(logits, -1).mean(dim=0)
         raw = {model.config.id2label[i].lower(): float(v) for i, v in enumerate(vector.tolist())}
         if kind == 'text':
             # Max avoids giving groups with more fine-grained labels an automatic sum advantage.
@@ -133,15 +157,42 @@ class EmotionEngine:
                 waveform = extract_audio_waveform(audio, max_duration_seconds=31)
             except Exception as exc:
                 raise InputError('Audio could not be decoded. Use WAV or install FFmpeg for compressed audio.') from exc
-            if not 1600 <= len(waveform) <= 480000:
-                raise InputError('Audio must be between 0.1 and 30 seconds.')
-            if not np.isfinite(waveform).all() or np.max(np.abs(waveform)) < 1e-5:
-                raise InputError('Audio is silent or invalid. Record audible speech.')
+            validate_speech(waveform)
             values['audio'] = waveform
         if image is not None:
             values['image'] = face_crop(image)
         if not values:
             raise InputError('Provide text, recorded speech, or one facial image.')
+        return self._analyze_values(values)
+
+    def analyze_video(self, content, sampling="midpoint"):
+        # Serialize decoding as well as inference to bound CPU and memory.
+        with self.lock:
+            try:
+                waveform, frames, duration = decode_clip(content, sampling)
+            except InvalidClip as error:
+                raise InputError(str(error)) from error
+            except DecoderUnavailable as error:
+                raise ModelUnavailable(str(error)) from error
+            validate_speech(waveform)
+            crops, fractions = [], []
+            for fraction, frame in frames:
+                crop = visible_face(frame)
+                if crop is not None:
+                    crops.append(crop)
+                    fractions.append(fraction)
+            if not crops:
+                raise InputError("No single face was visible in the sampled frames.")
+            result = self._analyze_values({"audio": waveform, "image": crops})
+            result["video_summary"] = {
+                "sampling": sampling, "duration_seconds": duration,
+                "requested_frames": len(FRACTIONS[sampling]), "used_fractions": fractions,
+            }
+            if len(crops) < len(FRACTIONS[sampling]):
+                result["warnings"].append("Some sampled frames had no usable face and were skipped.")
+            return result
+
+    def _analyze_values(self, values):
         with self.lock:
             predictions = {kind: self._predict(kind, value) for kind, value in values.items()}
         probabilities = fuse(predictions)

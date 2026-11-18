@@ -1,0 +1,43 @@
+name: External acted-video evaluation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'research/acted_video/protocol.json'
+permissions:
+  contents: read
+env:
+  OMP_NUM_THREADS: '2'
+  MKL_NUM_THREADS: '2'
+  HF_HUB_DISABLE_XET: '1'
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU inference dependencies
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r backend/requirements-inference.txt
+      - run: python -m scripts.download_models --modalities audio image
+      - name: Measure matched video methods on official recordings
+        run: |
+          python -m research.acted_video.collect --shard ${{ matrix.shard }} --output artifacts/crema-${{ matrix.shard }}/scores.jsonl
+          python -m pip freeze > artifacts/crema-${{ matrix.shard }}/environment.txt
+          lscpu > artifacts/crema-${{ matrix.shard }}/cpu.txt
+          ffmpeg -version > artifacts/crema-${{ matrix.shard }}/ffmpeg.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crema-video-${{ matrix.shard }}
+          path: artifacts/crema-${{ matrix.shard }}/
+          retention-days: 30
