@@ -1,15 +1,15 @@
 {
   "protocol_commit": "8734d75bd5a54918b4befd1990a3c592a4edc0a6",
   "study_run": 44282962746,
-  "status": "in_progress",
+  "status": "completed",
   "local_research_checks": {
     "command": "python -m unittest research.paper_v1.test_study research.paper_v1.test_ctmc_check -v",
     "passed": 14
   },
   "application_regression": {
-    "commit": "8734d75bd5a54918b4befd1990a3c592a4edc0a6",
-    "comprehensive_run": 44282962689,
-    "container_run": 44282962647,
+    "commit": "dd20d71d3e01fc196487edd34e18d7b1a0ff85aa",
+    "comprehensive_run": 44285346583,
+    "container_run": 44285346685,
     "backend_tests": "passed",
     "frontend_tests": "passed",
     "production_build": "passed",
@@ -18,8 +18,19 @@
     "npm_audit": "failed",
     "advisory": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
     "upstream_patched_version_as_of_2026_11_18": "none listed",
-    "audit_suppressed": false
+    "audit_suppressed": false,
+    "python_tests_passed": 163,
+    "python_tests_skipped": 5,
+    "frontend_tests_passed": 10,
+    "browser_tests_passed": 6
   },
-  "notes": "The prospective run has not finished; no new performance results are asserted. Earlier successful audit results are historical.",
-  "mathematical_verification": "Independent stationary-equation solver confirms the hierarchy is a nested-label special case of weighted CTMC fusion for weights below one; the weight-one endpoint is a continuous extension."
+  "notes": "All eleven study jobs succeeded. The primary improvement hypothesis was not supported. Functional checks passed, but the NPM security audit failed; historical green audits do not describe this state.",
+  "mathematical_verification": "Independent stationary-equation solver confirms the hierarchy is a nested-label special case of weighted CTMC fusion for weights below one; the weight-one endpoint is a continuous extension.",
+  "accepted_samples": {
+    "fitting": 312,
+    "validation": 208,
+    "test": 416,
+    "input_failures": 0
+  },
+  "saved_score_reproduction": "evidence/reproduction_check.json"
 }

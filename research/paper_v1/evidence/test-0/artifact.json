@@ -1,0 +1,10 @@
+{
+  "artifact_id": 14420385805,
+  "name": "test-0",
+  "archive_sha256": "15326b31aaaf85357e9e7857888149f23be690f19e3ee71f2290ce89dca05e9a",
+  "included_files": [
+    "environment.txt",
+    "scores.jsonl"
+  ],
+  "source_run": 44282962746
+}

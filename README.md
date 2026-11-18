@@ -84,3 +84,31 @@ The [academic report](docs/ACADEMIC_REPORT.md) documents the implemented models,
 
 The actor-separated follow-up includes 260 real audiovisual clips, frozen experts, seven methods and a 104-clip test shared by all methods. Adaptive class reliability reaches 52.88% accuracy and 0.5148 macro F1 versus 50.00% and 0.4933 for existing fusion. Actor-level and calibration findings are mixed; the two-actor interval crosses zero. This reproduces a previously observed experiment and is not fresh independent validation. See [scores, methods and limitations](research/fusion_v2/README.md), [PDF report](docs/MindSense_Academic_Report.pdf), [Word report](docs/MindSense_Academic_Report.docx) and [report reproduction](docs/report_source/README.md). No algorithmic novelty or clinical validity is claimed.
 
+
+## Expanded paper study (18 November 2026)
+
+The completed [paper study](research/paper_v1/README.md) uses 936 real RAVDESS clips,
+with actors 07–12 for fitting, 13–16 for validation and 17–24 for the 416-clip test.
+The protocol was frozen before collection; all twelve methods use the same test
+pairs. The primary improvement hypothesis was **not supported**: existing fusion
+and adaptive hierarchy both achieve 43.99% accuracy, with macro F1 0.4427 and
+0.4418 respectively (paired difference -0.0009; actor-bootstrap 95% interval
+[-0.0416, 0.0395]; exact actor-block permutation p=0.9531). Face alone reaches
+39.90% accuracy and 0.3918 macro F1. The smaller earlier positive finding above
+did not persist under this expanded primary comparison.
+
+The mass-preserving rule is a nested-label special case of existing weighted
+CTMC fusion, not a new algorithm. The contribution is an empirical analysis of
+category tradeoffs and probability quality; a second dataset, another expert
+pair and physical corruption tests remain necessary for stronger claims.
+
+Download the [research paper PDF](research/paper_v1/manuscript/MindSense_Research_Paper.pdf)
+or [editable DOCX](research/paper_v1/manuscript/MindSense_Research_Paper.docx).
+[Source, figures and complete evidence](research/paper_v1/) are committed.
+Run `python -m research.paper_v1.verify_evidence` to reproduce saved-score metrics.
+The earlier academic report describes the exploratory study separately.
+
+Current verification at `dd20d71`: 163 Python tests passed (5 skipped), 10 frontend
+tests, 6 browser tests, production build and container checks passed. The NPM
+security audit failed for upstream [picomatch GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf);
+the audit remains enabled. See [dated verification](research/paper_v1/verification.json).

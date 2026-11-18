@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "protocol_commit": "8734d75bd5a54918b4befd1990a3c592a4edc0a6",
+  "source_run": 44282962746,
+  "protocol_sha256": "018d92b6fdb2d8f4648f32ba8906b0ea1bba7067248e6308911a0d4168fd286d",
+  "fitted_sha256": "8f85229cbf1eba224d49bcb0f78674a6b4996328ebc1c0e9c688cbbb4b448f1f",
+  "result_sha256": "f8b1449ee1907a481d0cf3beb9bc7717bf7b3826223c6bae809b5851bf2aa979",
+  "fitting_and_validation_samples": 520,
+  "test_samples": 416,
+  "methods": 12,
+  "reproduced": "All selected settings, validation metrics, test metrics, actor results, uncertainty, stress, diagnostics and held-out probabilities",
+  "tolerance": {
+    "relative": 1e-10,
+    "absolute": 1e-12
+  },
+  "ctmc_relationship": {
+    "checked": true,
+    "samples": 416,
+    "maximum_absolute_probability_difference": 3.066991105526995e-15,
+    "interpretation": "Numerical verification of an algebraic identity, not a new performance result"
+  }
+}

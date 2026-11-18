@@ -49,6 +49,7 @@ def main():
     ax.barh(y-.18, [r['test'][m]['accuracy'] for m in names], .35, label='Accuracy', color='#3274a1')
     ax.barh(y+.18, [r['test'][m]['macro_f1'] for m in names], .35, label='Macro F1', color='#e1812c')
     ax.set(yticks=y, yticklabels=names, xlim=(0, 1), xlabel='Held-out score', title=f"Same {n['accepted']} test pairs: all prespecified methods")
+    ax.set_yticklabels([m.replace('_', ' ') for m in names])
     ax.invert_yaxis(); ax.legend(); fig.tight_layout(); fig.savefig(args.output/'method_comparison.png'); plt.close(fig)
     for method in ['face', 'legacy', 'adaptive_zero', 'adaptive_hierarchy']:
         cm = np.array(r['test'][method]['confusion_matrix'])
@@ -68,6 +69,18 @@ def main():
         ax.bar(x+offset, [r['by_actor'][a][method]['macro_f1'] for a in actors], .24, label=method)
     ax.set(xticks=x, xticklabels=actors, xlabel='Held-out actor', ylabel='Macro F1', ylim=(0,1), title='Between-actor variation')
     ax.legend(); fig.tight_layout(); fig.savefig(args.output/'actor_comparison.png'); plt.close(fig)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot([0, 1], [0, 1], '--', color='gray', label='Perfect calibration reference')
+    records = r['held_out_predictions']
+    truth = np.array([LABELS.index(x['true']) for x in records])
+    for method in ['face', 'legacy', 'adaptive_hierarchy']:
+        probabilities = np.array([x['scores'][method] for x in records])
+        conf = probabilities.max(1); correct = probabilities.argmax(1) == truth
+        bins = np.minimum((conf * 10).astype(int), 9)
+        points = [(conf[bins==b].mean(), correct[bins==b].mean(), int((bins==b).sum())) for b in range(10) if (bins==b).any()]
+        ax.plot([p[0] for p in points], [p[1] for p in points], marker='o', label=method.replace('_', ' '))
+    ax.set(xlim=(0, 1), ylim=(0, 1), xlabel='Mean confidence in bin', ylabel='Observed accuracy in bin', title='Held-out reliability curves with ten fixed bins')
+    ax.legend(); fig.tight_layout(); fig.savefig(args.output/'calibration.png'); plt.close(fig)
     print(args.output/'RESULTS.md')
 
 

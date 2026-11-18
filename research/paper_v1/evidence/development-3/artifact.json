@@ -1,0 +1,10 @@
+{
+  "artifact_id": 14418109247,
+  "name": "development-3",
+  "archive_sha256": "e7627205e6dedf566256d7c4a4837bace3a6868cfcffb8b7d8ef9a3c3fc1bd39",
+  "included_files": [
+    "environment.txt",
+    "scores.jsonl"
+  ],
+  "source_run": 44282962746
+}

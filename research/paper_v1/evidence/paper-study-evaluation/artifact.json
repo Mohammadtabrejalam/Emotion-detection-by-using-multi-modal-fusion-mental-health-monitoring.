@@ -1,0 +1,10 @@
+{
+  "artifact_id": 14420907943,
+  "name": "paper-study-evaluation",
+  "archive_sha256": "3e8dff06d8b11546790f8e580f874aae55968c289c1353a476b8a0371a5b3603",
+  "included_files": [
+    "results.json",
+    "evaluation-environment.txt"
+  ],
+  "source_run": 44282962746
+}
