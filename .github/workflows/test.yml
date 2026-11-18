@@ -30,7 +30,7 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python -m pytest backend/tests research/fusion_v2/test_experiment.py -v
+          python -m pytest backend/tests research/fusion_v2/test_experiment.py research/paper_v1/test_study.py research/paper_v1/test_ctmc_check.py -v
 
       - name: Run Bandit Static Code Security Scan
         run: |

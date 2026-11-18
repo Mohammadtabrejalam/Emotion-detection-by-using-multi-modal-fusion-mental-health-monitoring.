@@ -2,9 +2,6 @@ name: Prospective partially overlapping label study
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/paper-study.yml'
 
 permissions:
   contents: read
@@ -43,7 +40,9 @@ jobs:
         if: always()
         with:
           name: development-${{ strategy.job-index }}
-          path: artifacts/
+          path: |
+            artifacts/scores.jsonl
+            artifacts/environment.txt
           retention-days: 90
   fit:
     needs: development
@@ -102,7 +101,9 @@ jobs:
         if: always()
         with:
           name: test-${{ strategy.job-index }}
-          path: artifacts/
+          path: |
+            artifacts/scores.jsonl
+            artifacts/environment.txt
           retention-days: 90
   evaluate:
     needs: test

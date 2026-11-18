@@ -46,10 +46,19 @@ use actors as clusters, not clips as independent people.
   https://www.nature.com/articles/s41598-026-68674-5 — directly relevant
   frozen-encoder fusion benchmarking. Generic pretrained fusion is not novel.
 
-The candidate distinction is **partially overlapping output-label support in
-independently trained frozen experts**. Neither this question nor a particular
-adapter is claimed to be globally novel. A broader prior-art review, a second
-dataset and a second expert pair are needed before a strong submission claim.
+A further primary-source review found directly relevant prior art: Li and Lin,
+*Integrating Specialized Classifiers Based on Continuous Time Markov Chain*,
+IJCAI 2017, https://ijcai.org/proceedings/2017/312 . The mass-preserving rule is
+a nested-label special case of their weighted CTMC construction for audio
+weight below one; weight one is its continuous limit, not necessarily a unique
+stationary solution. The derivation and independent numerical checks are in
+`manuscript/paper.md`, `ctmc_check.py` and `test_ctmc_check.py`.
+
+**The core rule is not a novel fusion algorithm.** The paper is being positioned
+as an empirical investigation of frozen speech–face experts with nested label
+sets. A broader prior-art review, a second dataset and a second expert pair are
+still needed before a strong submission claim. This literature finding changes
+the interpretation, not the already frozen twelve-method evaluation protocol.
 
 ## Reproduction
 
@@ -82,3 +91,18 @@ negative results. The current academic report remains a report of the previous
 experiment until new results are actually completed. Physical corruption,
 cross-dataset generalization, a second checkpoint pair and measured resource
 costs are not covered by this first expanded experiment.
+
+## Paper source and mathematical verification
+
+```bash
+python -m unittest research.paper_v1.test_study research.paper_v1.test_ctmc_check -v
+# Only after actual results exist:
+python -m research.paper_v1.report --results artifacts/paper/results.json --fitted artifacts/paper/fitted.json --output research/paper_v1/manuscript/figures
+# Requires Pandoc and python-docx:
+python -m research.paper_v1.build_paper
+soffice --headless --convert-to pdf --outdir research/paper_v1/manuscript research/paper_v1/manuscript/MindSense_Research_Paper.docx
+```
+
+The manuscript is a working draft until completed evidence is incorporated.
+The CTMC checks verify mathematical equivalence on explicit test fixtures; they
+do not reproduce the original paper's datasets or headline metrics.
