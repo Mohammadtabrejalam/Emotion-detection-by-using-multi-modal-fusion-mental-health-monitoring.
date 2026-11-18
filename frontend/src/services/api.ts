@@ -1,6 +1,7 @@
 import type { 
   ApiResponse, 
-  AnalysisData, 
+  AnalysisData,
+  VideoMode,
   DashboardData, 
   DailyCheckin, 
   ResearchData,
@@ -234,7 +235,8 @@ export const apiService = {
     audioFile: File | null,
     imageFile: File | null,
     demoMode: boolean,
-    userId?: number
+    userId?: number,
+    video?: { file: File; mode: VideoMode }
   ): Promise<ApiResponse<AnalysisData>> {
     const formData = new FormData();
     
@@ -246,6 +248,10 @@ export const apiService = {
     }
     if (imageFile) {
       formData.append('image', imageFile);
+    }
+    if (video) {
+      formData.append('video', video.file);
+      formData.append('video_mode', video.mode);
     }
     formData.append('demo_mode', String(demoMode));
     if (userId) {

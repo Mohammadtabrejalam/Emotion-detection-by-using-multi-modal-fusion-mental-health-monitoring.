@@ -165,7 +165,7 @@ class EmotionEngine:
             raise InputError('Provide text, recorded speech, or one facial image.')
         return self._analyze_values(values)
 
-    def analyze_video(self, content, sampling="midpoint"):
+    def analyze_video(self, content, sampling="midpoint", learned=False):
         # Serialize decoding as well as inference to bound CPU and memory.
         with self.lock:
             try:
@@ -184,6 +184,16 @@ class EmotionEngine:
             if not crops:
                 raise InputError("No single face was visible in the sampled frames.")
             result = self._analyze_values({"audio": waveform, "image": crops})
+            if learned:
+                from .video_fusion import transfer_probabilities
+                audio = result["modality_predictions"]["audio"]["probabilities"]
+                face = result["modality_predictions"]["image"]["probabilities"]
+                scores = transfer_probabilities(audio, face)
+                top = max(scores, key=scores.get)
+                result.update(final_emotion=top, confidence=scores[top], probabilities=scores,
+                              fusion_method="Learned audiovisual fusion fitted on acted RAVDESS clips.")
+            rule = "ravdess-head-v1" if learned else "support-average-v1"
+            result["model_version"] = f"acted-video-{sampling}-{rule}"
             result["video_summary"] = {
                 "sampling": sampling, "duration_seconds": duration,
                 "requested_frames": len(FRACTIONS[sampling]), "used_fractions": fractions,

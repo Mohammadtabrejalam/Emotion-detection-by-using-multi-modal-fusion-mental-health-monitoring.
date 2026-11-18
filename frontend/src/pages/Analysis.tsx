@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Mic, Square, RefreshCw, Shield, AlertCircle } from 'lucide-react';
 import { apiService } from '../services/api';
-import type { AnalysisData, User } from '../types';
+import type { AnalysisData, User, VideoMode } from '../types';
+import { isVideoFile } from '../services/media';
 import { ShareModal } from '../components/ShareModal';
 
 export type ModalityMode = 'text' | 'audio' | 'image' | 'multimodal';
@@ -10,6 +11,9 @@ interface AnalysisProps { currentUser?: User | null; initialText?: string; initi
 
 export const Analysis = ({ currentUser, initialText = '', initialFile }: AnalysisProps) => {
   const [text, setText] = useState(initialText);
+  const [inputMode, setInputMode] = useState<'separate' | 'video'>('separate');
+  const [clip, setClip] = useState<File | null>(null);
+  const [videoMode, setVideoMode] = useState<VideoMode>('midpoint');
   const [audio, setAudio] = useState<File | null>(null);
   const [image, setImage] = useState<File | null>(null);
   const [models, setModels] = useState<Record<string, ModelState>>({});
@@ -32,14 +36,21 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
     return () => { mounted.current = false; if (timer.current) clearTimeout(timer.current); if (recorder.current?.state === 'recording') recorder.current.stop(); stopTracks(); };
   }, []);
   useEffect(() => { setText(initialText); }, [initialText]);
-  useEffect(() => { if (initialFile) { if (initialFile.type.startsWith('image/')) setImage(initialFile); else setAudio(initialFile); } }, [initialFile]);
+  useEffect(() => {
+    if (!initialFile) return;
+    if (initialFile.size > 10 * 1024 * 1024) { setError('Each file must be at most 10 MB.'); return; }
+    if (isVideoFile(initialFile)) { setClip(initialFile); setInputMode('video'); }
+    else { setInputMode('separate'); if (initialFile.type.startsWith('image/')) setImage(initialFile); else setAudio(initialFile); }
+    setResult(null);
+  }, [initialFile]);
   useEffect(() => { if (camera && video.current) video.current.srcObject = stream.current; }, [camera]);
 
-  const chooseFile = (file: File | undefined, kind: 'audio' | 'image') => {
+  const chooseFile = (file: File | undefined, kind: 'audio' | 'image' | 'video') => {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { setError('Each file must be at most 10 MB.'); return; }
     setError(''); setResult(null);
-    (kind === 'audio' ? setAudio : setImage)(file);
+    if (kind === 'video') setClip(file);
+    else (kind === 'audio' ? setAudio : setImage)(file);
   };
   const record = async () => {
     try {
@@ -79,10 +90,13 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
     stopTracks(); setCamera(false); setResult(null);
   };
   const analyze = async () => {
-    if (!text.trim() && !audio && !image) { setError('Add at least one input.'); return; }
+    if (inputMode === 'video' && !clip) { setError('Choose a video clip.'); return; }
+    if (inputMode === 'separate' && !text.trim() && !audio && !image) { setError('Add at least one input.'); return; }
     setBusy(true); setError(''); setResult(null);
     try {
-      const response = await apiService.analyzeEmotion(text.trim() || null, audio, image, false, currentUser?.id);
+      const response = inputMode === 'video' && clip
+        ? await apiService.analyzeEmotion(null, null, null, false, currentUser?.id, { file: clip, mode: videoMode })
+        : await apiService.analyzeEmotion(text.trim() || null, audio, image, false, currentUser?.id);
       if (!mounted.current) return;
       if (response.success && response.data) setResult(response.data);
       else setError(response.error?.message || 'Analysis failed. No substitute result was generated.');
@@ -93,11 +107,30 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
     <div className="academic-card p-6 md:p-8 space-y-4">
       <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold uppercase tracking-widest"><Shield size={16}/> Private by default</div>
       <h1 className="text-2xl md:text-3xl font-bold text-white">Understand expressions. Keep context.</h1>
-      <p className="text-slate-300 text-sm leading-relaxed">Analyze English text, up to 30 seconds of speech, or a photo of one consenting adult. Combine inputs from the same moment to compare model outputs.</p>
+      <p className="text-slate-300 text-sm leading-relaxed">Analyze text, speech, a facial photo, or a short video of one consenting adult. A video supplies both the speaker’s voice and face.</p>
       <p className="text-xs text-slate-400">These models classify expression patterns. They cannot determine what someone truly feels or diagnose mental-health conditions. {currentUser ? 'Your result will be saved privately to your account.' : 'Guest results are not saved. Sign in to keep history and share results.'} Raw text, photos, and recordings are not stored.</p>
       <div className="flex flex-wrap gap-2" aria-label="Model availability">{['text','audio','image'].map(kind => <span key={kind} className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300">{kind}: {models[kind] ? models[kind].installed ? 'installed' : 'not installed' : 'checking'}</span>)}</div>
     </div>
-    <div className="grid md:grid-cols-2 gap-5">
+    <div role="group" aria-label="Analysis input" className="flex flex-wrap gap-2">
+      {(['separate', 'video'] as const).map(mode => <button key={mode} type="button" aria-pressed={inputMode === mode}
+        disabled={busy || recording || camera} className={inputMode === mode ? 'btn-primary' : 'btn-secondary'}
+        onClick={() => { setInputMode(mode); setError(''); setResult(null); }}>{mode === 'video' ? 'Video clip' : 'Text, speech or photo'}</button>)}
+    </div>
+    {inputMode === 'video' ? <div className="academic-card p-5 space-y-3">
+      <label htmlFor="analysis-video" className="block font-semibold text-white">Video of one speaker</label>
+      <p className="text-sm text-slate-300">Choose a clip with one visible face and audible speech. MP4, WebM or FLV · up to 30 seconds · 10 MB.</p>
+      <input id="analysis-video" type="file" accept=".mp4,.webm,.flv" className={field} disabled={busy}
+        onChange={e => { chooseFile(e.target.files?.[0], 'video'); e.target.value = ''; }}/>
+      {clip && <div className="text-xs text-slate-300 break-all">{clip.name} <button type="button" onClick={() => { setClip(null); setResult(null); }} disabled={busy} className="text-rose-300 ml-2">Remove video</button></div>}
+      <label htmlFor="video-method" className="block text-sm text-white">How to analyse the face and voice</label>
+      <select id="video-method" className={field} value={videoMode} disabled={busy}
+        onChange={e => { setVideoMode(e.target.value as VideoMode); setResult(null); }}>
+        <option value="midpoint">Middle frame and speech</option>
+        <option value="sequence">Three frames and speech</option>
+        <option value="transfer">Three frames and speech with learned fusion (experimental)</option>
+      </select>
+      {videoMode !== 'midpoint' && <p className="text-xs text-slate-400">Samples the face a quarter, halfway and three quarters through the clip. {videoMode === 'transfer' && 'The fusion weights were learned from actors performing scripted lines.'}</p>}
+    </div> : <div className="grid md:grid-cols-2 gap-5">
       <div className="academic-card p-5 md:col-span-2 space-y-2">
         <label htmlFor="analysis-text" className="font-semibold text-white">Text <span className="text-slate-400 font-normal text-xs">optional · English · first 256 tokens</span></label>
         <textarea id="analysis-text" className={field} rows={4} maxLength={5000} placeholder="Type or paste a text statement..." value={text} onChange={e => setText(e.target.value)} disabled={busy}/>
@@ -118,7 +151,7 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
         {image && <div className="text-xs text-slate-300 break-all">{image.name} <button onClick={() => setImage(null)} className="text-rose-300 ml-2" disabled={busy}>Remove photo</button></div>}
         <p className="text-xs text-slate-400">Maximum 10 MB and 12 megapixels. No group photos.</p>
       </div>
-    </div>
+    </div>}
     <label className="flex items-start gap-3 text-sm text-slate-300"><input type="checkbox" className="mt-1" checked={consent} onChange={e => setConsent(e.target.checked)}/> I have permission to analyze these inputs and understand this is not a clinical assessment.</label>
     {error && <div role="alert" className="p-4 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-200 text-sm flex gap-2"><AlertCircle size={18}/>{error}</div>}
     <button onClick={analyze} disabled={busy || !consent || recording || camera} className="btn-primary w-full py-3 disabled:opacity-40">{busy ? <span className="flex items-center justify-center gap-2"><RefreshCw className="animate-spin" size={18}/> Running installed models…</span> : 'Start Analysis'}</button>
@@ -128,6 +161,8 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
       <p className="text-sm text-slate-300">Model score: {(result.confidence * 100).toFixed(1)}% · uncalibrated</p>
       <div className="space-y-2">{Object.entries(result.probabilities).sort((a,b) => b[1]-a[1]).map(([label,value]) => <div key={label} className="grid grid-cols-[80px_1fr_55px] gap-3 items-center text-xs text-slate-300"><span className="capitalize">{label}</span><progress aria-label={`${label} model score`} value={value} max={1} className="w-full accent-indigo-400"/><span>{(value*100).toFixed(1)}%</span></div>)}</div>
       <div className="grid sm:grid-cols-3 gap-3">{Object.entries(result.modality_predictions).filter(([,p]) => p).map(([kind,p]) => <div className="rounded-xl bg-slate-950 p-4" key={kind}><p className="text-xs text-slate-400 capitalize">{kind}</p><p className="text-white font-semibold capitalize">{p!.emotion}</p><p className="text-xs text-slate-400 break-all">{p!.model}</p></div>)}</div>
+      {result.video_summary && <p className="text-sm text-slate-300">Used {result.video_summary.used_fractions.length} of {result.video_summary.requested_frames} face samples
+        {' '}from {result.video_summary.duration_seconds.toFixed(1)} seconds of video. Server processing took {result.video_summary.processing_seconds.toFixed(1)} seconds.</p>}
       <p className="text-xs text-slate-400">{result.fusion_method}</p>
       <ul className="list-disc pl-5 text-xs text-amber-200 space-y-1">{result.warnings?.map(w => <li key={w}>{w}</li>)}</ul>
       <p className="text-sm text-slate-300">{result.wellness_insight}</p>

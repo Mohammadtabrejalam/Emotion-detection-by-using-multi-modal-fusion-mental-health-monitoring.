@@ -85,6 +85,8 @@ def validate_uploaded_file(file: UploadFile, file_type: str, max_bytes: int = 10
         
     if file_type == "audio" and ext not in ALLOWED_AUDIO_EXTS:
         raise HTTPException(status_code=400, detail=f"Invalid audio format '{ext}'. Allowed: .wav, .mp3, .ogg, .m4a, .webm, .mp4")
+    elif file_type == "video" and ext not in {".mp4", ".webm", ".flv"}:
+        raise HTTPException(status_code=400, detail="Use an MP4, WebM, or FLV video.")
     elif file_type == "image" and ext not in ALLOWED_IMAGE_EXTS:
         raise HTTPException(status_code=400, detail=f"Invalid image format '{ext}'. Allowed: .png, .jpg, .jpeg, .webp")
 
@@ -762,13 +764,18 @@ def model_status():
 @app.post("/api/analyze", response_model=StandardResponse)
 async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
                           audio: Optional[UploadFile] = File(None), image: Optional[UploadFile] = File(None),
-                          demo_mode: bool = Form(False), user_id: Optional[int] = Form(None)):
+                          demo_mode: bool = Form(False), user_id: Optional[int] = Form(None),
+                          video: Optional[UploadFile] = File(None), video_mode: str = Form("midpoint")):
     rate_limiter.check_rate_limit(request, "analyze", limit=30)
     user = get_optional_user_from_req(request)
     if demo_mode:
         return {"success": False, "error": {"code": "DEMO_DISABLED", "message": "Simulated predictions are disabled. Install the published models to analyze real inputs."}}
     blobs = {}
-    for kind, upload in (("audio", audio), ("image", image)):
+    if video and (audio or image or (text and text.strip())):
+        return {"success": False, "error": {"code": "INVALID_INPUT", "message": "Analyze a video on its own. Its sound and picture supply both inputs."}}
+    if video and video_mode not in {"midpoint", "sequence", "transfer"}:
+        return {"success": False, "error": {"code": "INVALID_INPUT", "message": "Unknown video analysis method."}}
+    for kind, upload in (("audio", audio), ("image", image), ("video", video)):
         if upload:
             validate_uploaded_file(upload, kind)
             blobs[kind] = await upload.read(MAX_UPLOAD_BYTES + 1)
@@ -777,7 +784,13 @@ async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
     if not (text and text.strip()) and not blobs:
         return {"success": False, "error": {"code": "INSUFFICIENT_INPUT", "message": "Provide text, speech, or one facial image."}}
     try:
-        prediction = await run_in_threadpool(engine.analyze, text=text, **blobs)
+        if video:
+            sampling = "midpoint" if video_mode == "midpoint" else "sequence"
+            started = time.perf_counter()
+            prediction = await run_in_threadpool(engine.analyze_video, blobs["video"], sampling, video_mode == "transfer")
+            prediction["video_summary"]["processing_seconds"] = time.perf_counter() - started
+        else:
+            prediction = await run_in_threadpool(engine.analyze, text=text, **blobs)
     except InputError as exc:
         return {"success": False, "error": {"code": "INVALID_INPUT", "message": str(exc)}}
     except ModelUnavailable as exc:
@@ -797,6 +810,8 @@ async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
         "wellness_insight": "Consider whether these expression labels match your own experience. Model scores are uncertain and are not a mental-health assessment.",
         "stages": [{"stage": name, "status": "completed"} for name in ("Input validation", "Published model inference", "Late fusion")],
     }
+    if "video_summary" in prediction:
+        result["video_summary"] = prediction["video_summary"]
     if user:
         save_analysis(result["id"], result["modalities_used"], result["emotion"], result["confidence"],
                       result["model_version"], False, result["modality_predictions"], user["id"])

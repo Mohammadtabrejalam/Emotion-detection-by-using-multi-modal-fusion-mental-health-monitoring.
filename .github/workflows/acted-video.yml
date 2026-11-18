@@ -1,9 +1,6 @@
 name: External acted-video evaluation
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'research/acted_video/protocol.json'
 permissions:
   contents: read
 env:

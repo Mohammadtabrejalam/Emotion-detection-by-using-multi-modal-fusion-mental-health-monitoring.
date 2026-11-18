@@ -58,7 +58,16 @@ export interface ModalityPredictions {
   image?: ModalityPrediction | null;
 }
 
+export type VideoMode = 'midpoint' | 'sequence' | 'transfer';
+
 export interface AnalysisData {
+  video_summary?: {
+    sampling: 'midpoint' | 'sequence';
+    duration_seconds: number;
+    requested_frames: number;
+    used_fractions: number[];
+    processing_seconds: number;
+  };
   saved?: boolean;
   warnings?: string[];
   fusion_method?: string;

@@ -87,7 +87,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
           pip install -r backend/requirements-inference.txt
-          python -m scripts.download_models --modalities text
+
+      - name: Cache pinned checkpoints for real browser tests
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: browser-models-${{ runner.os }}-${{ hashFiles('backend/app/inference/registry.py') }}
+      - name: Install published models and fetch one checksum-verified acted clip
+        env:
+          HF_HUB_DISABLE_XET: '1'
+        run: |
+          python -m scripts.download_models --modalities text audio image
+          python -m research.acted_video.sample
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -106,6 +117,7 @@ jobs:
         working-directory: ./frontend
         env:
           PYTHONPATH: ..
+          MINDSENSE_TEST_CLIP: ${{ github.workspace }}/data/raw/crema-video/1004_TAI_HAP_XX.flv
         run: npx playwright test
 
 
