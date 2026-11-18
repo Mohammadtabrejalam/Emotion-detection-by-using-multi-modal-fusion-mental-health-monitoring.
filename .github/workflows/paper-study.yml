@@ -1,0 +1,137 @@
+name: Prospective partially overlapping label study
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/paper-study.yml'
+
+permissions:
+  contents: read
+
+env:
+  OMP_NUM_THREADS: '2'
+  MKL_NUM_THREADS: '2'
+  HF_HUB_DISABLE_XET: '1'
+
+jobs:
+  development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        actors: ['7 8', '9 10', '11 12', '13 14', '15 16']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU inference and research dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r backend/requirements-inference.txt -r research/fusion_v2/requirements.txt requests
+      - run: python -m scripts.download_models --modalities audio image
+      - name: Collect fitting and validation actors only
+        run: |
+          python -m research.paper_v1.collect --actors ${{ matrix.actors }} --output artifacts/scores.jsonl
+          python -m pip freeze > artifacts/environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: development-${{ strategy.job-index }}
+          path: artifacts/
+          retention-days: 90
+  fit:
+    needs: development
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r research/fusion_v2/requirements.txt
+      - run: python -m unittest research.paper_v1.test_study -v
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: development-*
+          path: artifacts/development
+      - name: Freeze selection before test collection
+        run: |
+          python -m research.paper_v1.study fit --scores artifacts/development/*/scores.jsonl --output artifacts/fit/fitted.json
+          sha256sum artifacts/fit/fitted.json > artifacts/fit/fitted.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fitted-parameters
+          path: artifacts/fit/
+          retention-days: 90
+  test:
+    needs: fit
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        actors: ['17 18', '19 20', '21 22', '23 24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install CPU inference and research dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install 'torch==2.15.0' --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r backend/requirements-inference.txt -r research/fusion_v2/requirements.txt requests
+      - run: python -m scripts.download_models --modalities audio image
+      - uses: actions/download-artifact@v4
+        with:
+          name: fitted-parameters
+          path: artifacts/fit
+      - name: Collect untouched test actors after selection
+        run: |
+          python -m research.paper_v1.collect --actors ${{ matrix.actors }} --fitted artifacts/fit/fitted.json --output artifacts/scores.jsonl
+          python -m pip freeze > artifacts/environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-${{ strategy.job-index }}
+          path: artifacts/
+          retention-days: 90
+  evaluate:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r research/fusion_v2/requirements.txt
+      - run: python -m unittest research.paper_v1.test_study -v
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-*
+          path: artifacts/test
+      - uses: actions/download-artifact@v4
+        with:
+          name: fitted-parameters
+          path: artifacts/fit
+      - name: Evaluate every prespecified method without refitting
+        run: |
+          python -m research.paper_v1.study evaluate --scores artifacts/test/*/scores.jsonl --fitted artifacts/fit/fitted.json --output artifacts/results.json
+          python -m pip freeze > artifacts/evaluation-environment.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paper-study-evaluation
+          path: |
+            artifacts/results.json
+            artifacts/evaluation-environment.txt
+          retention-days: 90
