@@ -119,6 +119,24 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
     {inputMode === 'video' ? <div className="academic-card p-5 space-y-3">
       <label htmlFor="analysis-video" className="block font-semibold text-white">Video of one speaker</label>
       <p className="text-sm text-slate-300">Choose a clip with one visible face and audible speech. MP4, WebM or FLV · up to 30 seconds · 10 MB.</p>
+      <details className="rounded-xl border border-slate-700 p-3 text-sm text-slate-300">
+        <summary className="cursor-pointer font-semibold text-white">Classroom example</summary>
+        <div className="mt-3 space-y-3">
+          <video controls playsInline preload="none" aria-label="CREMA-D classroom preview" className="w-full max-w-sm rounded-lg">
+            <source src="/acted-video/1004_TAI_HAP_XX.mp4" type="video/mp4"/>
+            <source src="/acted-video/1004_TAI_HAP_XX.webm" type="video/webm"/>
+            <track kind="captions" src="/acted-video/1004_TAI_HAP_XX.vtt" srcLang="en" label="English"/>
+          </video>
+          <p>Actor 1004 performs happiness. To compare the original and learned rules, download the original clip and choose it below.</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-indigo-300 underline">
+            <a href="https://media.githubusercontent.com/media/CheyneyComputerScience/CREMA-D/1658cd342dff90010aa843eaeebd53610a08b1dc/VideoFlash/1004_TAI_HAP_XX.flv" download="1004_TAI_HAP_XX.flv">Download original FLV</a>
+            <a href="/acted-video/MindSense_Acted_Video_Study.pdf" download>Study PDF</a>
+            <a href="/acted-video/MindSense_Acted_Video_Study.docx" download>Editable study</a>
+          </div>
+          <p className="text-xs text-slate-400">Preview adapted from <a className="underline" href="https://github.com/CheyneyComputerScience/CREMA-D">CREMA-D</a> by Cao and colleagues.
+            {' '}<a className="underline" href="https://opendatacommons.org/licenses/dbcl/1-0/">Database Contents License 1.0</a>.</p>
+        </div>
+      </details>
       <input id="analysis-video" type="file" accept=".mp4,.webm,.flv" className={field} disabled={busy}
         onChange={e => { chooseFile(e.target.files?.[0], 'video'); e.target.value = ''; }}/>
       {clip && <div className="text-xs text-slate-300 break-all">{clip.name} <button type="button" onClick={() => { setClip(null); setResult(null); }} disabled={busy} className="text-rose-300 ml-2">Remove video</button></div>}

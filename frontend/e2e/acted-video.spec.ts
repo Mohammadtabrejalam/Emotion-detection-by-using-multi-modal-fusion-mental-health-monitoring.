@@ -36,3 +36,27 @@ test('a verified acted clip passes through all four real video modes', async ({ 
     await expect(page.getByText(/Server processing took/)).toBeVisible();
   }
 });
+
+test('classroom example opens the preview and downloads both study formats', async ({ page }) => {
+  await page.goto('/#/analyze');
+  await page.getByRole('button', { name: 'Video clip', exact: true }).click();
+  await page.getByText('Classroom example', { exact: true }).click();
+  const preview = page.getByLabel('CREMA-D classroom preview');
+  await expect(preview).toBeVisible();
+  await preview.evaluate(async element => {
+    const video = element as HTMLVideoElement;
+    video.muted = true;
+    await video.play();
+  });
+  await expect.poll(() => preview.evaluate(element => (element as HTMLVideoElement).ended)).toBe(true);
+  for (const [name, extension, signature] of [['Study PDF', 'pdf', '%PDF'], ['Editable study', 'docx', 'PK']]) {
+    const downloading = page.waitForEvent('download');
+    await page.getByRole('link', { name, exact: true }).click();
+    const download = await downloading;
+    expect(download.suggestedFilename()).toBe('MindSense_Acted_Video_Study.' + extension);
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream!) chunks.push(chunk);
+    expect(Buffer.concat(chunks).subarray(0, signature.length).toString()).toBe(signature);
+  }
+});

@@ -112,3 +112,7 @@ Current verification at `dd20d71`: 163 Python tests passed (5 skipped), 10 front
 tests, 6 browser tests, production build and container checks passed. The NPM
 security audit failed for upstream [picomatch GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf);
 the audit remains enabled. See [dated verification](research/paper_v1/verification.json).
+
+### External acted-video study and classroom demo
+
+The [CREMA-D study and classroom example](research/acted_video/README.md) compare six methods on 190 paired performances from 16 actors. In the application, choose **Analyze → Video clip → Classroom example** to play the sample and download the report. The learned one-frame option matched 92 intended labels, compared with 72 for the original one-frame rule, at the same rounded median processing time.

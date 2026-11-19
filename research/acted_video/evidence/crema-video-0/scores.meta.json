@@ -1,0 +1,28 @@
+{
+  "hashes": {
+    "protocol.json": "ce3b61a4d7bb6e35193f9f04425d573eb8bba9e31d24e3786284cc3b2330f550",
+    "clips.csv": "3a7b8039e5199c8bc3a157d32ca76f593657f7287a12ca175abe02a22f46bcc2",
+    "acted_video_head.json": "65cdc68dfe63ecd2d95b77aa5642c48a5bf5e5c066ed214c6eaa2ff28e846a88"
+  },
+  "models": {
+    "audio": {
+      "repo": "superb/wav2vec2-base-superb-er",
+      "revision": "441a7599c3b22107314dcbd9166621c5c83f2cc5",
+      "license": "Apache-2.0",
+      "weight": "pytorch_model.bin",
+      "sha256": "dac0f46128deec048751ce33eb1a9caecb570904d3d6cf732d6ec345cd6c2e1b"
+    },
+    "image": {
+      "repo": "trpakov/vit-face-expression",
+      "revision": "ef0bc6fc34241b6587e7e009e7711357be28c024",
+      "license": "Apache-2.0",
+      "weight": "model.safetensors",
+      "sha256": "48acf03b1fd90ea45c5e91eb3be2f364cee1c1342639962bd4eae1eac2ad2f93"
+    }
+  },
+  "python": "3.12.16",
+  "torch": "2.15.0+cpu",
+  "opencv": "4.11.0",
+  "platform": "Linux-7.0.0-1019-azure-x86_64-with-glibc2.43",
+  "shard": 0
+}
