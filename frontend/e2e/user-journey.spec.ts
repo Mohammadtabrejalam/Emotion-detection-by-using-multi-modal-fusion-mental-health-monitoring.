@@ -1,45 +1,64 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('MindSense End-to-End User Journey', () => {
-  test('Complete navigation, text analysis, and data rights workflow', async ({ page }) => {
-    // 1. Visit Home Page
-    await page.goto('/');
-    await expect(page).toHaveTitle(/MindSense/i);
-    await expect(page.getByRole('heading', { name: 'MindSense', exact: true })).toBeVisible();
-    await expect(page.getByText(/Understanding emotional expression through multimodal signals/i)).toBeVisible();
+test('Guest analysis uses installed text model or clearly reports missing checkpoint', async ({ page }) => {
+  test.setTimeout(150000);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'MindSense', exact: true })).toBeVisible();
+  await page.screenshot({path:'test-results/report-evidence/home.png',fullPage:true});
+  await page.getByRole('button', { name: /start an analysis/i }).first().click();
+  await expect(page.getByRole('heading', { name: 'Understand expressions. Keep context.' })).toBeVisible();
+  await page.getByPlaceholder(/Type or paste a text statement/).fill('Thank you for helping me finish this project.');
+  const submit = page.getByRole('button', { name: 'Start Analysis', exact: true }).last();
+  await expect(submit).toBeDisabled();
+  await page.getByRole('checkbox').check();
+  const modelStatus = await (await page.request.get('/api/models')).json();
+  await submit.click();
+  if (modelStatus.data.models.text.installed) {
+    await expect(page.getByRole('heading', { name: 'Analysis Output & Classification' })).toBeVisible({ timeout: 120000 });
+    await expect(page.getByText('Guest result: not saved to the server.')).toBeVisible();
+    await page.screenshot({path:'test-results/report-evidence/real-text-result.png',fullPage:true});
+    await expect(page.getByRole('button', { name: 'Share Result' })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole('alert')).toContainText('not installed');
+    await expect(page.getByRole('heading', { name: 'Analysis Output & Classification' })).toHaveCount(0);
+  }
+});
 
-    // 2. Click "Start an Analysis" CTA
-    const startCta = page.getByRole('button', { name: /start an analysis/i }).first();
-    await startCta.click();
+test('Private routes require authentication and mobile analysis fits the viewport', async ({ page }) => {
+  await page.goto('/#/insights/journal');
+  await expect(page.getByRole('heading', {name:'Your private workspace'})).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/#/analyze');
+  await expect(page.getByRole('heading', {name:'Understand expressions. Keep context.'})).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/report-evidence/mobile-analysis.png',fullPage:true});
+});
 
-    // 3. Verify Live Analysis Studio Loaded
-    await expect(page.getByText(/Affective Analysis Laboratory/i)).toBeVisible();
+test('Authenticated journal persists after refresh and can be deleted', async ({ page }) => {
+  const username = `browser_${Date.now()}`;
+  const response = await page.request.post('/api/auth/register', {data:{username,email:`${username}@example.test`,password:'BrowserTest123!',name:'Browser Test'}});
+  const account = (await response.json()).data;
+  await page.goto('/');
+  await page.evaluate(token => localStorage.setItem('mindsense_token',token),account.token);
+  await page.goto('/#/insights/journal');
+  await page.reload();
+  await page.getByPlaceholder(/Cognitive fatigue/).fill('Browser journal verification');
+  await page.getByPlaceholder(/Record triggers/).fill('Disposable authored reflection for integration testing.');
+  await page.getByRole('button',{name:'Save Reflection Entry'}).click();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toBeVisible();
+  page.once('dialog',dialog => dialog.accept());
+  await page.getByTitle('Delete reflection').click();
+  await expect(page.getByText('Browser journal verification',{exact:true})).toHaveCount(0);
+  await page.request.delete('/api/user/account',{headers:{Authorization:`Bearer ${account.token}`}});
+});
 
-    // 4. Enable Advanced Configuration -> Rule-Based Simulation & Execute Analysis
-    const advConfig = page.getByRole('button', { name: /Advanced Configuration/i });
-    await advConfig.click();
-    
-    const demoCheck = page.getByRole('checkbox', { name: /Rule-Based Simulation Mode/i });
-    await demoCheck.check();
-
-    const textArea = page.getByPlaceholder(/Type or paste a text statement/i);
-    await textArea.fill('I am feeling calm, focused, and accomplished after completing our research protocol.');
-    
-    const analyzeBtn = page.getByRole('main').getByRole('button', { name: 'Start Analysis' });
-    await analyzeBtn.click();
-
-    // 5. Verify Results Displayed
-    await expect(page.getByText(/Analysis Output & Classification/i)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Detected Dominant Emotion/i)).toBeVisible();
-
-    // 6. Navigate to Settings & Data Rights
-    await page.goto('/#/settings');
-    await expect(page.getByText(/System Settings & Data Subject Rights/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /download my data/i })).toBeVisible();
-
-    // 7. Verify Developer Portal Isolation (Unauthenticated Direct Link Attempt)
-    await page.goto('/#/developer/dashboard');
-    // Developer portal login screen or access denial must render
-    await expect(page.getByText(/Developer Authentication/i).or(page.getByText(/Sign In/i))).toBeVisible();
-  });
+test('Account recovery reports unavailable email delivery without exposing a token', async ({ page }) => {
+  await page.goto('/#/auth');
+  await page.getByRole('button',{name:'Forgot your password?'}).click();
+  await page.getByLabel('Username or email',{exact:true}).fill('unknown@example.test');
+  await page.getByRole('button',{name:'Send recovery email'}).click();
+  await expect(page.getByRole('alert')).toContainText('unavailable');
+  await expect(page.getByLabel('Recovery token',{exact:true})).toHaveValue('');
 });

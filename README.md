@@ -1,126 +1,118 @@
-# MindSense — Multimodal Emotion & Mental Health Monitoring System
+# MindSense
 
-MindSense is a full-stack web application designed for research and longitudinal wellness tracking. It leverages written text, voice acoustics, and facial micro-expressions to estimate user emotional states.
+A demonstrable expression-analysis application: published text, speech, and facial-image classifiers run locally on the backend, with support-aware late fusion, private journaling, self-reported check-ins, history, and expiring result links.
 
-The platform uses a custom **PyTorch Multimodal Fusion Transformer** featuring dynamic modality masking to support arbitrary combinations of inputs (e.g. Text-only, Text + Audio, Audio + Image, or all three) without introduction of zero-biasing artifacts.
+**Research demonstration, not a mental-health diagnostic system.** Models classify expression patterns; they do not establish internal feelings. Fusion performance varies by actor; the research findings do not establish broad superiority. No random predictions or missing-checkpoint substitutes are served.
 
----
+## Run locally (Windows PowerShell)
 
-## 1. Safety & Diagnostic Advisory
+Use Python 3.11 or 3.12, Node.js 22.12+, Git, and FFmpeg on PATH. Run from the repository root. Allow several GB for dependencies and models; a CPU machine with 8 GB RAM is a practical starting point, not a measured minimum.
 
-> [!WARNING]
-> **This system is for research and wellness monitoring only and does not provide medical diagnosis or professional mental-health assessment.**
-> 
-> * MindSense does **not** evaluate clinical conditions (like clinical depression or anxiety disorders).
-> * The emotional estimations are AI-generated models and are not diagnostic thresholds.
-> * In case distress thresholds are met, the application provides references to professional crisis helplines (988 Lifeline).
-
-> [!NOTE]
-> **Research & Empirical Status (Phase 0 Foundation)**: Current machine learning models and metrics in the codebase represent **provisional development baselines** (trained on synthetic tensors for software verification). **Experimental results pending real-dataset evaluation.** Formal research specifications and evaluation protocols are documented in the `docs/` directory.
-
----
-
-## 2. Directory Layout
-
-The workspace is organized into modular directories:
-
-```
-├── backend/
-│   ├── app/
-│   │   ├── main.py                 # FastAPI Web Server Routing
-│   │   ├── database.py             # SQLite Schemas and CRUD functions
-│   │   └── ml/
-│   │       ├── mindsense_fusion.pt # Prototype PyTorch state dict weights (synthetic baseline)
-│   │       ├── evaluation_results.json # Provisional prototype metrics (pending real-dataset evaluation)
-│   │       ├── text_encoder.py     # Unimodal Text PyTorch model
-│   │       ├── audio_encoder.py    # Unimodal Audio PyTorch model
-│   │       ├── vision_encoder.py   # Unimodal Vision PyTorch model
-│   │       ├── fusion_model.py     # Cross-attention Fusion PyTorch Transformer
-│   │       └── preprocessing/      # Modality converters (MFCC/Haar face crops)
-│   ├── tests/                      # Pytest unit and integration tests
-│   └── requirements.txt            # Python library requirements
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/             # Sidebar and UI wrapper panels
-│   │   ├── pages/                  # Home, Workspace, History, Trends, Research tabs
-│   │   ├── services/               # fetch API networking wrappers
-│   │   ├── types.ts                # TypeScript interfaces
-│   │   ├── index.css               # Main styling rules with Tailwind CSS v3
-│   │   └── App.tsx                 # Main layout routing mount
-│   └── tailwind.config.js          # Tailwind CSS configurations
-│
-├── ARCHITECTURE.md                 # Intermediate fusion transformer architecture details
-├── MODEL_CARD.md                   # Model evaluation, training parameters, and biases
-├── DATASET.md                      # Feature mapping and subject split leak preventions
-└── EXPERIMENTS.md                  # Ablation study comparison reports
+```powershell
+git clone https://github.com/Mohammadtabrejalam/Emotion-detection-by-using-multi-modal-fusion-mental-health-monitoring..git mindsense
+cd mindsense
+git switch fix/complete-analysis-workflow
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r backend/requirements-inference.txt
+Copy-Item .env.example .env
+python -m scripts.download_models
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
----
+In a second terminal at the repository root:
 
-## 3. Installation & Local Execution
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
 
-Follow these steps to run both the FastAPI API and the React + Vite development servers locally.
+Open **http://localhost:5173**. Vite proxies `/api` to port 8000. API docs: **http://localhost:8000/docs**. For Linux/macOS, use `python3 -m venv .venv`, `source .venv/bin/activate`, and `cp .env.example .env`; the remaining commands are the same. Install FFmpeg with your system package manager and verify `ffmpeg -version`.
 
-### Prerequisites
-* **Python 3.10+** (with `pip`)
-* **Node.js 18+** (with `npm`)
-* **FFmpeg** (optional: required for converting browser recorded audio formats like `.webm` to `.wav`. If unavailable, standard WAV file uploads are handled natively).
+For a quicker text-only setup, use `python -m scripts.download_models --modalities text`. Audio/image submissions then explicitly report unavailable checkpoints. Model downloads are pinned to exact revisions; inference uses local files only. Downloading sends no user inputs to model providers.
 
----
+## Demonstrate the application
 
-### Step A: Start Python FastAPI Backend
+1. Open Analyze and check model availability. Enter English text, speech up to 30 seconds, or a clear photo of one consenting adult. Confirm permission and run.
+2. Review individual labels, combined scores, and disagreement warnings. Guest results are not saved.
+3. Register your own account (no default production credentials). Run another analysis, then open Insights for private history, journal entries, and check-ins.
+4. Share a saved result using an expiring public link, then revoke it. Raw inputs and journal entries are not shared.
+5. Export data or delete your account in Settings. Clearing history removes analyses and their links while preserving journals/check-ins.
 
-1. Navigate to the `backend/` directory:
-   ```bash
-   cd backend
-   ```
+The app guide is a scripted FAQ, not an LLM. Research participation is unavailable unless an operator configures a legitimate study; no institutional approval is implied. The educational emotion game is not a model benchmark.
 
-2. Install all required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *Note: If PyTorch (`torch`) is not installed or loading is slow on your CPU/GPU hardware, the FastAPI server will automatically load in **Demo Mode**, utilizing a rules-engine simulator to process features without failing.*
+## Actual evaluation
 
-3. Execute the Uvicorn web server:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-   The backend server will run at `http://localhost:8000`. You can inspect the interactive OpenAPI/Swagger documentation at `http://localhost:8000/docs`.
+Committed reports contain individual prediction IDs, source hashes, per-class metrics, and confusion matrices. No raw dataset media is committed.
 
----
+| Evaluation | Samples | Accuracy | Macro F1 |
+|---|---:|---:|---:|
+| Text on official MELD test | 2,610 | 43.72% | 0.270 |
+| Speech on RAVDESS actor 01, supported labels | 28 | 46.43% | 0.366 |
+| Face on RAVDESS actor 01 | 52 | 40.38% | 0.392 |
+| Speech + face fusion on actor 01 | 52 | 38.46% | 0.355 |
 
-### Step B: Start React + Vite Frontend
+MELD's majority-neutral baseline is **48.12%**, higher than the text model's accuracy. The text model was trained for GoEmotions, then projected to seven categories; this is a cross-dataset transfer evaluation. This original RAVDESS evaluation uses **one actor only**, excludes calm, and cannot establish population performance. Audio supports four labels; its sample set differs from face/fusion. Fusion underperformed face alone on this subset. Three-way fusion and clinical outcomes have not been benchmarked.
 
-1. Navigate to the `frontend/` directory (open a separate terminal window):
-   ```bash
-   cd frontend
-   ```
+See [model card](MODEL_CARD.md), [evaluation reproduction](docs/EVALUATION_PUBLISHED.md), [deployment](docs/DEPLOYMENT.md), and [readiness report](docs/APPLICATION_READINESS.md), and [interview guide](docs/INTERVIEW_GUIDE.md).
 
-2. Install Node packages:
-   ```bash
-   npm install
-   ```
+## Tests
 
-3. Launch the local dev server:
-   ```bash
-   npm run dev
-   ```
-   Open your browser to `http://localhost:5173` (or the address printed in the terminal) to access the MindSense platform.
+```text
+python -m pytest backend/tests -q
+cd frontend
+npm test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
 
----
+API tests use explicitly test-only classifier doubles to verify contracts, ownership, and storage; those results are not model accuracy. The separate evaluation script uses actual installed checkpoints. Browser tests use an isolated database and real HTTP endpoints, with a real-model path when text weights are installed.
 
-## 4. Running Automated Tests
+## Architecture and scope
 
-A comprehensive suite of 13 unit and integration tests is located in the `backend/tests/` folder. It tests text tokenization, face cropping bounding calculations, MFCC spectrogram inputs, and API endpoint responses.
+React/Vite → FastAPI → local Transformers models → label mapping/late fusion → SQLite for signed-in results. The server performs inference, not the browser. One CPU worker is the supported baseline; inference is serialized to bound model memory. See [architecture](ARCHITECTURE.md).
 
-To execute tests:
-1. Ensure you are in the `backend` environment.
-2. Install pytest if not already loaded:
-   ```bash
-   pip install pytest httpx
-   ```
-3. Run the test suite:
-   ```bash
-   python -m pytest tests/
-   ```
+The older `backend/app/ml` cross-attention training and dataset pipelines remain research scaffolding. Historical `PHASE_*` documents and synthetic experiment artifacts do **not** describe the serving models or provide evidence of real model performance. The application no longer reads their claimed metrics. No jointly trained multimodal checkpoint was fabricated.
+
+## Academic report and fusion investigation
+
+The [academic report](docs/ACADEMIC_REPORT.md) documents the implemented models, fusion mathematics, recomputed MELD/Actor 01 metrics, genuine browser evidence and study limitations. Run `python -m scripts.verify_report_evidence` to verify the saved prediction metrics without downloading models.
+
+The actor-separated follow-up includes 260 real audiovisual clips, frozen experts, seven methods and a 104-clip test shared by all methods. Adaptive class reliability reaches 52.88% accuracy and 0.5148 macro F1 versus 50.00% and 0.4933 for existing fusion. Actor-level and calibration findings are mixed; the two-actor interval crosses zero. This reproduces a previously observed experiment and is not fresh independent validation. See [scores, methods and limitations](research/fusion_v2/README.md), [PDF report](docs/MindSense_Academic_Report.pdf), [Word report](docs/MindSense_Academic_Report.docx) and [report reproduction](docs/report_source/README.md). No algorithmic novelty or clinical validity is claimed.
+
+
+## Expanded paper study (18 November 2026)
+
+The completed [paper study](research/paper_v1/README.md) uses 936 real RAVDESS clips,
+with actors 07–12 for fitting, 13–16 for validation and 17–24 for the 416-clip test.
+The protocol was frozen before collection; all twelve methods use the same test
+pairs. The primary improvement hypothesis was **not supported**: existing fusion
+and adaptive hierarchy both achieve 43.99% accuracy, with macro F1 0.4427 and
+0.4418 respectively (paired difference -0.0009; actor-bootstrap 95% interval
+[-0.0416, 0.0395]; exact actor-block permutation p=0.9531). Face alone reaches
+39.90% accuracy and 0.3918 macro F1. The smaller earlier positive finding above
+did not persist under this expanded primary comparison.
+
+The mass-preserving rule is a nested-label special case of existing weighted
+CTMC fusion, not a new algorithm. The contribution is an empirical analysis of
+category tradeoffs and probability quality; a second dataset, another expert
+pair and physical corruption tests remain necessary for stronger claims.
+
+Download the [research paper PDF](research/paper_v1/manuscript/MindSense_Research_Paper.pdf)
+or [editable DOCX](research/paper_v1/manuscript/MindSense_Research_Paper.docx).
+[Source, figures and complete evidence](research/paper_v1/) are committed.
+Run `python -m research.paper_v1.verify_evidence` to reproduce saved-score metrics.
+The earlier academic report describes the exploratory study separately.
+
+Current verification at `dd20d71`: 163 Python tests passed (5 skipped), 10 frontend
+tests, 6 browser tests, production build and container checks passed. The NPM
+security audit failed for upstream [picomatch GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf);
+the audit remains enabled. See [dated verification](research/paper_v1/verification.json).
+
+### External acted-video study and classroom demo
+
+The [CREMA-D study and classroom example](research/acted_video/README.md) compare six methods on 190 paired performances from 16 actors. In the application, choose **Analyze → Video clip → Classroom example** to play the sample and download the report. The learned one-frame option matched 92 intended labels, compared with 72 for the original one-frame rule, at the same rounded median processing time.

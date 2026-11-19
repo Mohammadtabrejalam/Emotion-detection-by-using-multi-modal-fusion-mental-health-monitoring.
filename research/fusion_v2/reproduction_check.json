@@ -1,0 +1,94 @@
+{
+  "reference": "Earlier execution transcript in this conversation",
+  "restored_procedure_commit": "ceb03a1f534ad8b8080ab4a75705e40e79415082",
+  "all_aggregate_metrics_match": true,
+  "checks": {
+    "face": {
+      "accuracy": {
+        "prior_execution_value": 0.4807692307692308,
+        "regenerated_value": 0.4807692307692308,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.48483123517606275,
+        "regenerated_value": 0.48483123517606275,
+        "matches": true
+      }
+    },
+    "audio_zero_padded": {
+      "accuracy": {
+        "prior_execution_value": 0.2403846153846154,
+        "regenerated_value": 0.2403846153846154,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.15722404382861588,
+        "regenerated_value": 0.15722404382861588,
+        "matches": true
+      }
+    },
+    "legacy_support_average": {
+      "accuracy": {
+        "prior_execution_value": 0.5,
+        "regenerated_value": 0.5,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.49325228780764174,
+        "regenerated_value": 0.49325228780764174,
+        "matches": true
+      }
+    },
+    "zero_padded_average": {
+      "accuracy": {
+        "prior_execution_value": 0.4807692307692308,
+        "regenerated_value": 0.4807692307692308,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.45851949381903306,
+        "regenerated_value": 0.45851949381903306,
+        "matches": true
+      }
+    },
+    "calibrated_face": {
+      "accuracy": {
+        "prior_execution_value": 0.4807692307692308,
+        "regenerated_value": 0.4807692307692308,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.48483123517606275,
+        "regenerated_value": 0.48483123517606275,
+        "matches": true
+      }
+    },
+    "hierarchical_static": {
+      "accuracy": {
+        "prior_execution_value": 0.4807692307692308,
+        "regenerated_value": 0.4807692307692308,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.48483123517606275,
+        "regenerated_value": 0.48483123517606275,
+        "matches": true
+      }
+    },
+    "adaptive_reliability": {
+      "accuracy": {
+        "prior_execution_value": 0.5288461538461539,
+        "regenerated_value": 0.5288461538461539,
+        "matches": true
+      },
+      "macro_f1": {
+        "prior_execution_value": 0.5148282273282273,
+        "regenerated_value": 0.5148282273282273,
+        "matches": true
+      }
+    }
+  },
+  "score_sha256": "6a5b50581666c29718fe530b963590f17be3c5981d487558c74bea0c3ff18cc1",
+  "result_sha256": "2053d576e5bd129e8e541d0f3c437148874d8c537aebc53bb3fcbb484001630f",
+  "caution": "Original score bytes were lost; comparison is of recorded aggregate metrics, not original per-clip bytes. No test-guided retuning."
+}

@@ -1,22 +1,9 @@
-# MindSense Security Architecture & Vulnerability Mitigation
+# Security and privacy boundaries
 
-## 1. Authentication & Authorization
-- **HMAC-SHA256 Signed JWTs**: User and Developer tokens are signed server-side using 64-character secret keys (`JWT_SECRET`).
-- **Server-Side Session Revocation**: Active tokens are verified against the `active_sessions` database table. Logout revokes token JTIs instantly.
-- **Server-Side RBAC**: Developer endpoints require signed Developer tokens. Requests from standard user tokens return `401 Unauthorized` or `403 Forbidden`.
+Production requires a secret signing key. Accounts use salted PBKDF2 hashes; legacy SHA256 hashes migrate on successful login. Tokens are signed, expiring, typed, and versioned against accounts. Password reset/change invalidates previous sessions; logout revokes the current token. Reset tokens are hashed, short-lived and single-use; production sends them through configured STARTTLS SMTP, never API responses. Tests explicitly enable fixtures; never enable test mode on a hosted service.
 
-## 2. IDOR Prevention Guarantee
-- No endpoint accepts an unverified `user_id` query parameter to query user records.
-- Queries execute strictly using `current_user.id` extracted from signature-verified JWT claims:
-  ```python
-  user = get_current_user_from_req(request)
-  records = db.query(AnalysisResult).filter(AnalysisResult.user_id == user.id).all()
-  ```
+Private API endpoints enforce authenticated ownership. Raw inference inputs are not saved to SQLite; temporary audio files are deleted after decoding. Only authenticated results are persisted. Public share URLs are bearer capabilities with expiry and revocation; sharing is an intentional disclosure. Journals/check-ins are private. Account export and deletion cover associated application records, while minimal audit metadata and operator-controlled backups need a separate retention policy.
 
-## 3. Media & Upload Security
-- **Backend Upload Gateway**: Frontend clients NEVER receive Cloudinary secrets. Files are submitted to FastAPI `/api/analyze`, validated against maximum 10MB file limits and allowed MIME types (`image/jpeg`, `image/png`, `audio/wav`, `audio/mp3`), and securely dispatched.
-- **Safe PyTorch Deserialization**: Model loading enforces `weights_only=True` (`torch.load(..., weights_only=True)`), preventing unpickling vulnerabilities.
+Residual risks: browser tokens use localStorage; XSS can compromise them. SQLite has no built-in application encryption. Reverse-proxy TLS, request limits, encrypted volumes, backup access, and ongoing dependency patching are operator responsibilities. The rate limiter is process-local and the supported baseline is one worker. CPU inference is serialized; this is not a load-tested public service. Public content/feedback features require abuse controls before broad exposure.
 
-## 4. Rate Limiting & Crisis Keyword Safety
-- **Sliding-Window Rate Limiting**: In-memory sliding window rate limiter protects sensitive endpoints (`/api/auth/*`, `/api/analyze`, `/api/feedback`) returning `HTTP 429` if exceeded.
-- **Crisis Response Protocol**: The chatbot detects crisis keywords (suicide, self-harm) and immediately responds with verified non-clinical support hotline resources.
+No production credentials, uploaded media, or research datasets belong in Git. Model downloads are pinned to trusted public revisions; no remote model code is enabled. Emotion predictions must not be used for diagnosis, surveillance, or consequential decisions. Report suspected vulnerabilities privately to the repository owner without including user data in a public issue.

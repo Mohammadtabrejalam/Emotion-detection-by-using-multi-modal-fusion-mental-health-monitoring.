@@ -1,0 +1,4 @@
+-r requirements.txt
+transformers==5.23.0
+huggingface-hub==1.33.0
+safetensors>=0.4.3

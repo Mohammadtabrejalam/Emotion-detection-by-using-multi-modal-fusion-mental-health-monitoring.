@@ -1,0 +1,545 @@
+{
+  "evaluations": [
+    {
+      "name": "MELD text transfer",
+      "scope": "Official test split; independent utterances without dialogue context.",
+      "source": {
+        "dataset": "MELD official test CSV",
+        "sha256": "8d37103938f7067600839fe29d5a114a6cd1bcdafb75bec101e06464c5006888",
+        "url": "https://github.com/declare-lab/MELD",
+        "split": "test",
+        "evaluation_type": "cross-dataset transfer from GoEmotions, seven-class serving adapter"
+      },
+      "results": {
+        "text": {
+          "samples": 2610,
+          "accuracy": 0.4371647509578544,
+          "macro_f1": 0.26984433917126316,
+          "weighted_f1": 0.4221544119129327,
+          "per_class": {
+            "happy": {
+              "precision": 0.34205933682373474,
+              "recall": 0.48756218905472637,
+              "f1-score": 0.40205128205128204,
+              "support": 402.0
+            },
+            "sad": {
+              "precision": 0.4036697247706422,
+              "recall": 0.21153846153846154,
+              "f1-score": 0.277602523659306,
+              "support": 208.0
+            },
+            "angry": {
+              "precision": 0.32571428571428573,
+              "recall": 0.16521739130434782,
+              "f1-score": 0.21923076923076923,
+              "support": 345.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 50.0
+            },
+            "surprise": {
+              "precision": 0.30718954248366015,
+              "recall": 0.501779359430605,
+              "f1-score": 0.3810810810810811,
+              "support": 281.0
+            },
+            "disgust": {
+              "precision": 0.4,
+              "recall": 0.029411764705882353,
+              "f1-score": 0.0547945205479452,
+              "support": 68.0
+            },
+            "neutral": {
+              "precision": 0.5502354788069074,
+              "recall": 0.5581210191082803,
+              "f1-score": 0.5541501976284585,
+              "support": 1256.0
+            },
+            "accuracy": 0.4371647509578544,
+            "macro avg": {
+              "precision": 0.33269548122846143,
+              "recall": 0.27909002644890046,
+              "f1-score": 0.26984433917126316,
+              "support": 2610.0
+            },
+            "weighted avg": {
+              "precision": 0.4361910373740412,
+              "recall": 0.4371647509578544,
+              "f1-score": 0.4221544119129327,
+              "support": 2610.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              196,
+              8,
+              8,
+              0,
+              21,
+              2,
+              167
+            ],
+            [
+              27,
+              44,
+              17,
+              4,
+              35,
+              1,
+              80
+            ],
+            [
+              41,
+              14,
+              57,
+              3,
+              45,
+              0,
+              185
+            ],
+            [
+              8,
+              4,
+              6,
+              0,
+              10,
+              0,
+              22
+            ],
+            [
+              30,
+              4,
+              15,
+              0,
+              141,
+              0,
+              91
+            ],
+            [
+              9,
+              7,
+              11,
+              0,
+              11,
+              2,
+              28
+            ],
+            [
+              262,
+              28,
+              61,
+              8,
+              196,
+              0,
+              701
+            ]
+          ]
+        }
+      },
+      "majority_class_baseline": {
+        "label": "neutral",
+        "accuracy": 0.4812260536398467
+      },
+      "runtime": {
+        "torch": "2.15.0+cpu",
+        "transformers": "5.23.0",
+        "opencv-python-headless": "4.11.0.86"
+      },
+      "report": "meld_text.json"
+    },
+    {
+      "name": "RAVDESS actor-01 diagnostic",
+      "scope": "One actor; non-calm clips. Audio metrics include only its four supported labels. Not population evidence.",
+      "source": {
+        "dataset": "RAVDESS acted speech audiovisual subset",
+        "url": "https://zenodo.org/records/1188976",
+        "license": "CC BY-NC-SA 4.0",
+        "frame_selection": "fixed midpoint",
+        "excluded_label": "calm",
+        "actors": [
+          "01"
+        ],
+        "evaluation_type": "external diagnostic subset; not a population-level benchmark"
+      },
+      "results": {
+        "audio": {
+          "samples": 28,
+          "accuracy": 0.4642857142857143,
+          "macro_f1": 0.36608187134502923,
+          "weighted_f1": 0.36123642439431913,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.7272727272727273,
+              "recall": 1.0,
+              "f1-score": 0.8421052631578947,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.25,
+              "recall": 1.0,
+              "f1-score": 0.4,
+              "support": 4.0
+            },
+            "accuracy": 0.4642857142857143,
+            "macro avg": {
+              "precision": 0.4943181818181818,
+              "recall": 0.53125,
+              "f1-score": 0.36608187134502923,
+              "support": 28.0
+            },
+            "weighted avg": {
+              "precision": 0.5292207792207793,
+              "recall": 0.4642857142857143,
+              "f1-score": 0.36123642439431913,
+              "support": 28.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              1,
+              0,
+              3,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              8,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        },
+        "image": {
+          "samples": 52,
+          "accuracy": 0.40384615384615385,
+          "macro_f1": 0.39200164914450625,
+          "weighted_f1": 0.4035076035076035,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1-score": 0.8571428571428571,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.7142857142857143,
+              "recall": 0.625,
+              "f1-score": 0.6666666666666666,
+              "support": 8.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "surprise": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "disgust": {
+              "precision": 0.5714285714285714,
+              "recall": 0.5,
+              "f1-score": 0.5333333333333333,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.13793103448275862,
+              "recall": 1.0,
+              "f1-score": 0.24242424242424243,
+              "support": 4.0
+            },
+            "accuracy": 0.40384615384615385,
+            "macro avg": {
+              "precision": 0.6319493314567206,
+              "recall": 0.44642857142857145,
+              "f1-score": 0.39200164914450625,
+              "support": 52.0
+            },
+            "weighted avg": {
+              "precision": 0.6699507389162561,
+              "recall": 0.40384615384615385,
+              "f1-score": 0.4035076035076035,
+              "support": 52.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              5,
+              0,
+              0,
+              2,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              7
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              1,
+              0,
+              4,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        },
+        "fusion": {
+          "samples": 52,
+          "accuracy": 0.38461538461538464,
+          "macro_f1": 0.3545828587845395,
+          "weighted_f1": 0.3637589157951149,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1-score": 0.8571428571428571,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.6666666666666666,
+              "recall": 0.75,
+              "f1-score": 0.7058823529411765,
+              "support": 8.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "surprise": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "disgust": {
+              "precision": 0.6,
+              "recall": 0.375,
+              "f1-score": 0.46153846153846156,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.13333333333333333,
+              "recall": 1.0,
+              "f1-score": 0.23529411764705882,
+              "support": 4.0
+            },
+            "accuracy": 0.38461538461538464,
+            "macro avg": {
+              "precision": 0.4857142857142857,
+              "recall": 0.42857142857142855,
+              "f1-score": 0.3545828587845395,
+              "support": 52.0
+            },
+            "weighted avg": {
+              "precision": 0.5128205128205129,
+              "recall": 0.38461538461538464,
+              "f1-score": 0.3637589157951149,
+              "support": 52.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              6,
+              0,
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              1,
+              0,
+              3,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        }
+      },
+      "majority_class_baseline": {
+        "label": "happy",
+        "accuracy": 0.15384615384615385
+      },
+      "runtime": {
+        "torch": "2.15.0+cpu",
+        "transformers": "5.23.0",
+        "opencv-python-headless": "4.11.0.86"
+      },
+      "report": "ravdess_actor01.json"
+    }
+  ],
+  "limitations": [
+    "No clinical validation. Fusion is uncalibrated and has not demonstrated improvement."
+  ]
+}

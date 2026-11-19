@@ -1,0 +1,495 @@
+{
+  "scope": "Arithmetic verification of committed prediction labels; no new inference",
+  "reports": {
+    "meld_text": {
+      "sha256": "8612fb6b305ba1aa07763e3db122385ddec2253f35116e5f32ddacb876acc178",
+      "records": 2610,
+      "failures": 0,
+      "results": {
+        "text": {
+          "samples": 2610,
+          "accuracy": 0.4371647509578544,
+          "macro_f1": 0.26984433917126316,
+          "weighted_f1": 0.4221544119129327,
+          "per_class": {
+            "happy": {
+              "precision": 0.34205933682373474,
+              "recall": 0.48756218905472637,
+              "f1-score": 0.40205128205128204,
+              "support": 402.0
+            },
+            "sad": {
+              "precision": 0.4036697247706422,
+              "recall": 0.21153846153846154,
+              "f1-score": 0.277602523659306,
+              "support": 208.0
+            },
+            "angry": {
+              "precision": 0.32571428571428573,
+              "recall": 0.16521739130434782,
+              "f1-score": 0.21923076923076923,
+              "support": 345.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 50.0
+            },
+            "surprise": {
+              "precision": 0.30718954248366015,
+              "recall": 0.501779359430605,
+              "f1-score": 0.3810810810810811,
+              "support": 281.0
+            },
+            "disgust": {
+              "precision": 0.4,
+              "recall": 0.029411764705882353,
+              "f1-score": 0.0547945205479452,
+              "support": 68.0
+            },
+            "neutral": {
+              "precision": 0.5502354788069074,
+              "recall": 0.5581210191082803,
+              "f1-score": 0.5541501976284585,
+              "support": 1256.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              196,
+              8,
+              8,
+              0,
+              21,
+              2,
+              167
+            ],
+            [
+              27,
+              44,
+              17,
+              4,
+              35,
+              1,
+              80
+            ],
+            [
+              41,
+              14,
+              57,
+              3,
+              45,
+              0,
+              185
+            ],
+            [
+              8,
+              4,
+              6,
+              0,
+              10,
+              0,
+              22
+            ],
+            [
+              30,
+              4,
+              15,
+              0,
+              141,
+              0,
+              91
+            ],
+            [
+              9,
+              7,
+              11,
+              0,
+              11,
+              2,
+              28
+            ],
+            [
+              262,
+              28,
+              61,
+              8,
+              196,
+              0,
+              701
+            ]
+          ]
+        }
+      }
+    },
+    "ravdess_actor01": {
+      "sha256": "fca88d4dd73536c45f711daefb9b19d5cf45b31f4f3e22b928445e72cb6d8aaf",
+      "records": 52,
+      "failures": 0,
+      "results": {
+        "audio": {
+          "samples": 28,
+          "accuracy": 0.4642857142857143,
+          "macro_f1": 0.36608187134502923,
+          "weighted_f1": 0.36123642439431913,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.7272727272727273,
+              "recall": 1.0,
+              "f1-score": 0.8421052631578947,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.25,
+              "recall": 1.0,
+              "f1-score": 0.4,
+              "support": 4.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              1,
+              0,
+              3,
+              4
+            ],
+            [
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              8,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        },
+        "image": {
+          "samples": 52,
+          "accuracy": 0.40384615384615385,
+          "macro_f1": 0.39200164914450625,
+          "weighted_f1": 0.4035076035076035,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1-score": 0.8571428571428571,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.7142857142857143,
+              "recall": 0.625,
+              "f1-score": 0.6666666666666666,
+              "support": 8.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "surprise": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "disgust": {
+              "precision": 0.5714285714285714,
+              "recall": 0.5,
+              "f1-score": 0.5333333333333333,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.13793103448275862,
+              "recall": 1.0,
+              "f1-score": 0.24242424242424243,
+              "support": 4.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              5,
+              0,
+              0,
+              2,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              7
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              1,
+              0,
+              4,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        },
+        "fusion": {
+          "samples": 52,
+          "accuracy": 0.38461538461538464,
+          "macro_f1": 0.3545828587845395,
+          "weighted_f1": 0.3637589157951149,
+          "per_class": {
+            "happy": {
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1-score": 0.8571428571428571,
+              "support": 8.0
+            },
+            "sad": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "angry": {
+              "precision": 0.6666666666666666,
+              "recall": 0.75,
+              "f1-score": 0.7058823529411765,
+              "support": 8.0
+            },
+            "fear": {
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1-score": 0.0,
+              "support": 8.0
+            },
+            "surprise": {
+              "precision": 1.0,
+              "recall": 0.125,
+              "f1-score": 0.2222222222222222,
+              "support": 8.0
+            },
+            "disgust": {
+              "precision": 0.6,
+              "recall": 0.375,
+              "f1-score": 0.46153846153846156,
+              "support": 8.0
+            },
+            "neutral": {
+              "precision": 0.13333333333333333,
+              "recall": 1.0,
+              "f1-score": 0.23529411764705882,
+              "support": 4.0
+            }
+          },
+          "labels": [
+            "happy",
+            "sad",
+            "angry",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral"
+          ],
+          "confusion_matrix": [
+            [
+              6,
+              0,
+              0,
+              0,
+              0,
+              0,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              8
+            ],
+            [
+              0,
+              0,
+              6,
+              0,
+              0,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              7
+            ],
+            [
+              0,
+              0,
+              2,
+              1,
+              0,
+              3,
+              2
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              4
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "actor01_paired_comparison": {
+    "both_correct": 19,
+    "face_only_correct": 2,
+    "fusion_only_correct": 1,
+    "both_wrong": 30,
+    "changed_labels": [
+      {
+        "id": "01-01-04-02-01-02-01.mp4",
+        "sha256": "8ac2f84df24cafee060849a617177f815998b54f8fd00bbc2e127a5a5566a7f2",
+        "true": "sad",
+        "audio": "neutral",
+        "image": "sad",
+        "fusion": "neutral"
+      },
+      {
+        "id": "01-01-05-01-01-02-01.mp4",
+        "sha256": "47f86a3767f9d690f56923b447e12c25e58d2c2e013a6f027771f2e81a0beb61",
+        "true": "angry",
+        "audio": "angry",
+        "image": "neutral",
+        "fusion": "angry"
+      },
+      {
+        "id": "01-01-06-02-02-02-01.mp4",
+        "sha256": "1ecd3f5f2a73cb6f2dcfdde6f21015066d4315536a27fa6c427f1aa1228df718",
+        "true": "fear",
+        "audio": "angry",
+        "image": "disgust",
+        "fusion": "angry"
+      },
+      {
+        "id": "01-01-07-01-02-01-01.mp4",
+        "sha256": "8647cafc7357ebd2fea6528085a13d506625313ff9fb4717f40890cc40ca658d",
+        "true": "disgust",
+        "audio": "neutral",
+        "image": "disgust",
+        "fusion": "neutral"
+      }
+    ]
+  }
+}

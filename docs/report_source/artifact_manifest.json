@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-17",
+  "pdf_pages": 28,
+  "visual_review": "All 28 pages reviewed after language revision; three final wording corrections re-rendered and checked.",
+  "sha256": {
+    "docs/MindSense_Academic_Report.docx": "6cb1efab15ee87fa4a2bb4747ecec4435f8dd3b7fb1650203a3e9c710dd94bf4",
+    "docs/MindSense_Academic_Report.pdf": "748d509bea3857e406b7e65b75ac963cf06379daa0c4bce20097aac6e0c2c3ae",
+    "docs/ACADEMIC_REPORT.md": "621c980607459877efebe3fc7723681cd0db610329fd2b65be1a3433f77fc04f",
+    "research/fusion_v2/scores.jsonl": "6a5b50581666c29718fe530b963590f17be3c5981d487558c74bea0c3ff18cc1",
+    "research/fusion_v2/results.json": "2053d576e5bd129e8e541d0f3c437148874d8c537aebc53bb3fcbb484001630f"
+  },
+  "revision": "Academic language revision; result tables, formulas, reference links and experimental records preserved."
+}

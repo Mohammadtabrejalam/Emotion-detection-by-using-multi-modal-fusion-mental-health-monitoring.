@@ -1,0 +1,21 @@
+{
+  "version": "acted-video-1",
+  "dataset": "CheyneyComputerScience/CREMA-D",
+  "revision": "1658cd342dff90010aa843eaeebd53610a08b1dc",
+  "selection_seed": "mindsense-acted-video-v1",
+  "actors": 16,
+  "clips_per_actor_per_label": 2,
+  "truth": "Filename intended expression. Select by SHA-256 ordering of seed plus actor ID, then seed plus basename within each actor and class. No screening by model predictions, human ratings or face visibility.",
+  "target_labels": ["happy", "sad", "angry", "fear", "disgust", "neutral"],
+  "output_labels": ["happy", "sad", "angry", "fear", "surprise", "disgust", "neutral"],
+  "source_fit_actors": [7, 8, 9, 10, 11, 12],
+  "source_validation_actors": [13, 14, 15, 16],
+  "regularization_C": [0.01, 0.1, 1, 10],
+  "transfer": "Multinomial L2 logistic regression on centered within-modality log probabilities, floor 1e-8, balanced class weights, separate intercept. Fit once per C on source fitting scores only. Maximize validation seven-class macro F1, first C wins ties. Do not refit after selection.",
+  "comparisons": ["midpoint_face", "sequence_face", "midpoint_legacy", "sequence_legacy", "midpoint_transfer", "sequence_transfer"],
+  "primary": "sequence_transfer minus midpoint_legacy, macro F1 averaged over six target categories. Retain seven predicted outputs. Surprise guesses count as errors.",
+  "pairing": "Intersection of accepted clips for midpoint and sequence. Report separate coverage and all-attempt accuracy counting failures as incorrect per method.",
+  "latency": "Alternate execution order by manifest index. Warm both checkpoints on the first available clip in each shard, discarding warmup results. Time both complete local video analysis calls separately, excluding file download and HTTP. Transfer scoring is timed separately.",
+  "interval": "Paired actor bootstrap 5000 repeats seed 20261118 for primary macro F1 difference.",
+  "scope": "No CREMA-D fitting or parameter selection. Source settings were motivated by the earlier RAVDESS study. No external registry registration. No test-driven default change."
+}

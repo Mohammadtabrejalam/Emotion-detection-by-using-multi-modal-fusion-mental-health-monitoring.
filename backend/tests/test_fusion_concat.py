@@ -145,7 +145,10 @@ def test_canonical_label_mapping_integrity():
 def test_e04_checkpoint_integrity():
     from backend.app.ml.fusion.config import REPO_ROOT
     e04_path = REPO_ROOT / "artifacts" / "E04_Multimodal_Fusion_Frozen" / "best_model.pt"
-    assert e04_path.exists(), f"E04 checkpoint missing: {e04_path}"
+    if not e04_path.exists():
+        if __import__("os").environ.get("MINDSENSE_REQUIRE_RESEARCH_ARTIFACTS") == "1":
+            pytest.fail(f"E04 checkpoint missing: {e04_path}")
+        pytest.skip("External E04 checkpoint not installed; set MINDSENSE_REQUIRE_RESEARCH_ARTIFACTS=1 to require it")
 
     hasher = hashlib.sha256()
     with open(e04_path, "rb") as f:

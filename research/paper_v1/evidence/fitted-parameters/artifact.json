@@ -1,0 +1,10 @@
+{
+  "artifact_id": 14418718490,
+  "name": "fitted-parameters",
+  "archive_sha256": "e1cb4e65df76e14a20965337e8b05f1819909fb7968b4ed25c653618dabe6726",
+  "included_files": [
+    "fitted.json",
+    "fitted.sha256"
+  ],
+  "source_run": 44282962746
+}

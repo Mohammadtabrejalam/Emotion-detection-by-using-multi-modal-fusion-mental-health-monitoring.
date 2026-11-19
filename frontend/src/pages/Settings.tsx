@@ -38,12 +38,12 @@ export const Settings: React.FC = () => {
   };
 
   const handleClearHistory = async () => {
-    if (window.confirm("Permanently clear your emotion analysis history and check-ins? This action cannot be undone.")) {
+    if (window.confirm("Permanently clear your emotion analysis history? This action cannot be undone.")) {
       setClearing(true);
       const response = await apiService.clearHistory();
       setClearing(false);
       if (response.success) {
-        alert("All historical assessment records have been cleared.");
+        alert("Your analysis records have been cleared.");
       } else {
         alert("Failed to clear data: " + response.error?.message);
       }
@@ -80,7 +80,7 @@ export const Settings: React.FC = () => {
           <h3 className="font-bold text-white text-sm">Privacy & Security Controls</h3>
         </div>
         <p className="text-xs text-slate-300 leading-relaxed">
-          MindSense is engineered with zero-persistence media processing. Audio streams and facial visual frames are evaluated in temporary memory and discarded post-inference. Only numerical classifier probabilities and user check-ins are saved under authenticated session identity.
+          Raw inputs are not stored in the application database. Media decoding can use temporary files, deleted after processing. Signed-in results, journal entries, and check-ins persist in SQLite. The server operator controls hosting and backups; database encryption is not built in.
         </p>
         <div className="flex items-center gap-2 text-[11px] text-emerald-400 font-medium pt-1">
           <CheckCircle className="h-4 w-4 text-emerald-400" />

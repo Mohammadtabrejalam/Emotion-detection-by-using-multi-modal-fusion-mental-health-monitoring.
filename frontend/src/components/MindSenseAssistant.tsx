@@ -27,7 +27,7 @@ export const MindSenseAssistant: React.FC<MindSenseAssistantProps> = ({
     {
       id: 'welcome',
       sender: 'assistant',
-      text: 'Hello! I am the **MindSense Assistant**. Ask me about our multimodal fusion architecture, dataset benchmarks, platform features, or how to interpret analysis confidence scores.',
+      text: 'Hello! I am a **scripted MindSense app guide**, not a language model or counselor. Ask me about our multimodal fusion architecture, dataset benchmarks, platform features, or how to interpret analysis confidence scores.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       suggestedActions: ['How do I start an analysis?', 'What is multimodal fusion?', 'Which datasets are used?', 'Is this a medical diagnosis?']
     }

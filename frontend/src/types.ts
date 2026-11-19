@@ -45,6 +45,9 @@ export interface PipelineStage {
 }
 
 export interface ModalityPrediction {
+  model?: string;
+  revision?: string;
+  probabilities?: Record<string, number>;
   emotion: string;
   confidence: number;
 }
@@ -55,7 +58,19 @@ export interface ModalityPredictions {
   image?: ModalityPrediction | null;
 }
 
+export type VideoMode = 'midpoint' | 'sequence' | 'transfer' | 'midpoint_transfer';
+
 export interface AnalysisData {
+  video_summary?: {
+    sampling: 'midpoint' | 'sequence';
+    duration_seconds: number;
+    requested_frames: number;
+    used_fractions: number[];
+    processing_seconds: number;
+  };
+  saved?: boolean;
+  warnings?: string[];
+  fusion_method?: string;
   id: string;
   timestamp: string;
   emotion: string;
@@ -117,7 +132,7 @@ export interface DashboardData {
     dominant_emotion: string;
     emotional_variability: string;
     recent_trend: string;
-    wellness_score?: number;
+    wellness_score?: number | null;
     alert: boolean;
   };
 }

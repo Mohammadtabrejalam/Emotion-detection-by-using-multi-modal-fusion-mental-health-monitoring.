@@ -132,12 +132,12 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
 
         {/* Wellness Score */}
         <div className="academic-card p-5 space-y-1.5">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Wellness Index</span>
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Clinical assessment</span>
           <div className="flex items-baseline gap-1.5">
-            <p className="text-2xl font-extrabold text-emerald-400">{trends.wellness_score || 78}%</p>
-            <span className="text-[10px] text-emerald-400 font-medium">Positive balance</span>
+            <p className="text-2xl font-extrabold text-emerald-400">Not provided</p>
+            <span className="text-[10px] text-emerald-400 font-medium">Expression trends only</span>
           </div>
-          <p className="text-[11px] text-slate-500">Multimodal correlation</p>
+          <p className="text-[11px] text-slate-500">No clinical assessment</p>
         </div>
 
         {/* Check-ins & Notes */}
@@ -382,7 +382,7 @@ export const Trends: React.FC<TrendsProps> = ({ currentUser }) => {
 
           <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
             <span>Aggregated across {summary.total_analyses} inference points</span>
-            <span className="font-mono text-slate-500">Cross-Attention Masked</span>
+            <span className="font-mono text-slate-500">Available modalities only</span>
           </div>
         </div>
 

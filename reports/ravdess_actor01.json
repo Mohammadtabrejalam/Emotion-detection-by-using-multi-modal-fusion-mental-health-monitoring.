@@ -1,0 +1,821 @@
+{
+  "measured_at": "2026-11-16T12:29:57.425482+00:00",
+  "source": {
+    "dataset": "RAVDESS acted speech audiovisual subset",
+    "url": "https://zenodo.org/records/1188976",
+    "license": "CC BY-NC-SA 4.0",
+    "frame_selection": "fixed midpoint",
+    "excluded_label": "calm",
+    "actors": [
+      "01"
+    ],
+    "evaluation_type": "external diagnostic subset; not a population-level benchmark"
+  },
+  "models": {
+    "text": {
+      "repo": "SamLowe/roberta-base-go_emotions",
+      "revision": "d75048347613a25d77de8cf6412eaae9fa7b26be",
+      "license": "MIT",
+      "weight": "model.safetensors"
+    },
+    "audio": {
+      "repo": "superb/wav2vec2-base-superb-er",
+      "revision": "441a7599c3b22107314dcbd9166621c5c83f2cc5",
+      "license": "Apache-2.0",
+      "weight": "pytorch_model.bin"
+    },
+    "image": {
+      "repo": "trpakov/vit-face-expression",
+      "revision": "ef0bc6fc34241b6587e7e009e7711357be28c024",
+      "license": "Apache-2.0",
+      "weight": "model.safetensors"
+    }
+  },
+  "python": "3.12.14",
+  "runtime": {
+    "torch": "2.15.0+cpu",
+    "transformers": "5.23.0",
+    "opencv-python-headless": "4.11.0.86"
+  },
+  "results": {
+    "audio": {
+      "samples": 28,
+      "accuracy": 0.4642857142857143,
+      "macro_f1": 0.36608187134502923,
+      "weighted_f1": 0.36123642439431913,
+      "per_class": {
+        "happy": {
+          "precision": 1.0,
+          "recall": 0.125,
+          "f1-score": 0.2222222222222222,
+          "support": 8.0
+        },
+        "sad": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 8.0
+        },
+        "angry": {
+          "precision": 0.7272727272727273,
+          "recall": 1.0,
+          "f1-score": 0.8421052631578947,
+          "support": 8.0
+        },
+        "neutral": {
+          "precision": 0.25,
+          "recall": 1.0,
+          "f1-score": 0.4,
+          "support": 4.0
+        },
+        "accuracy": 0.4642857142857143,
+        "macro avg": {
+          "precision": 0.4943181818181818,
+          "recall": 0.53125,
+          "f1-score": 0.36608187134502923,
+          "support": 28.0
+        },
+        "weighted avg": {
+          "precision": 0.5292207792207793,
+          "recall": 0.4642857142857143,
+          "f1-score": 0.36123642439431913,
+          "support": 28.0
+        }
+      },
+      "labels": [
+        "happy",
+        "sad",
+        "angry",
+        "neutral"
+      ],
+      "confusion_matrix": [
+        [
+          1,
+          0,
+          3,
+          4
+        ],
+        [
+          0,
+          0,
+          0,
+          8
+        ],
+        [
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4
+        ]
+      ]
+    },
+    "image": {
+      "samples": 52,
+      "accuracy": 0.40384615384615385,
+      "macro_f1": 0.39200164914450625,
+      "weighted_f1": 0.4035076035076035,
+      "per_class": {
+        "happy": {
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1-score": 0.8571428571428571,
+          "support": 8.0
+        },
+        "sad": {
+          "precision": 1.0,
+          "recall": 0.125,
+          "f1-score": 0.2222222222222222,
+          "support": 8.0
+        },
+        "angry": {
+          "precision": 0.7142857142857143,
+          "recall": 0.625,
+          "f1-score": 0.6666666666666666,
+          "support": 8.0
+        },
+        "fear": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 8.0
+        },
+        "surprise": {
+          "precision": 1.0,
+          "recall": 0.125,
+          "f1-score": 0.2222222222222222,
+          "support": 8.0
+        },
+        "disgust": {
+          "precision": 0.5714285714285714,
+          "recall": 0.5,
+          "f1-score": 0.5333333333333333,
+          "support": 8.0
+        },
+        "neutral": {
+          "precision": 0.13793103448275862,
+          "recall": 1.0,
+          "f1-score": 0.24242424242424243,
+          "support": 4.0
+        },
+        "accuracy": 0.40384615384615385,
+        "macro avg": {
+          "precision": 0.6319493314567206,
+          "recall": 0.44642857142857145,
+          "f1-score": 0.39200164914450625,
+          "support": 52.0
+        },
+        "weighted avg": {
+          "precision": 0.6699507389162561,
+          "recall": 0.40384615384615385,
+          "f1-score": 0.4035076035076035,
+          "support": 52.0
+        }
+      },
+      "labels": [
+        "happy",
+        "sad",
+        "angry",
+        "fear",
+        "surprise",
+        "disgust",
+        "neutral"
+      ],
+      "confusion_matrix": [
+        [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          7
+        ],
+        [
+          0,
+          0,
+          5,
+          0,
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          7
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          7
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          4,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4
+        ]
+      ]
+    },
+    "fusion": {
+      "samples": 52,
+      "accuracy": 0.38461538461538464,
+      "macro_f1": 0.3545828587845395,
+      "weighted_f1": 0.3637589157951149,
+      "per_class": {
+        "happy": {
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1-score": 0.8571428571428571,
+          "support": 8.0
+        },
+        "sad": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 8.0
+        },
+        "angry": {
+          "precision": 0.6666666666666666,
+          "recall": 0.75,
+          "f1-score": 0.7058823529411765,
+          "support": 8.0
+        },
+        "fear": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 8.0
+        },
+        "surprise": {
+          "precision": 1.0,
+          "recall": 0.125,
+          "f1-score": 0.2222222222222222,
+          "support": 8.0
+        },
+        "disgust": {
+          "precision": 0.6,
+          "recall": 0.375,
+          "f1-score": 0.46153846153846156,
+          "support": 8.0
+        },
+        "neutral": {
+          "precision": 0.13333333333333333,
+          "recall": 1.0,
+          "f1-score": 0.23529411764705882,
+          "support": 4.0
+        },
+        "accuracy": 0.38461538461538464,
+        "macro avg": {
+          "precision": 0.4857142857142857,
+          "recall": 0.42857142857142855,
+          "f1-score": 0.3545828587845395,
+          "support": 52.0
+        },
+        "weighted avg": {
+          "precision": 0.5128205128205129,
+          "recall": 0.38461538461538464,
+          "f1-score": 0.3637589157951149,
+          "support": 52.0
+        }
+      },
+      "labels": [
+        "happy",
+        "sad",
+        "angry",
+        "fear",
+        "surprise",
+        "disgust",
+        "neutral"
+      ],
+      "confusion_matrix": [
+        [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          8
+        ],
+        [
+          0,
+          0,
+          6,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          7
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          7
+        ],
+        [
+          0,
+          0,
+          2,
+          1,
+          0,
+          3,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4
+        ]
+      ]
+    }
+  },
+  "failures": [],
+  "predictions": [
+    {
+      "id": "01-01-01-01-01-01-01.mp4",
+      "sha256": "e4f25a8061367784e4272a2963a653557a4f58bcbc9b5272ae329066bf84d160",
+      "true": "neutral",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-01-01-01-02-01.mp4",
+      "sha256": "7685cc3f4c3f46f37fb6fac3545f7836823613975005cd19866f28950b860490",
+      "true": "neutral",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-01-01-02-01-01.mp4",
+      "sha256": "19de8e741e52a04ad1ca887259727e91035366bbb02d382af71a2de495a2b2c0",
+      "true": "neutral",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-01-01-02-02-01.mp4",
+      "sha256": "1c6c40b797bb82d157bb4fb41be5a627f419c4f8b536a8a8b5b34d97e2424599",
+      "true": "neutral",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-03-01-01-01-01.mp4",
+      "sha256": "3773482b1c7e19cf26cc6c66383b6c6e54976d88f1a6c260f0a87179930c869a",
+      "true": "happy",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-03-01-01-02-01.mp4",
+      "sha256": "aeeedbc8c7b73521d41a994b76f84db87f82e0821b418e8ddcada84c28db0909",
+      "true": "happy",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-03-01-02-01-01.mp4",
+      "sha256": "5d717cdb85c57b0a1bbb1770f4bee5e98feb0ed1efac34bf777b23298bca2a71",
+      "true": "happy",
+      "audio": "neutral",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-03-01-02-02-01.mp4",
+      "sha256": "fcbe314375d54572bd98881857141e6e6265671e643ae574ef7abeadf09846ab",
+      "true": "happy",
+      "audio": "neutral",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-03-02-01-01-01.mp4",
+      "sha256": "ebc8e90cfcb2e3ace9ea905f3a33eb85bf7276fb21e15e0150b5c54c5e269f04",
+      "true": "happy",
+      "audio": "angry",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-03-02-01-02-01.mp4",
+      "sha256": "d1bd583f6d0240f8cca6bbc9cb650d1ccaad38bc034810063a0cedc1953b8fb4",
+      "true": "happy",
+      "audio": "happy",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-03-02-02-01-01.mp4",
+      "sha256": "295f85155bfc3e0ca8df979854e74f74ec7be7a104e3d47323860ae3658473b5",
+      "true": "happy",
+      "audio": "angry",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-03-02-02-02-01.mp4",
+      "sha256": "19ce41201840df1abb4bba65db011f6219ef1fd0f7fea6e91497f28d9f3c4a47",
+      "true": "happy",
+      "audio": "angry",
+      "image": "happy",
+      "fusion": "happy"
+    },
+    {
+      "id": "01-01-04-01-01-01-01.mp4",
+      "sha256": "dd868fd040e4173457d836d8d2254d82454d0576322161725ad89b9b74deb813",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-01-01-02-01.mp4",
+      "sha256": "9baa4bf867c77119a549ccba094a5de5b3efa8714aa03cff15524aad293bb988",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-01-02-01-01.mp4",
+      "sha256": "65faccf5bb1b2b7c5f49e9d505b4d7d68e30fe4bd28f3b1fe86c4107dfcb6208",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-01-02-02-01.mp4",
+      "sha256": "5cdf9ea9a876155b902f2480c490840c616c13765bab5a5c380304787b1f3b0e",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-02-01-01-01.mp4",
+      "sha256": "c66405fe4b1b522ffb90e8bc671dd239e6b6f2f2f76e533aca9e95802c79f1d7",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-02-01-02-01.mp4",
+      "sha256": "8ac2f84df24cafee060849a617177f815998b54f8fd00bbc2e127a5a5566a7f2",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "sad",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-02-02-01-01.mp4",
+      "sha256": "ec99fc416e222c2125f5f8a0af889e3b90d4416708b87d7d93338cdb5948551d",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-04-02-02-02-01.mp4",
+      "sha256": "5cfbc765494f553882f7d9de779fed73690869fd2857044dff24dcfc23b7f5af",
+      "true": "sad",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-05-01-01-01-01.mp4",
+      "sha256": "dd5895daa41ba51959cca9b354a7cefc6ac076416e3bd90c751c6dfd8deae320",
+      "true": "angry",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-05-01-01-02-01.mp4",
+      "sha256": "47f86a3767f9d690f56923b447e12c25e58d2c2e013a6f027771f2e81a0beb61",
+      "true": "angry",
+      "audio": "angry",
+      "image": "neutral",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-05-01-02-01-01.mp4",
+      "sha256": "03b1a80d8824ebd0256299f9e3bba03c567c640d598e93c16f2266638c517a41",
+      "true": "angry",
+      "audio": "angry",
+      "image": "disgust",
+      "fusion": "disgust"
+    },
+    {
+      "id": "01-01-05-01-02-02-01.mp4",
+      "sha256": "d7ae32e1c389d5dc8c40f6d8eadfe65caaed75109f9af15439375823fdd35074",
+      "true": "angry",
+      "audio": "angry",
+      "image": "disgust",
+      "fusion": "disgust"
+    },
+    {
+      "id": "01-01-05-02-01-01-01.mp4",
+      "sha256": "1411ce319d91004011b81e97319fe26cd8360ed77c3a5535418fcacca6f7a7fd",
+      "true": "angry",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-05-02-01-02-01.mp4",
+      "sha256": "64915058f8c633e0f5d799ff65a795b29ea257a27475345d11ef7b193ee512ab",
+      "true": "angry",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-05-02-02-01-01.mp4",
+      "sha256": "ad9bcb64e67e6d5b785430ab1eac671cdbbe5e509f89bc65b2fd4577bee2ff5a",
+      "true": "angry",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-05-02-02-02-01.mp4",
+      "sha256": "3b3d4b66b14dad7307f0a6ba2f5837c5c0192b9494a4ce325ea9cb42f139204f",
+      "true": "angry",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-06-01-01-01-01.mp4",
+      "sha256": "6df82697251728fd6e32c3d357a86f8b07d6556e61562a997251cfa0a86b3add",
+      "true": "fear",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-01-01-02-01.mp4",
+      "sha256": "f01d401947236b28e5422a548f241eba58e589719499785a63b8f67e352b24cc",
+      "true": "fear",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-01-02-01-01.mp4",
+      "sha256": "13d60a45917dd1b69a3f9b44c3f7ecde0e206c0fa156bed5e3c20fdf067c4cc8",
+      "true": "fear",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-01-02-02-01.mp4",
+      "sha256": "7ba657cc30a79fe500854aa0ee4c68d49bcce1d23dfe58967f03739a52949ecb",
+      "true": "fear",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-02-01-01-01.mp4",
+      "sha256": "89b81f975a309b94bca15631f3d5d2d5f544b4bf4018d88128e74b4be389c123",
+      "true": "fear",
+      "audio": "happy",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-02-01-02-01.mp4",
+      "sha256": "f194000fa87733e6fd2a084d9ffaa0aa5b9a4dde973b2021f1a4a691553c9dd1",
+      "true": "fear",
+      "audio": "happy",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-02-02-01-01.mp4",
+      "sha256": "dada45ee4f7656bdc305a9a7a1c60f3005c5b2b3d896d2653c5eda8075849c18",
+      "true": "fear",
+      "audio": "angry",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-06-02-02-02-01.mp4",
+      "sha256": "1ecd3f5f2a73cb6f2dcfdde6f21015066d4315536a27fa6c427f1aa1228df718",
+      "true": "fear",
+      "audio": "angry",
+      "image": "disgust",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-07-01-01-01-01.mp4",
+      "sha256": "a87f6eb3caa880764e2bbe2b6d6579c842a2d55302dbd4b5beda0ad00e0401fa",
+      "true": "disgust",
+      "audio": "happy",
+      "image": "disgust",
+      "fusion": "disgust"
+    },
+    {
+      "id": "01-01-07-01-01-02-01.mp4",
+      "sha256": "d78f6e79f50dd921fdded5b9bb63bf6f5095ea145a6da967178669bbb75bfa59",
+      "true": "disgust",
+      "audio": "happy",
+      "image": "disgust",
+      "fusion": "disgust"
+    },
+    {
+      "id": "01-01-07-01-02-01-01.mp4",
+      "sha256": "8647cafc7357ebd2fea6528085a13d506625313ff9fb4717f40890cc40ca658d",
+      "true": "disgust",
+      "audio": "neutral",
+      "image": "disgust",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-07-01-02-02-01.mp4",
+      "sha256": "5dabdf3ecc1e393f405ae10c8f12ee764ac1c09f35d6de1a2cfe2168ff6873df",
+      "true": "disgust",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-07-02-01-01-01.mp4",
+      "sha256": "7446d0c9d86e84ba29900eb7cca97eaee79396fc23dd9125ceca9980eaa0cf7d",
+      "true": "disgust",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-07-02-01-02-01.mp4",
+      "sha256": "b5452d9ba3c10c2a6875f9786f705d8f7f0be57bfdff03b83ecff72a3e1e72b3",
+      "true": "disgust",
+      "audio": "happy",
+      "image": "disgust",
+      "fusion": "disgust"
+    },
+    {
+      "id": "01-01-07-02-02-01-01.mp4",
+      "sha256": "01061de69498571219895c6e552fdeae5d89b4407e2b209a05fe1925df0d717e",
+      "true": "disgust",
+      "audio": "angry",
+      "image": "fear",
+      "fusion": "fear"
+    },
+    {
+      "id": "01-01-07-02-02-02-01.mp4",
+      "sha256": "b45e48662566e534ef192987540d0c44f143beebc5f3035951e4c1a39b99976e",
+      "true": "disgust",
+      "audio": "angry",
+      "image": "angry",
+      "fusion": "angry"
+    },
+    {
+      "id": "01-01-08-01-01-01-01.mp4",
+      "sha256": "3e5e73f80753e61557cbe4246fed76b236ab8a6dea0ba5f3598a8ca92e93e93c",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-01-01-02-01.mp4",
+      "sha256": "518757a5b677ce07b12c8dafbc47b3383cdbfca5c4d41eab6b9e2abc991d04ca",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-01-02-01-01.mp4",
+      "sha256": "dbae364790d6d33c4e7bb5719032f89cfa0e7f003456b7432322d1f78d130f55",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-01-02-02-01.mp4",
+      "sha256": "5db34f0897aa736c08665c57c841c5bd607596550fd1e8aadbc670c7eaf97ffa",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-02-01-01-01.mp4",
+      "sha256": "20c0a169b8ffb080f000e5731f5a618ba3edc47ae785c97143dbf9c34ba08817",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-02-01-02-01.mp4",
+      "sha256": "a2823bd8b580a52442b6eb65becae2dec0180d4554a2c3fcf646ff24888f68bb",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-02-02-01-01.mp4",
+      "sha256": "7657579693d901af5646ce715b7d03fc0c3a16730f75c28d543e7454ebf0bd41",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "neutral",
+      "fusion": "neutral"
+    },
+    {
+      "id": "01-01-08-02-02-02-01.mp4",
+      "sha256": "74c55162b2e6fd0ebbcb50f6a4e9348eb5d6d352eb21985c7305ad781417f527",
+      "true": "surprise",
+      "audio": "neutral",
+      "image": "surprise",
+      "fusion": "surprise"
+    }
+  ],
+  "limitations": [
+    "No calibration or clinical validation.",
+    "No thresholds or model weights tuned on this evaluation.",
+    "Audio metrics exclude labels outside its four-class label space; fusion/image use seven classes."
+  ],
+  "majority_class_baseline": {
+    "label": "happy",
+    "accuracy": 0.15384615384615385
+  }
+}

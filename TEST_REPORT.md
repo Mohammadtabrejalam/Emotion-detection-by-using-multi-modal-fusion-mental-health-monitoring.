@@ -1,3 +1,5 @@
+> Historical research record. This document does not describe the current published-model serving pipeline. See README.md, MODEL_CARD.md, and docs/APPLICATION_READINESS.md for current behavior and measured evidence. Synthetic results are not real-model metrics.
+
 # MindSense Production Restructure & Audit Report
 
 **Platform**: MindSense Academic Multimodal Affective Platform  

@@ -18,17 +18,25 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install video decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffprobe -version
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
+          pip install -r backend/requirements-inference.txt
           pip install pytest httpx bandit pip-audit
+          pip install -r research/fusion_v2/requirements.txt
 
       - name: Run Backend Pytest Suite & IDOR Security Tests
         env:
           PYTHONPATH: .
         run: |
-          python -m pytest backend/tests -v
+          python -m pytest backend/tests research/fusion_v2/test_experiment.py research/paper_v1/test_study.py research/paper_v1/test_ctmc_check.py -v
 
       - name: Run Bandit Static Code Security Scan
         run: |
@@ -36,7 +44,9 @@ jobs:
 
       - name: Audit Python Dependency CVEs
         run: |
-          pip-audit || true
+          pip-audit
+          python -c "from importlib.metadata import version; from pathlib import Path; Path('/tmp/torch-upstream.txt').write_text('torch=='+version('torch').split('+')[0])"
+          pip-audit --no-deps --disable-pip -r /tmp/torch-upstream.txt
 
   frontend-test-and-build:
     name: Frontend Vitest Unit Tests & Production Build
@@ -51,7 +61,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Run Vitest Component Unit Tests
         working-directory: ./frontend
@@ -63,7 +73,7 @@ jobs:
 
       - name: Run NPM Security Vulnerability Audit
         working-directory: ./frontend
-        run: npm audit || true
+        run: npm audit
 
   playwright-e2e-browser-test:
     name: Playwright End-to-End Browser Tests
@@ -78,10 +88,29 @@ jobs:
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
 
+      - name: Install video decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffprobe -version
+
       - name: Install Backend Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          pip install "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu
+          pip install -r backend/requirements-inference.txt
+
+      - name: Cache pinned checkpoints for real browser tests
+        uses: actions/cache@v4
+        with:
+          path: models
+          key: browser-models-${{ runner.os }}-${{ hashFiles('backend/app/inference/registry.py') }}
+      - name: Install published models and fetch one checksum-verified acted clip
+        env:
+          HF_HUB_DISABLE_XET: '1'
+        run: |
+          python -m scripts.download_models --modalities text audio image
+          python -m research.acted_video.sample
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -90,7 +119,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Install Playwright Browsers
         working-directory: ./frontend
@@ -100,5 +129,14 @@ jobs:
         working-directory: ./frontend
         env:
           PYTHONPATH: ..
+          MINDSENSE_TEST_CLIP: ${{ github.workspace }}/data/raw/crema-video/1004_TAI_HAP_XX.flv
         run: npx playwright test
 
+
+      - name: Preserve actual browser screenshots for the report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindsense-browser-evidence
+          path: frontend/test-results/report-evidence/*.png
+          retention-days: 30

@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-16",
+  "local_command": "python -m pytest backend/tests research/fusion_v2/test_experiment.py -q",
+  "passed": 149,
+  "skipped": 5,
+  "duration_seconds": 23.49,
+  "warnings": 122,
+  "research_tests": 6,
+  "browser_evidence_run": 43871924375,
+  "browser_tests": 6,
+  "browser_artifact": 14227524645,
+  "recovery_code_commit": "ceb03a1f534ad8b8080ab4a75705e40e79415082",
+  "restored_code_ci": {
+    "date": "2026-11-17",
+    "commit": "ff1fba7f1a0b71813bbda2e0702695a21fdc1f79",
+    "audit_run": 44052718924,
+    "companion_run": 44052718377,
+    "backend_job": 133934252884,
+    "frontend_job": 133934253100,
+    "browser_job": 133934252367,
+    "backend_passed": 149,
+    "backend_skipped": 5,
+    "frontend_passed": 10,
+    "browser_passed": 6,
+    "backend_frontend_browser_build_security": "success",
+    "container_startup": "success",
+    "container_job": 133934249451
+  },
+  "current_local_research_tests": {
+    "date": "2026-11-17",
+    "passed": 6,
+    "warnings": 1
+  },
+  "research_inference_run": 44052351282,
+  "research_inference": {
+    "run": 44052351282,
+    "commit": "5382c8341073cebd13b878455959ff480c2c73cd",
+    "job": 133933025160,
+    "status": "success",
+    "artifact_id": 14315016537,
+    "artifact_sha256": "41759d1a95d2b88e3be24e9bcdd83e808427c16232fbe5c2e71587d5e29aa694",
+    "samples": 260,
+    "input_failures": 0,
+    "aggregate_reproduction_matches": true
+  }
+}
