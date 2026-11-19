@@ -773,7 +773,7 @@ async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
     blobs = {}
     if video and (audio or image or (text and text.strip())):
         return {"success": False, "error": {"code": "INVALID_INPUT", "message": "Analyze a video on its own. Its sound and picture supply both inputs."}}
-    if video and video_mode not in {"midpoint", "sequence", "transfer"}:
+    if video and video_mode not in {"midpoint", "sequence", "transfer", "midpoint_transfer"}:
         return {"success": False, "error": {"code": "INVALID_INPUT", "message": "Unknown video analysis method."}}
     for kind, upload in (("audio", audio), ("image", image), ("video", video)):
         if upload:
@@ -785,9 +785,9 @@ async def analyze_emotion(request: Request, text: Optional[str] = Form(None),
         return {"success": False, "error": {"code": "INSUFFICIENT_INPUT", "message": "Provide text, speech, or one facial image."}}
     try:
         if video:
-            sampling = "midpoint" if video_mode == "midpoint" else "sequence"
+            sampling = "midpoint" if video_mode in {"midpoint", "midpoint_transfer"} else "sequence"
             started = time.perf_counter()
-            prediction = await run_in_threadpool(engine.analyze_video, blobs["video"], sampling, video_mode == "transfer")
+            prediction = await run_in_threadpool(engine.analyze_video, blobs["video"], sampling, video_mode in {"transfer", "midpoint_transfer"})
             prediction["video_summary"]["processing_seconds"] = time.perf_counter() - started
         else:
             prediction = await run_in_threadpool(engine.analyze, text=text, **blobs)

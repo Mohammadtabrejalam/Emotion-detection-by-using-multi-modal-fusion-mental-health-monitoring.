@@ -177,7 +177,10 @@ class EmotionEngine:
             validate_speech(waveform)
             crops, fractions = [], []
             for fraction, frame in frames:
-                crop = visible_face(frame)
+                try:
+                    crop = visible_face(frame)
+                except InputError as error:
+                    raise InputError("Multiple face detections in a sampled frame. Use a clip of one speaker facing the camera.") from error
                 if crop is not None:
                     crops.append(crop)
                     fractions.append(fraction)

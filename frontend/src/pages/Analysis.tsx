@@ -127,9 +127,11 @@ export const Analysis = ({ currentUser, initialText = '', initialFile }: Analysi
         onChange={e => { setVideoMode(e.target.value as VideoMode); setResult(null); }}>
         <option value="midpoint">Middle frame and speech</option>
         <option value="sequence">Three frames and speech</option>
+        <option value="midpoint_transfer">Middle frame and speech with learned fusion (experimental)</option>
         <option value="transfer">Three frames and speech with learned fusion (experimental)</option>
       </select>
-      {videoMode !== 'midpoint' && <p className="text-xs text-slate-400">Samples the face a quarter, halfway and three quarters through the clip. {videoMode === 'transfer' && 'The fusion weights were learned from actors performing scripted lines.'}</p>}
+      {(videoMode === 'sequence' || videoMode === 'transfer') && <p className="text-xs text-slate-400">Samples the face a quarter, halfway and three quarters through the clip.</p>}
+      {(videoMode === 'midpoint_transfer' || videoMode === 'transfer') && <p className="text-xs text-slate-400">The fusion weights were learned from actors performing scripted lines.</p>}
     </div> : <div className="grid md:grid-cols-2 gap-5">
       <div className="academic-card p-5 md:col-span-2 space-y-2">
         <label htmlFor="analysis-text" className="font-semibold text-white">Text <span className="text-slate-400 font-normal text-xs">optional · English · first 256 tokens</span></label>

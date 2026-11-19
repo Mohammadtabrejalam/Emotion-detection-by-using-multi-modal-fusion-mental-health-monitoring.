@@ -18,6 +18,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install video decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffprobe -version
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -81,6 +87,12 @@ jobs:
           python-version: "3.11"
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
+
+      - name: Install video decoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffprobe -version
 
       - name: Install Backend Dependencies
         run: |

@@ -126,9 +126,9 @@ def summarize(rows, cfg):
         return macro_from_counts(cms[draw].sum(1), indexes)
     interval = np.quantile(replicate(primary) - replicate(baseline), [0.025, 0.975])
     timing = {}
-    for method in [baseline, "sequence_legacy", primary]:
+    for method in [baseline, "sequence_legacy", "midpoint_transfer", primary]:
         mode = method.split("_")[0]
-        times = [r[mode]["seconds"] + (r[mode]["transfer_seconds"] if method == primary else 0) for r in paired]
+        times = [r[mode]["seconds"] + (r[mode]["transfer_seconds"] if method.endswith("_transfer") else 0) for r in paired]
         timing[method] = {"p50_seconds": float(np.median(times)), "p95_seconds": float(np.quantile(times, 0.95))}
     failures = {mode: dict(Counter(r[mode]["input_error"] for r in rows if "input_error" in r[mode])) for mode in modes}
     return {"n_attempted": len(rows), "n_paired": len(paired), "n_actors": len(actors_with_pairs),

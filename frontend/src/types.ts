@@ -58,7 +58,7 @@ export interface ModalityPredictions {
   image?: ModalityPrediction | null;
 }
 
-export type VideoMode = 'midpoint' | 'sequence' | 'transfer';
+export type VideoMode = 'midpoint' | 'sequence' | 'transfer' | 'midpoint_transfer';
 
 export interface AnalysisData {
   video_summary?: {
